@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Upload, LogOut, PanelLeft, GraduationCap } from "lucide-react";
+import { LayoutDashboard, Upload, LogOut, PanelLeft, GraduationCap, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +24,9 @@ import { cn } from "@/lib/utils";
 const items = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Bulk Upload", url: "/admin/bulk-upload", icon: Upload },
+  { title: "Teacher Management", url: "/admin/TeacherCrud", icon: Users },
+  {title: "Student Management", url: "/admin/StudentCrud", icon: Users }
+
 ];
 
 const AdminSidebar = () => {
@@ -117,15 +120,13 @@ export const AdminShell = ({ title, children }: AdminShellProps) => {
   if (user.role !== "admin") return <Navigate to="/" replace />;
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background">
         <AdminSidebar />
 
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center gap-3 px-4 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10">
-            <SidebarTrigger className="text-foreground">
-              <PanelLeft className="h-5 w-5" />
-            </SidebarTrigger>
+            <SidebarTrigger className="text-foreground" />
             <div className="flex-1 min-w-0">
               <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
               {user.institution && (
