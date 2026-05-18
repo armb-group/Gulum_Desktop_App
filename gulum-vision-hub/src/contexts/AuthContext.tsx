@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   role: Role;
   institution?: string;
+  token?: string;
 }
 
 interface AuthContextValue {

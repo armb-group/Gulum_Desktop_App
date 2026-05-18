@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { loginApi } from "@/services/authApi";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, GraduationCap, IdCard, Info, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,10 @@ const config = {
   },
   teacher: {
     portalLabel: "Teacher Portal",
-    idLabel: "Faculty ID",
-    idPlaceholder: "e.g. FAC2024042",
+    idLabel: "Email",
+    idPlaceholder: "e.g. sp@gmail.com",
     idIcon: User,
-    helper: "Use the faculty ID issued by your institution",
+    helper: "Use the email issued by your institution",
     switchLabel: "Sign in as Student instead",
     switchTo: "/student/login",
     redirect: "/teacher",
@@ -42,21 +43,53 @@ const SignIn = ({ role }: SignInProps) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const onSubmit = (e: FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!identifier || !password) {
       toast.error("Please fill in both fields.");
       return;
     }
-    login({
-      id: crypto.randomUUID(),
-      name: role === "student" ? "Student" : "Teacher",
-      email: `${identifier}@gulum.edu`,
-      role: role as Role,
-      institution: "MCKV Institute of Engineering",
-    });
-    toast.success("Welcome back!");
-    navigate(cfg.redirect);
+    setLoading(true);
+    try {
+      const payload = { email: identifier, password };
+      const res = await loginApi(payload);
+      const data = res.responseData ?? res;
+      const rawRole = String(data.role ?? data.userType ?? "").toUpperCase();
+
+      if (role === "teacher" && rawRole !== "TEACHER") {
+        throw new Error("Only teacher accounts can sign in here.");
+      }
+
+      if (role === "student" && rawRole !== "USER") {
+        throw new Error("Only student accounts can sign in here.");
+      }
+
+      const normalizedRole =
+        rawRole === "USER"
+          ? "student"
+          : rawRole === "TEACHER"
+          ? "teacher"
+          : rawRole === "ADMIN"
+          ? "admin"
+          : role;
+
+      login({
+        id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
+        name: data.name ?? data.fullName ?? identifier,
+        email: data.email ?? data.emailId ?? identifier,
+        role: normalizedRole as Role,
+        institution: data.institution ?? data.collegeName,
+        token: data.token,
+      });
+      toast.success("Welcome back!");
+      navigate(cfg.redirect);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? err?.message ?? "Invalid credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const IdIcon = cfg.idIcon;
@@ -128,8 +161,8 @@ const SignIn = ({ role }: SignInProps) => {
           </div>
         </div>
 
-        <Button type="submit" size="lg" className="w-full h-14 rounded-2xl text-lg font-display italic">
-          Sign In <ArrowRight className="h-5 w-5" />
+        <Button type="submit" size="lg" disabled={loading} className="w-full h-14 rounded-2xl text-lg font-display italic">
+          {loading ? "Signing in…" : <> Sign In <ArrowRight className="h-5 w-5" /> </>}
         </Button>
 
         <div className="flex items-start gap-2 rounded-2xl bg-brand-soft text-brand-soft-foreground px-4 py-3 text-sm">
