@@ -31,6 +31,7 @@ import AdminDashboard from "./adminauth/homepage/AdminDashboard";
 import BulkUpload from "./adminauth/homepage/BulkUpload";
 import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
+import NoticePage from "./adminauth/homepage/NoticePage";
 
 const queryClient = new QueryClient();
 
@@ -181,6 +182,15 @@ const App = () => (
                   element={
                     <ProtectedRoute role="admin">
                       <StudentCrud />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/NoticePage"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <NoticePage />
                     </ProtectedRoute>
                   }
                 />

@@ -20,12 +20,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
+import { Bell } from "lucide-react";
 const items = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Bulk Upload", url: "/admin/bulk-upload", icon: Upload },
   { title: "Teacher Management", url: "/admin/TeacherCrud", icon: Users },
-  {title: "Student Management", url: "/admin/StudentCrud", icon: Users }
+  {title: "Student Management", url: "/admin/StudentCrud", icon: Users },
+  {title: "Notice", url: "/admin/NoticePage", icon: Bell }
 
 ];
 
