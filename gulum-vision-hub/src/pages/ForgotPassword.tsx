@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { forgotPasswordApi } from "@/services/authApi";
+import { forgotPasswordApi, verifyOtpApi } from "@/services/authApi";
 import { toast } from "sonner";
 
 const ForgotPassword = () => {
@@ -23,8 +23,20 @@ const ForgotPassword = () => {
         }
     };
 
-    const handleResetSubmit = (e: React.FormEvent) => {
+    const handleResetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
+        try {
+            await verifyOtpApi({ email, otp, newPassword });
+            toast.success("Password reset successfully.");
+            setStep(1);
+            setOtp("");
+            setNewPassword("");
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message ?? "Failed to reset password.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -110,9 +122,10 @@ const ForgotPassword = () => {
 
                             <button
                                 type="submit"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition duration-300"
+                                disabled={loading}
+                                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-3 rounded-xl font-semibold transition duration-300"
                             >
-                                Reset Password
+                                {loading ? "Resetting..." : "Reset Password"}
                             </button>
                         </form>
                     </>

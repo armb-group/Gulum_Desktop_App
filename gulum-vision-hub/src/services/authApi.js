@@ -15,3 +15,11 @@ export const forgotPasswordApi = async (email) => {
     return res.data;
 
 };
+
+export const verifyOtpApi = async ({ email, otp, newPassword }) => {
+
+    const res = await api.post("/auth/verify-otp", { email, otp, newPassword });
+
+    return res.data;
+
+};
