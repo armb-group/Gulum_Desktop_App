@@ -170,12 +170,12 @@ const SignIn = ({ role }: SignInProps) => {
                   <label className="block text-sm font-medium text-foreground/80">
                     Password
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="text-primary text-xs font-medium hover:underline underline-offset-2"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />

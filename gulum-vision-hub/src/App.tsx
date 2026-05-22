@@ -32,6 +32,7 @@ import BulkUpload from "./adminauth/homepage/BulkUpload";
 import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
 import NoticePage from "./adminauth/homepage/NoticePage";
+import ForgotPassword  from "./pages/ForgotPassword"; 
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,8 @@ const App = () => (
             <PhoneFrame>
               <Routes>
                 <Route path="/" element={<Welcome />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+
 
                 {/* Student */}
                 <Route path="/student/login" element={<SignIn role="student" />} />

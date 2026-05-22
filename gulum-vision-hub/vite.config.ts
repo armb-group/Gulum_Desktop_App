@@ -9,6 +9,14 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     // port: 8080,
     port: 8082,
+    proxy: {
+      "/gulum": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/gulum/, "/gulum"),
+      },
+    },
     hmr: {
       overlay: false,
     },
