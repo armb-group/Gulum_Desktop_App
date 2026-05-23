@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,24 +8,29 @@ import {
   ShieldCheck,
   Lock,
   Mail,
-  Building2,
   Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
+import { loginApi } from "@/services/authApi";
 import { toast } from "sonner";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { user, login } = useAuth();
 
-  const [institution, setInstitution] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,17 +41,26 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
+      const res = await loginApi({ email, password, role: "ADMIN", roleType: "ADMIN" });
+      const data = res.responseData ?? res;
+      const rawRole = (data.role ?? data.userType ?? data.roleType ?? "ADMIN") as string;
+      const normalizedRole =
+        rawRole.toLowerCase() === "user"
+          ? "student"
+          : rawRole.toLowerCase();
+
       login({
-        id: crypto.randomUUID(),
-        name: email.split("@")[0],
-        email,
-        role: "admin",
-        institution: institution || "MCKV Institute of Engineering",
+        id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
+        name: data.name ?? data.fullName ?? email.split("@")[0],
+        email: data.email ?? data.emailId ?? email,
+        role: normalizedRole as "admin",
+        institution: data.institution ?? data.collegeName ?? "MCKV Institute of Engineering",
+        token: data.token,
       });
       toast.success("Welcome, admin!");
       navigate("/admin/dashboard");
     } catch (err: any) {
-      toast.error(err?.message ?? "Invalid credentials.");
+      toast.error(err?.response?.data?.message ?? err?.message ?? "Invalid credentials.");
     } finally {
       setLoading(false);
     }
@@ -109,22 +123,6 @@ const AdminLogin = () => {
           {/* Form Card */}
           <div className="rounded-2xl border border-border/60 bg-background/80 backdrop-blur-xl shadow-xl shadow-primary/5 p-6 md:p-7">
             <form onSubmit={onSubmit} className="space-y-5">
-
-              {/* Institution Code Field */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-foreground/80">
-                  Institution Code
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <Input
-                    value={institution}
-                    onChange={(e) => setInstitution(e.target.value)}
-                    placeholder="e.g. GULUM-001"
-                    className="h-11 pl-10 rounded-xl border-border/50 bg-muted/30 text-sm focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/40"
-                  />
-                </div>
-              </div>
 
               {/* Email Field */}
               <div className="space-y-1.5">
