@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createUser, assignStudentRole, createStudent } from "@/services/studentCrudAPI";
+import { createUser, createStudent } from "@/services/studentCrudAPI";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Search, Copy, Pencil, Save, Trash2, Plus, X, ChevronRight, ChevronLeft,
 
 interface Student {
   id: number;
-  institution_id: number;
+  institution_id: string | number;
   admission_no: string;
   roll_no: string;
   full_name: string;
@@ -22,10 +22,10 @@ interface Student {
   created_by: string;
   email_id: string;
   phone_number: string;
-  batch_id: number;
-  user_id: number;
-  classess_id: number;
-  department_id: number;
+  batch_id: string | number;
+  user_id: string | number;
+  classess_id: string | number;
+  department_id: string | number;
 }
 
 interface AccountForm {
@@ -194,6 +194,7 @@ const StudentCrud = () => {
   const [academic, setAcademic] = useState<AcademicForm>(emptyAcademic);
 
   const overlayRef = useRef<HTMLDivElement>(null);
+  const mouseDownTarget = useRef<EventTarget | null>(null);
 
   // ESC key to close modal
   useEffect(() => {
@@ -267,22 +268,23 @@ const StudentCrud = () => {
       // Step 1: Create User
       const userData = await createUser({
         email: account.email,
-        phone_number: account.phone,
+        phone: account.phone,
         password: account.password,
-        full_name: personal.full_name,
-        dob: personal.dob,
-        gender: personal.gender,
       });
 
-      const userId: number = userData?.user_id ?? userData?.id;
-      if (!userId) throw new Error("User creation failed: no user_id returned.");
+      const userId: string | number =
+        userData?.user_id ??
+        userData?.id ??
+        userData?.data?.user_id ??
+        userData?.data?.id;
+      if (!userId)
+        throw new Error(
+          `User creation failed: no user_id returned. Received: ${JSON.stringify(userData)}`
+        );
 
-      // Step 2: Assign Student Role
-      await assignStudentRole(userId);
-
-      // Step 3: Create Student Record
+      // Step 2: Create Student Record
       const studentData = await createStudent({
-        institution_id: Number(academic.institution_id),
+        institution_id: academic.institution_id,
         admission_no: academic.admission_no,
         roll_no: academic.roll_no,
         full_name: personal.full_name,
@@ -290,9 +292,9 @@ const StudentCrud = () => {
         gender: personal.gender,
         email_id: account.email,
         phone_number: account.phone,
-        batch_id: Number(academic.batch_id),
-        classess_id: Number(academic.classess_id),
-        department_id: Number(academic.department_id),
+        batch_id: academic.batch_id,
+        classess_id: academic.classess_id,
+        department_id: academic.department_id,
         user_id: userId,
         created_by: "Admin",
         metadata: "",
@@ -302,7 +304,7 @@ const StudentCrud = () => {
         ...emptyStudent,
         ...studentData,
         id: studentData?.id ?? students.length + 1,
-        institution_id: Number(academic.institution_id),
+        institution_id: academic.institution_id,
         admission_no: academic.admission_no,
         roll_no: academic.roll_no,
         full_name: personal.full_name,
@@ -310,9 +312,9 @@ const StudentCrud = () => {
         gender: personal.gender,
         email_id: account.email,
         phone_number: account.phone,
-        batch_id: Number(academic.batch_id),
-        classess_id: Number(academic.classess_id),
-        department_id: Number(academic.department_id),
+        batch_id: academic.batch_id,
+        classess_id: academic.classess_id,
+        department_id: academic.department_id,
         user_id: userId,
         created_by: "Admin",
         created_at: new Date().toISOString().split("T")[0],
@@ -323,9 +325,9 @@ const StudentCrud = () => {
       closeModal();
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { message?: string } }; message?: string })
-          ?.response?.data?.message ??
         (err as { message?: string })?.message ??
+        (err as { response?: { data?: { message?: string } } })
+          ?.response?.data?.message ??
         "An unexpected error occurred.";
       toast.error(msg);
     } finally {
@@ -481,7 +483,8 @@ const StudentCrud = () => {
       {modalOpen && (
         <div
           ref={overlayRef}
-          onClick={(e) => { if (e.target === overlayRef.current) closeModal(); }}
+          onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
+          onClick={(e) => { if (e.target === overlayRef.current && mouseDownTarget.current === overlayRef.current) closeModal(); }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
         >
           <div className="relative w-full max-w-2xl mx-4 bg-background rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">

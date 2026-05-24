@@ -4,66 +4,73 @@ import api from "./api";
 
 export const createUser = async (userData) => {
   try {
+    const response = await api.post("/v1/Users", {
+      email: userData.email,
+      phone: userData.phone,
+      password: userData.password,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      createdBy: userData.createdBy ?? "Admin",
+    });
 
-    // API Call
-    const response = await api.post(
-      "v1/Users",
-      userData
-    );
-
-    return response.data;
-
+    return response.data.responseData ?? response.data;
   } catch (error) {
-    console.error(
-      "Error creating user:",
-      error
-    );
-
+    const msg = error.response?.data?.message ?? error.response?.data ?? "";
+    const isDuplicate =
+      typeof msg === "string" && msg.toLowerCase().includes("duplicate key");
+    if (isDuplicate) {
+      const err = new Error("This email is already registered. Please use a different email.");
+      err.isDuplicate = true;
+      throw err;
+    }
+    console.error("Error creating user:", msg);
     throw error;
   }
 };
 
 export const assignStudentRole = async (userId) => {
   try {
+    const response = await api.post("/v1/userroles", {
+      userId,
+      roleId: "e45a9877-1f06-41f2-a9a4-99f38026c158",
+      createdAt: new Date().toISOString(),
+      createdBy: "Admin",
+    });
 
-    // Assign hardcoded STUDENT role
-    const response = await api.post(
-      "v1/userroles",
-      {
-        user_id: userId,
-        role_id: "e45a9877-1f06-41f2-a9a4-99f38026c158",
-      }
-    );
-
-    return response.data;
-
+    return response.data.responseData ?? response.data;
   } catch (error) {
-    console.error(
-      "Error assigning student role:",
-      error
-    );
-
+    console.error("Error assigning student role:", error.response?.data ?? error);
     throw error;
   }
 };
 
 export const createStudent = async (studentData) => {
   try {
+    const payload = {
+      admissionNo: studentData.admission_no,
+      createdAt: new Date().toISOString(),
+      createdBy: studentData.created_by,
+      dob: studentData.dob,
+      fullName: studentData.full_name,
+      gender: studentData.gender,
+      institutionId: studentData.institution_id,
+      metadata: studentData.metadata,
+      phoneNumber: studentData.phone_number,
+      email: studentData.email_id,
+      emailId: studentData.email_id,
+      rollNo: studentData.roll_no,
+      batchId: studentData.batch_id,
+      classessId: studentData.classess_id,
+      departmentId: studentData.department_id,
+      userId: studentData.user_id,
+    };
+    console.log("createStudent payload:", JSON.stringify(payload, null, 2));
+    const response = await api.post("/api/students", payload);
 
-    // API Call
-    const response = await api.post(
-      "api/students",
-      studentData
-    );
-
-    return response.data;
-
+    return response.data.responseData ?? response.data;
   } catch (error) {
-    console.error(
-      "Error creating student:",
-      error
-    );
-
+    console.error("Error creating student - status:", error.response?.status);
+    console.error("Error creating student - response:", JSON.stringify(error.response?.data, null, 2));
     throw error;
   }
 };
