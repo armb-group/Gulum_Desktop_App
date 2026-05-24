@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getTeachers, createUser, assignTeacherRole, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { getTeachers, createUser, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,7 @@ const TeacherCrud = () => {
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && modalOpen) closeModal(); };
@@ -189,6 +190,8 @@ const TeacherCrud = () => {
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     try {
       // Step 1: Create User
@@ -211,9 +214,6 @@ const TeacherCrud = () => {
         phone: account.phone,
         created_by: "Admin",
       });
-
-      // Step 3: Assign Teacher Role
-      await assignTeacherRole(userId);
 
       const newTeacher: Teacher = {
         ...emptyTeacher,
@@ -247,6 +247,7 @@ const TeacherCrud = () => {
       toast.error(msg);
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 

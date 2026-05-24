@@ -52,22 +52,6 @@ export const createUser = async (userData) => {
   }
 };
 
-export const assignStudentRole = async (userId) => {
-  try {
-    const response = await api.post("/v1/userroles", {
-      userId,
-      roleId: "e45a9877-1f06-41f2-a9a4-99f38026c158",
-      createdAt: new Date().toISOString(),
-      createdBy: "Admin",
-    });
-
-    return response.data.responseData ?? response.data;
-  } catch (error) {
-    console.error("Error assigning student role:", error.response?.data ?? error);
-    throw error;
-  }
-};
-
 export const updateStudent = async (id, studentData) => {
   const payload = {
     admissionNo: studentData.admission_no,
