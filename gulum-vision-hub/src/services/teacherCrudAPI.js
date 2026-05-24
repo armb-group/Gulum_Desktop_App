@@ -93,6 +93,6 @@ export const updateTeacher = async (id, teacherData) => {
     email: teacherData.email,
     phone: teacherData.phone,
   };
-  const response = await api.patch(`/teachers/${id}`, payload);
+  const response = await api.put(`/teachers/${id}`, payload);
   return response.data.responseData ?? response.data;
 };

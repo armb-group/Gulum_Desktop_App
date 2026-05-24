@@ -124,8 +124,6 @@ const TeacherCrud = () => {
   }, []);
 
   const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editedTeacher, setEditedTeacher] = useState<Teacher | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -133,6 +131,8 @@ const TeacherCrud = () => {
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedViewTeacher, setSelectedViewTeacher] = useState<Teacher | null>(null);
+  const [isEditingView, setIsEditingView] = useState(false);
+  const [viewEditData, setViewEditData] = useState<Teacher | null>(null);
 
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
@@ -258,19 +258,16 @@ const TeacherCrud = () => {
     [teachers, search]
   );
 
-  const handleEdit = (teacher: Teacher) => { setEditingId(teacher.id); setEditedTeacher({ ...teacher }); };
-
-  const handleSave = async () => {
-    if (!editedTeacher) return;
+  const handleViewSave = async () => {
+    if (!viewEditData) return;
     try {
-      await updateTeacher(editingId, editedTeacher);
-      setTeachers((prev) => prev.map((t) => (t.id === editingId ? editedTeacher : t)));
+      await updateTeacher(viewEditData.id, viewEditData);
+      setTeachers((prev) => prev.map((t) => (t.id === viewEditData.id ? viewEditData : t)));
+      setSelectedViewTeacher(viewEditData);
+      setIsEditingView(false);
       toast.success("Teacher updated successfully!");
     } catch {
       toast.error("Failed to update teacher.");
-    } finally {
-      setEditingId(null);
-      setEditedTeacher(null);
     }
   };
 
@@ -280,11 +277,6 @@ const TeacherCrud = () => {
     if (!value || value === "—") return;
     navigator.clipboard.writeText(value);
     toast.success("Copied to clipboard");
-  };
-
-  const handleChange = (field: keyof Teacher, value: string) => {
-    if (!editedTeacher) return;
-    setEditedTeacher({ ...editedTeacher, [field]: value });
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -353,20 +345,12 @@ const TeacherCrud = () => {
                   </thead>
                   <tbody>
                     {filteredTeachers.map((teacher, index) => {
-                      const isEditing = editingId === teacher.id;
                       return (
                         <tr key={teacher.id} className={`border-b border-slate-100 transition-colors hover:bg-indigo-50 ${index % 2 === 0 ? "bg-white" : "bg-gradient-to-r from-blue-50/60 to-indigo-50/40"}`}>
                           {TABLE_COLUMNS.map((col) => {
                             const value = teacher[col.key];
                             return (
                               <td key={col.key} className="px-4 py-4 align-top max-w-[15rem] border-r border-slate-200 last:border-r-0">
-                                {isEditing ? (
-                                  <Input
-                                    value={String(editedTeacher?.[col.key] ?? "")}
-                                    onChange={(e) => handleChange(col.key, e.target.value)}
-                                    className="h-9"
-                                  />
-                                ) : (
                                   <div className="flex items-center justify-between gap-2 group/cell">
                                     {col.key === "full_name" ? (
                                       <span title={String(value ?? "")} className="font-semibold text-indigo-700">{truncate(String(value ?? "—"), 14)}</span>
@@ -391,20 +375,15 @@ const TeacherCrud = () => {
                                       </button>
                                     )}
                                   </div>
-                                )}
                               </td>
                             );
                           })}
                           <td className="px-4 py-4 align-top">
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewModalOpen(true); }} className="rounded-lg hover:bg-indigo-100 hover:text-indigo-700">
+                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-indigo-100 hover:text-indigo-700">
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {isEditing ? (
-                                <Button size="sm" onClick={handleSave} className="rounded-lg"><Save className="h-4 w-4" /></Button>
-                              ) : (
-                                <Button size="sm" variant="outline" onClick={() => handleEdit(teacher)} className="rounded-lg"><Pencil className="h-4 w-4" /></Button>
-                              )}
+                
                               <Button size="sm" variant="destructive" onClick={() => handleDelete(teacher.id)} className="rounded-lg"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           </td>
@@ -562,19 +541,37 @@ const TeacherCrud = () => {
               </button>
             </div>
             <div className="px-6 py-6 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {TABLE_COLUMNS.map((col) => (
                   <div key={col.key} className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{col.label}</label>
-                    <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewTeacher[col.key] ?? "—")}>
-                      {String(selectedViewTeacher[col.key] ?? "—")}
-                    </div>
+                    {isEditingView ? (
+                      <Input
+                        value={String(viewEditData?.[col.key] ?? "")}
+                        onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}
+                        className="h-9"
+                      />
+                    ) : (
+                      <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewTeacher[col.key] ?? "—")}>
+                        {String(selectedViewTeacher[col.key] ?? "—")}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-end px-6 py-4 border-t bg-muted/20">
-              <Button onClick={() => setViewModalOpen(false)}>Close</Button>
+            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
+              <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
+              <div className="flex gap-2">
+                {isEditingView ? (
+                  <>
+                    <Button variant="outline" onClick={() => setIsEditingView(false)}>Cancel</Button>
+                    <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
+                  </>
+                ) : (
+                  <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
