@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createUser, createStudent } from "@/services/studentCrudAPI";
+import { createUser, createStudent, getStudents } from "@/services/studentCrudAPI";
 import { AdminShell } from "./AdminShell";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Copy, Pencil, Save, Trash2, Plus, X, ChevronRight, ChevronLeft, Check, Loader2 } from "lucide-react";
+import {
+  Search,
+  Pencil,
+  Save,
+  Trash2,
+  Plus,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Loader2,
+  Copy,
+  Eye
+} from "lucide-react";
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -64,45 +78,6 @@ const emptyAcademic: AcademicForm = {
   department_id: "",
 };
 
-const initialStudents: Student[] = [
-  {
-    id: 1,
-    institution_id: 1,
-    admission_no: "ADM-1001",
-    roll_no: "ROLL-01",
-    full_name: "Amit Kumar",
-    dob: "2003-04-12",
-    gender: "Male",
-    metadata: "Topper",
-    created_at: "2026-05-18",
-    created_by: "Admin",
-    email_id: "amit@example.com",
-    phone_number: "9876543210",
-    batch_id: 101,
-    user_id: 201,
-    classess_id: 1,
-    department_id: 10,
-  },
-  {
-    id: 2,
-    institution_id: 1,
-    admission_no: "ADM-1002",
-    roll_no: "ROLL-02",
-    full_name: "Priya Sharma",
-    dob: "2004-08-20",
-    gender: "Female",
-    metadata: "Class Representative",
-    created_at: "2026-05-18",
-    created_by: "Admin",
-    email_id: "priya@example.com",
-    phone_number: "9123456780",
-    batch_id: 102,
-    user_id: 202,
-    classess_id: 2,
-    department_id: 11,
-  },
-];
-
 const emptyStudent: Student = {
   id: 0,
   institution_id: 0,
@@ -121,6 +96,28 @@ const emptyStudent: Student = {
   classess_id: 0,
   department_id: 0,
 };
+
+const truncate = (val: string, len = 10) =>
+  val && val.length > len ? val.slice(0, len) + "..." : val;
+
+const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
+  { key: "id", label: "ID" },
+  { key: "institution_id", label: "Institution ID" },
+  { key: "admission_no", label: "Admission No" },
+  { key: "roll_no", label: "Roll No" },
+  { key: "full_name", label: "Full Name" },
+  { key: "dob", label: "DOB" },
+  { key: "gender", label: "Gender" },
+  { key: "metadata", label: "Metadata" },
+  { key: "created_at", label: "Created At" },
+  { key: "created_by", label: "Created By" },
+  { key: "email_id", label: "Email ID" },
+  { key: "phone_number", label: "Phone Number" },
+  { key: "batch_id", label: "Batch ID" },
+  { key: "user_id", label: "User ID" },
+  { key: "classess_id", label: "Classess ID" },
+  { key: "department_id", label: "Department ID" },
+];
 
 // ─── Stepper Component ─────────────────────────────────────────────────────────
 
@@ -178,7 +175,15 @@ const Field = ({
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const StudentCrud = () => {
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [tableLoading, setTableLoading] = useState(true);
+
+  useEffect(() => {
+    getStudents()
+      .then((data) => setStudents(Array.isArray(data) ? data : []))
+      .catch(() => toast.error("Failed to load students."))
+      .finally(() => setTableLoading(false));
+  }, []);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editedStudent, setEditedStudent] = useState<Student | null>(null);
@@ -187,6 +192,10 @@ const StudentCrud = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // View detail state
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedViewStudent, setSelectedViewStudent] = useState<Student | null>(null);
 
   // Form state
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
@@ -211,6 +220,11 @@ const StudentCrud = () => {
     setAccount(emptyAccount);
     setPersonal(emptyPersonal);
     setAcademic(emptyAcademic);
+  };
+
+  const handleViewDetails = (student: Student) => {
+    setSelectedViewStudent(student);
+    setViewModalOpen(true);
   };
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -320,9 +334,11 @@ const StudentCrud = () => {
         created_at: new Date().toISOString().split("T")[0],
       };
 
-      setStudents((prev) => [...prev, newStudent]);
       toast.success("Student registered successfully!");
       closeModal();
+      getStudents()
+        .then((data) => setStudents(Array.isArray(data) ? data : []))
+        .catch(() => {});
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message ??
@@ -357,13 +373,17 @@ const StudentCrud = () => {
     setEditedStudent(null);
   };
 
+  const handleCopy = (value: string) => {
+    if (!value || value === "—") return;
+    navigator.clipboard.writeText(value);
+    toast.success("Copied to clipboard");
+  };
+
   const handleDelete = (id: number) => {
     setStudents((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const handleCopy = (value: string) => navigator.clipboard.writeText(value);
-
-  const handleChange = (field: keyof Student, value: string) => {
+const handleChange = (field: keyof Student, value: string) => {
     if (!editedStudent) return;
     setEditedStudent({ ...editedStudent, [field]: value });
   };
@@ -408,74 +428,115 @@ const StudentCrud = () => {
         </Card>
 
         {/* Table */}
-        <Card className="overflow-auto rounded-2xl border-0 shadow-xl">
-          <table className="w-full min-w-[1900px] text-sm">
-            <thead className="bg-primary text-primary-foreground">
-              <tr>
-                {[
-                  "ID", "Institution ID", "Admission No", "Roll No", "Full Name",
-                  "DOB", "Gender", "Metadata", "Created At", "Created By",
-                  "Email ID", "Phone Number", "Batch ID", "User ID", "Classess ID",
-                  "Department ID", "Actions",
-                ].map((head) => (
-                  <th key={head} className="px-4 py-4 text-left whitespace-nowrap font-semibold">
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((student, index) => {
-                const isEditing = editingId === student.id;
-                return (
-                  <tr
-                    key={student.id}
-                    className={`border-b hover:bg-muted/40 transition ${
-                      index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                    }`}
-                  >
-                    {Object.entries(student).map(([key, value]) => (
-                      <td key={key} className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {isEditing ? (
-                            <Input
-                              value={String(editedStudent?.[key as keyof Student] ?? "")}
-                              onChange={(e) => handleChange(key as keyof Student, e.target.value)}
-                              className="h-9"
-                            />
-                          ) : (
-                            <span>{String(value)}</span>
-                          )}
-                          <button
-                            onClick={() => handleCopy(String(value))}
-                            className="text-muted-foreground hover:text-primary transition"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    ))}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <Button size="sm" onClick={handleSave} className="rounded-lg">
-                            <Save className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(student)} className="rounded-lg">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <Card className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-xl">
+          <div className="flex flex-col gap-4 p-4 lg:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Student Directory</p>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  {filteredStudents.length} students found
+                </h2>
+              </div>
+              <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+            </div>
+
+            {tableLoading ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading students...
+              </div>
+            ) : filteredStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                <p className="text-sm">No students match your search.</p>
+              </div>
+            ) : (
+              <div className="min-w-[800px] overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0 text-xs">
+                  <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-left text-xs uppercase tracking-[0.12em] text-white border-b border-blue-700">
+                    <tr>
+                      {TABLE_COLUMNS.map((column) => (
+                        <th key={column.key} className="px-4 py-3 font-semibold text-white border-r border-blue-500 last:border-r-0">
+                          {column.label}
+                        </th>
+                      ))}
+                      <th className="px-4 py-3 font-semibold text-white">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((student, index) => {
+                      const isEditing = editingId === student.id;
+                      return (
+                        <tr
+                          key={student.id}
+                          className={`border-b border-slate-100 transition-colors hover:bg-indigo-50 ${
+                            index % 2 === 0 ? "bg-white" : "bg-gradient-to-r from-blue-50/60 to-indigo-50/40"
+                          }`}
+                        >
+                          {TABLE_COLUMNS.map((column) => {
+                            const value = student[column.key];
+                            return (
+                              <td key={column.key} className="px-4 py-4 align-top max-w-[15rem] border-r border-slate-200 last:border-r-0">
+                                {isEditing ? (
+                                  <Input
+                                    value={String(editedStudent?.[column.key] ?? "")}
+                                    onChange={(e) => handleChange(column.key, e.target.value)}
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-between gap-2 group/cell">
+                                    {column.key === "full_name" ? (
+                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{truncate(String(value ?? "—"), 14)}</span>
+                                    ) : column.key === "email_id" ? (
+                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{truncate(String(value ?? "—"), 16)}</span>
+                                    ) : column.key === "admission_no" ? (
+                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{truncate(String(value ?? "—"))}</span>
+                                    ) : column.key === "roll_no" ? (
+                                      <span title={String(value ?? "")} className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{truncate(String(value ?? "—"))}</span>
+                                    ) : column.key === "gender" ? (
+                                      <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>{String(value || "—")}</Badge>
+                                    ) : (
+                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{truncate(String(value ?? "—"))}</span>
+                                    )}
+                                    {value && value !== "—" && (
+                                      <button
+                                        onClick={() => handleCopy(String(value))}
+                                        className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                                        title="Copy"
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-4 align-top border-r border-slate-200 last:border-r-0">
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} title="View Details" className="rounded-lg hover:bg-indigo-100 hover:text-indigo-700">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {isEditing ? (
+                                <Button size="sm" onClick={handleSave} className="rounded-lg">
+                                  <Save className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" onClick={() => handleEdit(student)} className="rounded-lg">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </Card>
       </section>
 
@@ -679,6 +740,56 @@ const StudentCrud = () => {
                   )}
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View Details Modal ── */}
+      {viewModalOpen && selectedViewStudent && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setViewModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl mx-4 bg-background rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-primary">Student Profile</h2>
+                <p className="text-xs text-muted-foreground">Detailed information view</p>
+              </div>
+              <button
+                onClick={() => setViewModalOpen(false)}
+                className="p-2 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-6 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {TABLE_COLUMNS.map((column) => (
+                  <div key={column.key} className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {column.label}
+                    </label>
+                    <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewStudent[column.key] ?? "—")}>
+                      {String(selectedViewStudent[column.key] ?? "—")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end px-6 py-4 border-t bg-muted/20">
+              <Button onClick={() => setViewModalOpen(false)}>
+                Close
+              </Button>
             </div>
           </div>
         </div>

@@ -12,6 +12,8 @@ import {
   Save,
   Trash2,
   Plus,
+  Eye,
+  X
 } from "lucide-react";
 
 interface Teacher {
@@ -106,6 +108,9 @@ const TeacherCrud = () => {
   const [newTeacher, setNewTeacher] =
     useState<Teacher>(emptyTeacher);
 
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedViewTeacher, setSelectedViewTeacher] = useState<Teacher | null>(null);
+
   const filteredTeachers = useMemo(() => {
     return teachers.filter((teacher) =>
       Object.values(teacher)
@@ -118,6 +123,11 @@ const TeacherCrud = () => {
   const handleEdit = (teacher: Teacher) => {
     setEditingId(teacher.id);
     setEditedTeacher({ ...teacher });
+  };
+
+  const handleViewDetails = (teacher: Teacher) => {
+    setSelectedViewTeacher(teacher);
+    setViewModalOpen(true);
   };
 
   const handleSave = () => {
@@ -409,7 +419,7 @@ const TeacherCrud = () => {
         {/* Table */}
         <Card className="overflow-auto rounded-2xl border-0 shadow-xl">
 
-          <table className="w-full min-w-[1800px] text-sm">
+          <table className="w-full min-w-[1800px] text-xs">
 
             <thead className="bg-primary text-primary-foreground">
               <tr>
@@ -505,6 +515,9 @@ const TeacherCrud = () => {
                       {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(teacher)} title="View Details" className="rounded-lg">
+                            <Eye className="h-4 w-4" />
+                          </Button>
 
                           {isEditing ? (
                             <Button
@@ -557,6 +570,54 @@ const TeacherCrud = () => {
 
         </Card>
       </section>
+
+      {/* View Details Modal */}
+      {viewModalOpen && selectedViewTeacher && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setViewModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-3xl bg-background shadow-2xl border overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-primary">Teacher Profile</h2>
+                <p className="text-sm text-muted-foreground">Full professional record</p>
+              </div>
+              <button
+                onClick={() => setViewModalOpen(false)}
+                className="p-2 rounded-xl hover:bg-muted transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Object.entries(selectedViewTeacher).map(([key, value]) => (
+                  <div key={key} className="p-3 rounded-xl bg-muted/20 border border-muted/30">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                      {key.replace(/_/g, " ")}
+                    </p>
+                    <p className="text-sm font-medium truncate" title={String(value)}>
+                      {String(value ?? "—")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t bg-muted/10 flex justify-end">
+              <Button onClick={() => setViewModalOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 };

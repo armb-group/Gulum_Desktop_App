@@ -2,6 +2,30 @@
 
 import api from "./api";
 
+export const getStudents = async () => {
+  const response = await api.get("/api/students");
+  const raw = response.data.responseData ?? response.data;
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map((s) => ({
+    id: s.id ?? s.studentId,
+    institution_id: s.institutionId ?? s.institution_id,
+    admission_no: s.admissionNo ?? s.admission_no,
+    roll_no: s.rollNo ?? s.roll_no,
+    full_name: s.fullName ?? s.full_name,
+    dob: s.dob,
+    gender: s.gender,
+    metadata: s.metadata ?? "",
+    created_at: s.createdAt ?? s.created_at ?? "",
+    created_by: s.createdBy ?? s.created_by ?? "",
+    email_id: s.emailId ?? s.email ?? s.email_id,
+    phone_number: s.phoneNumber ?? s.phone_number,
+    batch_id: s.batchId ?? s.batch_id,
+    user_id: s.userId ?? s.user_id,
+    classess_id: s.classessId ?? s.classess_id,
+    department_id: s.departmentId ?? s.department_id,
+  }));
+};
+
 export const createUser = async (userData) => {
   try {
     const response = await api.post("/v1/Users", {
