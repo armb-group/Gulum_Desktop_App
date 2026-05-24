@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createUser, createStudent, getStudents } from "@/services/studentCrudAPI";
+import { createUser, createStudent, getStudents, updateStudent } from "@/services/studentCrudAPI";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -366,11 +366,18 @@ const StudentCrud = () => {
     setEditedStudent({ ...student });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editedStudent) return;
-    setStudents((prev) => prev.map((s) => (s.id === editingId ? editedStudent : s)));
-    setEditingId(null);
-    setEditedStudent(null);
+    try {
+      await updateStudent(editingId, editedStudent);
+      setStudents((prev) => prev.map((s) => (s.id === editingId ? editedStudent : s)));
+      toast.success("Student updated successfully!");
+    } catch {
+      toast.error("Failed to update student.");
+    } finally {
+      setEditingId(null);
+      setEditedStudent(null);
+    }
   };
 
   const handleCopy = (value: string) => {

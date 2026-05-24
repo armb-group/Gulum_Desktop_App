@@ -68,6 +68,25 @@ export const assignStudentRole = async (userId) => {
   }
 };
 
+export const updateStudent = async (id, studentData) => {
+  const payload = {
+    admissionNo: studentData.admission_no,
+    rollNo: studentData.roll_no,
+    fullName: studentData.full_name,
+    dob: studentData.dob,
+    gender: studentData.gender,
+    institutionId: studentData.institution_id,
+    metadata: studentData.metadata,
+    phoneNumber: studentData.phone_number,
+    emailId: studentData.email_id,
+    batchId: studentData.batch_id,
+    classessId: studentData.classess_id,
+    departmentId: studentData.department_id,
+  };
+  const response = await api.patch(`/api/students/${id}`, payload);
+  return response.data.responseData ?? response.data;
+};
+
 export const createStudent = async (studentData) => {
   try {
     const payload = {
