@@ -97,11 +97,11 @@ const emptyStudent: Student = {
   department_id: 0,
 };
 
-const truncate = (val: string, len = 10) =>
-  val && val.length > len ? val.slice(0, len) + "..." : val;
+const HIDDEN_IN_ROW = new Set<keyof Student>(["classess_id", "batch_id", "created_by", "created_at", "metadata", "dob", "institution_id", "admission_no", "department_id"]);
 
 const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "id", label: "ID" },
+  { key: "user_id", label: "User ID" },
   { key: "institution_id", label: "Institution ID" },
   { key: "admission_no", label: "Admission No" },
   { key: "roll_no", label: "Roll No" },
@@ -112,9 +112,8 @@ const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "created_at", label: "Created At" },
   { key: "created_by", label: "Created By" },
   { key: "email_id", label: "Email ID" },
-  { key: "phone_number", label: "Phone Number" },
+  { key: "phone_number", label: "Phone No" },
   { key: "batch_id", label: "Batch ID" },
-  { key: "user_id", label: "User ID" },
   { key: "classess_id", label: "Classess ID" },
   { key: "department_id", label: "Department ID" },
 ];
@@ -430,9 +429,7 @@ const StudentCrud = () => {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Student Directory</p>
-                <h2 className="text-2xl font-semibold text-foreground">
-                  {filteredStudents.length} students found
-                </h2>
+                <h2 className="text-2xl font-semibold text-foreground">{filteredStudents.length} students found</h2>
               </div>
               <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
             </div>
@@ -446,72 +443,66 @@ const StudentCrud = () => {
                 <p className="text-sm">No students match your search.</p>
               </div>
             ) : (
-              <div className="min-w-[800px] overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-xs">
-                  <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-left text-xs uppercase tracking-[0.12em] text-white border-b border-blue-700">
+              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+                <table className="w-full border-collapse text-sm">
+                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
                     <tr>
-                      {TABLE_COLUMNS.map((column) => (
-                        <th key={column.key} className="px-4 py-3 font-semibold text-white border-r border-blue-500 last:border-r-0">
+                      {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => (
+                        <th key={column.key} className="px-3 py-2 border-b border-slate-500" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
                           {column.label}
                         </th>
                       ))}
-                      <th className="px-4 py-3 font-semibold text-white">Actions</th>
+                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map((student, index) => {
-                      return (
-                        <tr
-                          key={student.id}
-                          className={`border-b border-slate-100 transition-colors hover:bg-indigo-50 ${
-                            index % 2 === 0 ? "bg-white" : "bg-gradient-to-r from-blue-50/60 to-indigo-50/40"
-                          }`}
-                        >
-                          {TABLE_COLUMNS.map((column) => {
-                            const value = student[column.key];
-                            return (
-                              <td key={column.key} className="px-4 py-4 align-top max-w-[15rem] border-r border-slate-200 last:border-r-0">
-                                  <div className="flex items-center justify-between gap-2 group/cell">
-                                    {column.key === "full_name" ? (
-                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{truncate(String(value ?? "—"), 14)}</span>
-                                    ) : column.key === "email_id" ? (
-                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{truncate(String(value ?? "—"), 16)}</span>
-                                    ) : column.key === "admission_no" ? (
-                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{truncate(String(value ?? "—"))}</span>
-                                    ) : column.key === "roll_no" ? (
-                                      <span title={String(value ?? "")} className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{truncate(String(value ?? "—"))}</span>
-                                    ) : column.key === "gender" ? (
-                                      <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>{String(value || "—")}</Badge>
-                                    ) : (
-                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{truncate(String(value ?? "—"))}</span>
-                                    )}
-                                    {value && value !== "—" && (
-                                      <button
-                                        onClick={() => handleCopy(String(value))}
-                                        className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
-                                        title="Copy"
-                                      >
-                                        <Copy className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                              </td>
-                            );
-                          })}
-                          <td className="px-4 py-4 align-top border-r border-slate-200 last:border-r-0">
-                            <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} title="View Details" className="rounded-lg hover:bg-indigo-100 hover:text-indigo-700">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                
-                              <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredStudents.map((student, index) => (
+                      <tr key={student.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                        {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => {
+                          const value = student[column.key];
+                          return (
+                            <td key={column.key} className={`px-3 py-2 align-middle border-r border-slate-300 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
+                              <div className="flex items-center justify-between gap-2 group/cell">
+                                {column.key === "full_name" ? (
+                                  <span title={String(value ?? "")} className="font-semibold text-indigo-700">{String(value ?? "—")}</span>
+                                ) : column.key === "email_id" ? (
+                                  <span title={String(value ?? "")} className="text-blue-600 text-xs">{String(value ?? "—")}</span>
+                                ) : column.key === "admission_no" ? (
+                                  <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
+                                ) : column.key === "roll_no" ? (
+                                  <span title={String(value ?? "")} className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
+                                ) : column.key === "gender" ? (
+                                  <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>{String(value || "—")}</Badge>
+                                ) : (column.key === "id" || column.key === "user_id") ? (
+                                  <span title={String(value ?? "")} className="text-slate-500 text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>
+                                ) : (
+                                  <span title={String(value ?? "")} className="text-slate-700 text-xs">{String(value ?? "—")}</span>
+                                )}
+                                {value && value !== "—" && (
+                                  <button
+                                    onClick={() => handleCopy(String(value))}
+                                    className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                                    title="Copy"
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-2 align-middle">
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} title="View Details" className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

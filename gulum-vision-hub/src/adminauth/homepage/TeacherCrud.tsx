@@ -56,8 +56,7 @@ const emptyTeacher: Teacher = {
   metadata: "", is_active: true, created_at: "", created_by: "", email: "", phone: "",
 };
 
-const truncate = (val: string, len = 10) =>
-  val && val.length > len ? val.slice(0, len) + "..." : val;
+const HIDDEN_IN_ROW = new Set<keyof Teacher>(["metadata", "joining_date", "experience_year", "specialization", "qualification", "institution_id", "created_at", "created_by"]);
 
 const TABLE_COLUMNS: Array<{ key: keyof Teacher; label: string }> = [
   { key: "id", label: "ID" },
@@ -331,39 +330,41 @@ const TeacherCrud = () => {
                 <p className="text-sm">No teachers match your search.</p>
               </div>
             ) : (
-              <div className="min-w-[800px] overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-xs">
-                  <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-left text-xs uppercase tracking-[0.12em] text-white border-b border-blue-700">
+              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+                <table className="w-full border-collapse text-sm">
+                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
                     <tr>
-                      {TABLE_COLUMNS.map((col) => (
-                        <th key={col.key} className="px-4 py-3 font-semibold text-white border-r border-blue-500 last:border-r-0">
+                      {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => (
+                        <th key={col.key} className="px-3 py-2 border-b border-slate-500">
                           {col.label}
                         </th>
                       ))}
-                      <th className="px-4 py-3 font-semibold text-white">Actions</th>
+                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTeachers.map((teacher, index) => {
                       return (
-                        <tr key={teacher.id} className={`border-b border-slate-100 transition-colors hover:bg-indigo-50 ${index % 2 === 0 ? "bg-white" : "bg-gradient-to-r from-blue-50/60 to-indigo-50/40"}`}>
-                          {TABLE_COLUMNS.map((col) => {
+                        <tr key={teacher.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                          {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => {
                             const value = teacher[col.key];
                             return (
-                              <td key={col.key} className="px-4 py-4 align-top max-w-[15rem] border-r border-slate-200 last:border-r-0">
+                              <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-slate-300 last:border-r-0">
                                   <div className="flex items-center justify-between gap-2 group/cell">
                                     {col.key === "full_name" ? (
-                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{truncate(String(value ?? "—"), 14)}</span>
+                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{String(value ?? "—")}</span>
                                     ) : col.key === "email" ? (
-                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{truncate(String(value ?? "—"), 16)}</span>
+                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{String(value ?? "—")}</span>
                                     ) : col.key === "employee_code" ? (
-                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{truncate(String(value ?? "—"))}</span>
+                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
                                     ) : col.key === "is_active" ? (
                                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                                         {value ? "Active" : "Inactive"}
                                       </span>
+                                    ) : (col.key === "id" || col.key === "user_id") ? (
+                                      <span title={String(value ?? "")} className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>
                                     ) : (
-                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{truncate(String(value ?? "—"))}</span>
+                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{String(value ?? "—")}</span>
                                     )}
                                     {value !== undefined && value !== "—" && (
                                       <button
@@ -378,9 +379,9 @@ const TeacherCrud = () => {
                               </td>
                             );
                           })}
-                          <td className="px-4 py-4 align-top">
+                          <td className="px-3 py-2 align-middle">
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-indigo-100 hover:text-indigo-700">
+                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
                                 <Eye className="h-4 w-4" />
                               </Button>
                 
