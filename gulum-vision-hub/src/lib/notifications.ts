@@ -6,6 +6,7 @@ export type NotificationTarget = "student" | "admin";
 export interface NotificationItem {
   id: string;
   title: string;
+  description?: string;
   time: string;
   type: NotificationType;
   target: NotificationTarget;

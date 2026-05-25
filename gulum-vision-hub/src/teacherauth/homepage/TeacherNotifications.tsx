@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Dialog,
@@ -26,23 +27,43 @@ import {
 } from "@/components/ui/dialog";
 
 import { toast } from "@/hooks/use-toast";
-import { addNotice } from "@/services/noticeAPI";
+import {
+  noticeToNotification,
+  useAddNotice,
+  useDeleteNotice,
+  useEditNotice,
+  useGetNoticesByLevel,
+} from "@/services/noticeAPI";
+import { getTeacherProfile } from "@/services/teacherprofileapi";
 
 import {
   notificationTypeStyle,
-  createSharedNotification,
   defaultAdminNotifications,
   defaultStudentNotifications,
-  getSharedNotifications,
-  saveSharedNotifications,
   sortByCreatedAt,
   SUBJECT_LIST,
   type NotificationItem,
 } from "@/lib/notifications";
 
+const firstString = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number") {
+      return String(value);
+    }
+  }
+
+  return "";
+};
+
 const TeacherNotifications = () => {
-  const [sharedNotifications, setSharedNotifications] =
-    useState<NotificationItem[]>([]);
+  const { user } = useAuth();
+  const addNoticeMutation = useAddNotice();
+  const editNoticeMutation = useEditNotice();
+  const deleteNoticeMutation = useDeleteNotice();
 
   const [activeTab, setActiveTab] =
     useState<"admin" | "student">(
@@ -61,6 +82,9 @@ const TeacherNotifications = () => {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
+  const [isNoticeContextLoading, setIsNoticeContextLoading] =
+    useState(false);
+
   // FORM STATES
   const [title, setTitle] =
     useState("");
@@ -68,21 +92,17 @@ const TeacherNotifications = () => {
   const [description, setDescription] =
     useState("");
 
-  const [institutionId] =
-    useState("DUMMY COLG ID1");
+  const [institutionId, setInstitutionId] =
+    useState(user?.institutionId ?? "");
 
   const [batchId, setBatchId] =
-    useState("test-batch-1");
+    useState(user?.batchId ?? "");
 
   const [courseCode, setCourseCode] =
-    useState(
-      selectedStudentSubject === "All"
-        ? SUBJECT_LIST[0]
-        : selectedStudentSubject
-    );
+    useState("");
 
   const [createdBy, setCreatedBy] =
-    useState("Admin");
+    useState(user?.name ?? "Admin");
 
   const [subject, setSubject] =
     useState<string>("General");
@@ -95,10 +115,107 @@ const TeacherNotifications = () => {
     useState<Date | undefined>();
 
   useEffect(() => {
-    setSharedNotifications(
-      getSharedNotifications()
-    );
-  }, []);
+    let cancelled = false;
+
+    const loadNoticeContext = async () => {
+      setIsNoticeContextLoading(true);
+
+      try {
+        const profile = await getTeacherProfile();
+
+        if (cancelled || !profile) {
+          return;
+        }
+
+        const institutionFromProfile = firstString(
+          profile.institutionId,
+          profile.institution_id,
+          profile.institution?.id,
+          profile.institution?.institutionId
+        );
+
+        const batchFromProfile = firstString(
+          profile.batchId,
+          profile.batch_id,
+          profile.batch?.id,
+          profile.batch?.batchId,
+          profile.batches?.[0]?.id,
+          profile.batches?.[0]?.batchId,
+          profile.classBatchId,
+          profile.assignedBatchId
+        );
+
+        const courseFromProfile = firstString(
+          profile.courseCode,
+          profile.course_code,
+          profile.course?.code,
+          profile.course?.courseCode,
+          profile.courses?.[0]?.code,
+          profile.courses?.[0]?.courseCode,
+          profile.subjectCode,
+          profile.subject_code
+        );
+
+        const createdByFromProfile = firstString(
+          profile.fullName,
+          profile.full_name,
+          profile.name,
+          user?.name
+        );
+
+        if (institutionFromProfile) {
+          setInstitutionId((current) => current || institutionFromProfile);
+        }
+
+        if (batchFromProfile) {
+          setBatchId((current) => current || batchFromProfile);
+        }
+
+        if (courseFromProfile) {
+          setCourseCode((current) => current || courseFromProfile);
+        }
+
+        if (createdByFromProfile) {
+          setCreatedBy((current) => current || createdByFromProfile);
+        }
+      } catch (error) {
+        console.error("Error loading notice context:", error);
+        toast({
+          title: "Could not load teacher notice details.",
+          description: "You can still enter the notice fields manually.",
+          variant: "destructive",
+        });
+      } finally {
+        if (!cancelled) {
+          setIsNoticeContextLoading(false);
+        }
+      }
+    };
+
+    loadNoticeContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.name]);
+
+  useEffect(() => {
+    if (user?.name) {
+      setCreatedBy(user.name);
+    }
+  }, [user?.name]);
+
+  useEffect(() => {
+    if (user?.institutionId && !institutionId) {
+      setInstitutionId(user.institutionId);
+    }
+  }, [institutionId, user?.institutionId]);
+
+  useEffect(() => {
+    if (user?.batchId && !batchId) {
+      setBatchId(user.batchId);
+    }
+  }, [batchId, user?.batchId]);
 
   useEffect(() => {
     if (selectedStudentSubject !== "All") {
@@ -108,24 +225,36 @@ const TeacherNotifications = () => {
     }
   }, [selectedStudentSubject]);
 
-  useEffect(() => {
-    if (selectedStudentSubject !== "All") {
-      setCourseCode(
-        selectedStudentSubject
-      );
-    }
-  }, [selectedStudentSubject]);
+  const adminNoticeQuery = useGetNoticesByLevel("ADMIN", {
+    batchId,
+    enabled: Boolean(batchId),
+  });
+
+  const studentNoticeQuery = useGetNoticesByLevel("STUDENT");
+
+  const apiAdminNotifications = useMemo(
+    () =>
+      (adminNoticeQuery.data ?? []).map((notice) =>
+        noticeToNotification(notice, "admin")
+      ),
+    [adminNoticeQuery.data]
+  );
+
+  const apiStudentNotifications = useMemo(
+    () =>
+      (studentNoticeQuery.data ?? []).map((notice) =>
+        noticeToNotification(notice, "student")
+      ),
+    [studentNoticeQuery.data]
+  );
 
   const adminNotes = useMemo(
     () =>
       sortByCreatedAt([
         ...defaultAdminNotifications,
-        ...sharedNotifications.filter(
-          (note) =>
-            note.target === "admin"
-        ),
+        ...apiAdminNotifications,
       ]),
-    [sharedNotifications]
+    [apiAdminNotifications]
   );
 
   const studentNotes = useMemo(
@@ -133,10 +262,7 @@ const TeacherNotifications = () => {
       sortByCreatedAt(
         [
           ...defaultStudentNotifications,
-          ...sharedNotifications.filter(
-            (note) =>
-              note.target === "student"
-          ),
+          ...apiStudentNotifications,
         ].filter(
           (note) =>
             selectedStudentSubject ===
@@ -147,7 +273,7 @@ const TeacherNotifications = () => {
       ),
     [
       selectedStudentSubject,
-      sharedNotifications,
+      apiStudentNotifications,
     ]
   );
 
@@ -172,13 +298,37 @@ const TeacherNotifications = () => {
       return;
     }
 
+    if (!institutionId.trim()) {
+      toast({
+        title: "Please enter institution ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!batchId.trim()) {
+      toast({
+        title: "Please enter batch ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!courseCode.trim()) {
+      toast({
+        title: "Please enter course code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const payload = {
-      title,
-      description,
-      institutionId,
+      title: title.trim(),
+      description: description.trim(),
+      institutionId: institutionId.trim(),
       level: "two",
-      batchId,
-      courseCode,
+      batchId: batchId.trim(),
+      courseCode: courseCode.trim(),
       startDate: startDate
         ? format(
             startDate,
@@ -191,35 +341,28 @@ const TeacherNotifications = () => {
             "yyyy-MM-dd"
           )
         : null,
-      createdBy,
+      createdBy: createdBy.trim() || user?.name || "Admin",
     };
 
-    let next: NotificationItem[];
+    setIsSubmitting(true);
 
     // EDIT
     if (editingId) {
-      next = sharedNotifications.map(
-        (note) =>
-          note.id === editingId
-            ? {
-                ...note,
-                title: `${title}\n${description}`,
-                subject,
-                startTime: startDate
-                  ? format(
-                      startDate,
-                      "dd/MM/yyyy"
-                    )
-                  : undefined,
-                endTime: endDate
-                  ? format(
-                      endDate,
-                      "dd/MM/yyyy"
-                    )
-                  : undefined,
-              }
-            : note
-      );
+      try {
+        await editNoticeMutation.mutateAsync({
+          id: editingId,
+          notice: payload,
+        });
+      } catch (error: any) {
+        console.error("Error updating notice:", error);
+        toast({
+          title: "Failed to update notice.",
+          description: error?.message ?? "Please check the notice API and try again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       toast({
         title: "Notification updated.",
@@ -228,42 +371,18 @@ const TeacherNotifications = () => {
 
     // CREATE
     else {
-      setIsSubmitting(true);
-
       try {
-        await addNotice(payload);
-      } catch (error) {
+        await addNoticeMutation.mutateAsync(payload);
+      } catch (error: any) {
         console.error("Error creating notice:", error);
         toast({
           title: "Failed to create notice.",
-          description: "Please check the notice API and try again.",
+          description: error?.message ?? "Please check the notice API and try again.",
           variant: "destructive",
         });
         setIsSubmitting(false);
         return;
       }
-
-      next = [
-        createSharedNotification(
-          `${title}\n${description}`,
-          "info",
-          subject,
-          "student",
-          startDate
-            ? format(
-                startDate,
-                "dd/MM/yyyy"
-              )
-            : undefined,
-          endDate
-            ? format(
-                endDate,
-                "dd/MM/yyyy"
-              )
-            : undefined
-        ),
-        ...sharedNotifications,
-      ];
 
       toast({
         title: "Notification created successfully.",
@@ -271,8 +390,6 @@ const TeacherNotifications = () => {
     }
 
     setIsSubmitting(false);
-    saveSharedNotifications(next);
-    setSharedNotifications(next);
 
     // RESET
     setTitle("");
@@ -300,6 +417,12 @@ const TeacherNotifications = () => {
           ?.cls ??
         notificationTypeStyle.info
           .cls;
+      const rawNotice = (n as any).raw;
+      const apiNoticeId =
+        rawNotice?.id ??
+        rawNotice?.noticeId ??
+        rawNotice?._id ??
+        n.id;
 
       return (
         <div
@@ -322,6 +445,12 @@ const TeacherNotifications = () => {
                 {n.subject}
               </span>
             </div>
+
+            {n.description ? (
+              <p className="text-sm text-foreground/80 mt-1 whitespace-pre-line">
+                {n.description}
+              </p>
+            ) : null}
 
             <p className="text-xs text-muted-foreground mt-1">
               {n.time}
@@ -346,7 +475,7 @@ const TeacherNotifications = () => {
             )}
 
             {/* ACTION BUTTONS ONLY FOR STUDENT */}
-            {allowActions && (
+            {allowActions && rawNotice && (
               <div className="flex items-center gap-2 mt-3">
 
                 {/* EDIT */}
@@ -355,63 +484,34 @@ const TeacherNotifications = () => {
                   variant="outline"
                   className="flex items-center gap-1"
                   onClick={() => {
-                    setEditingId(n.id);
-
-                    const parts =
-                      n.title.split("\n");
+                    setEditingId(String(apiNoticeId));
 
                     setTitle(
-                      parts[0] || ""
+                      n.title || ""
                     );
 
                     setDescription(
-                      parts
-                        .slice(1)
-                        .join("\n")
+                      n.description ??
+                        rawNotice.description ??
+                        ""
                     );
 
                     setSubject(
                       n.subject
                     );
 
-                    if (n.startTime) {
-                      const [
-                        day,
-                        month,
-                        year,
-                      ] =
-                        n.startTime.split(
-                          "/"
-                        );
+                    setCourseCode(
+                      rawNotice.courseCode ??
+                        rawNotice.course_code ??
+                        n.subject
+                    );
 
-                      setStartDate(
-                        new Date(
-                          Number(year),
-                          Number(month) -
-                            1,
-                          Number(day)
-                        )
-                      );
+                    if (n.startTime) {
+                      setStartDate(new Date(`${n.startTime}T00:00:00`));
                     }
 
                     if (n.endTime) {
-                      const [
-                        day,
-                        month,
-                        year,
-                      ] =
-                        n.endTime.split(
-                          "/"
-                        );
-
-                      setEndDate(
-                        new Date(
-                          Number(year),
-                          Number(month) -
-                            1,
-                          Number(day)
-                        )
-                      );
+                      setEndDate(new Date(`${n.endTime}T00:00:00`));
                     }
 
                     setDialogOpen(true);
@@ -426,25 +526,20 @@ const TeacherNotifications = () => {
                   size="sm"
                   variant="destructive"
                   className="flex items-center gap-1"
-                  onClick={() => {
-                    const next =
-                      sharedNotifications.filter(
-                        (note) =>
-                          note.id !==
-                          n.id
-                      );
-
-                    saveSharedNotifications(
-                      next
-                    );
-
-                    setSharedNotifications(
-                      next
-                    );
-
-                    toast({
-                      title: "Notification deleted.",
-                    });
+                  onClick={async () => {
+                    try {
+                      await deleteNoticeMutation.mutateAsync(String(apiNoticeId));
+                      toast({
+                        title: "Notification deleted.",
+                      });
+                    } catch (error: any) {
+                      console.error("Error deleting notice:", error);
+                      toast({
+                        title: "Failed to delete notice.",
+                        description: error?.message ?? "Please check the notice API and try again.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -579,10 +674,12 @@ const TeacherNotifications = () => {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button>
-                    {editingId
-                      ? "Update notification"
-                      : "Create notification"}
+                  <Button disabled={isNoticeContextLoading}>
+                    {isNoticeContextLoading
+                      ? "Loading details..."
+                      : editingId
+                        ? "Update notification"
+                        : "Create notification"}
                   </Button>
                 </DialogTrigger>
 
@@ -625,7 +722,12 @@ const TeacherNotifications = () => {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="grid gap-2">
                         <Label htmlFor="notice-institution">Institution ID</Label>
-                        <Input id="notice-institution" value={institutionId} readOnly />
+                        <Input
+                          id="notice-institution"
+                          value={institutionId}
+                          onChange={(e) => setInstitutionId(e.target.value)}
+                          placeholder="Institution ID"
+                        />
                       </div>
 
                       <div className="grid gap-2">
@@ -720,9 +822,13 @@ const TeacherNotifications = () => {
                       onClick={
                         handleSubmit
                       }
-                      disabled={isSubmitting}
+                      disabled={
+                        isSubmitting ||
+                        addNoticeMutation.isPending ||
+                        editNoticeMutation.isPending
+                      }
                     >
-                      {isSubmitting ? (
+                      {isSubmitting || addNoticeMutation.isPending || editNoticeMutation.isPending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
                       {editingId

@@ -76,6 +76,8 @@ const SignIn = ({ role }: SignInProps) => {
         email: data.email ?? data.emailId ?? identifier,
         role: normalizedRole as Role,
         institution: data.institution ?? data.collegeName,
+        institutionId: data.institutionId ?? data.institution_id,
+        batchId: data.batchId ?? data.batch_id,
         token: data.token,
       });
       toast.success("Welcome back!");

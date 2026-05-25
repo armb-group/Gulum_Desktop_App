@@ -55,6 +55,8 @@ const AdminLogin = () => {
         email: data.email ?? data.emailId ?? email,
         role: normalizedRole as "admin",
         institution: data.institution ?? data.collegeName ?? "MCKV Institute of Engineering",
+        institutionId: data.institutionId ?? data.institution_id,
+        batchId: data.batchId ?? data.batch_id,
         token: data.token,
       });
       toast.success("Welcome, admin!");

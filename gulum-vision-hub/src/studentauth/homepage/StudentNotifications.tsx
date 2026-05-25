@@ -1,51 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
 import {
   notificationTypeStyle,
   defaultAdminNotifications,
   defaultStudentNotifications,
-  getSharedNotifications,
   sortByCreatedAt,
   SUBJECT_LIST,
   type NotificationItem,
 } from "@/lib/notifications";
 
 const StudentNotifications = () => {
-  const [sharedNotifications, setSharedNotifications] = useState<NotificationItem[]>([]);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"admin" | "student">("student");
   const [studentSubjectFilter, setStudentSubjectFilter] = useState<string>("All");
 
-  useEffect(() => {
-    setSharedNotifications(getSharedNotifications());
+  const adminNoticeQuery = useGetNoticesByLevel("ADMIN", {
+    batchId: user?.batchId,
+    enabled: Boolean(user?.batchId),
+  });
+  const studentNoticeQuery = useGetNoticesByLevel("STUDENT");
 
-    const handleNotificationsUpdated = () => {
-      setSharedNotifications(getSharedNotifications());
-    };
+  const apiAdminNotifications = useMemo(
+    () => (adminNoticeQuery.data ?? []).map((notice) => noticeToNotification(notice, "admin")),
+    [adminNoticeQuery.data],
+  );
 
-    window.addEventListener("gulum-shared-notifications-updated", handleNotificationsUpdated);
-    window.addEventListener("storage", handleNotificationsUpdated);
-
-    return () => {
-      window.removeEventListener("gulum-shared-notifications-updated", handleNotificationsUpdated);
-      window.removeEventListener("storage", handleNotificationsUpdated);
-    };
-  }, []);
+  const apiStudentNotifications = useMemo(
+    () => (studentNoticeQuery.data ?? []).map((notice) => noticeToNotification(notice, "student")),
+    [studentNoticeQuery.data],
+  );
 
   const adminNotes = useMemo(
-    () => sortByCreatedAt([...defaultAdminNotifications, ...sharedNotifications.filter((n) => n.target === "admin")]),
-    [sharedNotifications],
+    () => sortByCreatedAt([...defaultAdminNotifications, ...apiAdminNotifications]),
+    [apiAdminNotifications],
   );
 
   const studentNotes = useMemo(
     () =>
       sortByCreatedAt(
-        [...defaultStudentNotifications, ...sharedNotifications.filter((n) => n.target === "student")].filter(
+        [...defaultStudentNotifications, ...apiStudentNotifications].filter(
           (n) => studentSubjectFilter === "All" || n.subject === studentSubjectFilter,
         ),
       ),
-    [sharedNotifications, studentSubjectFilter],
+    [apiStudentNotifications, studentSubjectFilter],
   );
 
   const adminCount = adminNotes.length;
@@ -63,11 +64,14 @@ const StudentNotifications = () => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-foreground">{n.title}</p>
+              <p className="font-semibold text-foreground whitespace-pre-line">{n.title}</p>
               <span className="rounded-full border border-input px-2 py-0.5 text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
                 {n.subject}
               </span>
             </div>
+            {n.description ? (
+              <p className="text-sm text-foreground/80 mt-1 whitespace-pre-line">{n.description}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground italic">{n.time}</p>
           </div>
         </div>

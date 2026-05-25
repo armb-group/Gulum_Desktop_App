@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
@@ -8,8 +9,13 @@ import {
   User,
   Users,
   Bell,
-  AlertCircle,
 } from "lucide-react";
+import {
+  defaultStudentNotifications,
+  notificationTypeStyle,
+  sortByCreatedAt,
+} from "@/lib/notifications";
+import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
 
 const tiles = [
   { label: "My Attendance", icon: BarChart3, to: "/student/attendance" },
@@ -18,12 +24,25 @@ const tiles = [
   { label: "Profile", icon: User, to: "/student/profile" },
 ];
 
-const notifications = [
-  { icon: AlertCircle, cls: "bg-destructive/10 text-destructive", title: "Your OS attendance is below 75%", time: "2h ago" },
-  { icon: Calendar, cls: "bg-purple-soft text-purple", title: "PTM on 28 July, 10:00 AM — Hall B", time: "5h ago" },
-];
-
 const StudentHome = () => {
+  const studentNoticeQuery = useGetNoticesByLevel("STUDENT");
+
+  const apiStudentNotifications = useMemo(
+    () => (studentNoticeQuery.data ?? []).map((notice) => noticeToNotification(notice, "student")),
+    [studentNoticeQuery.data],
+  );
+
+  const notifications = useMemo(
+    () =>
+      sortByCreatedAt([
+        ...defaultStudentNotifications,
+        ...apiStudentNotifications,
+      ]),
+    [apiStudentNotifications],
+  );
+
+  const previewNotifications = notifications.slice(0, 2);
+
   return (
     <RoleShell role="student" title="Welcome, Student" showDate>
       <section className="grid grid-cols-2 gap-3">
@@ -52,7 +71,7 @@ const StudentHome = () => {
             </div>
             <div className="flex-1">
               <p className="text-xl font-display italic text-foreground">Parent-Teacher Meeting</p>
-              <p className="text-sm text-muted-foreground italic">28 July 2025 · 10:00 AM</p>
+              <p className="text-sm text-muted-foreground italic">28 July 2025 - 10:00 AM</p>
               <p className="text-sm text-muted-foreground italic">Hall B</p>
             </div>
             <span className="text-xs font-semibold text-purple bg-purple-soft px-3 py-1 rounded-full">
@@ -67,22 +86,30 @@ const StudentHome = () => {
           <Bell className="h-4 w-4" /> NOTIFICATIONS
         </div>
         <Card className="p-3 bg-surface border-border space-y-2">
-          {notifications.map((n) => (
-            <div key={n.title} className="flex items-start gap-3 p-2 rounded-xl">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${n.cls}`}>
-                <n.icon className="h-5 w-5" />
+          {previewNotifications.map((n) => {
+            const Icon = notificationTypeStyle[n.type]?.icon ?? notificationTypeStyle.info.icon;
+            const cls = notificationTypeStyle[n.type]?.cls ?? notificationTypeStyle.info.cls;
+
+            return (
+              <div key={n.id} className="flex items-start gap-3 p-2 rounded-xl">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${cls}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground whitespace-pre-line">{n.title}</p>
+                  {n.description ? (
+                    <p className="text-xs text-foreground/80 mt-1 whitespace-pre-line">{n.description}</p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground italic">{n.time}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{n.title}</p>
-                <p className="text-xs text-muted-foreground italic">{n.time}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <Link
             to="/student/notifications"
             className="block text-center text-primary text-sm font-semibold py-2"
           >
-            Show All (4) →
+            Show All ({notifications.length}) -&gt;
           </Link>
         </Card>
       </section>

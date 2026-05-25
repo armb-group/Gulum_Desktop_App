@@ -8,6 +8,8 @@ export interface AuthUser {
   email: string;
   role: Role;
   institution?: string;
+  institutionId?: string;
+  batchId?: string;
   token?: string;
 }
 
