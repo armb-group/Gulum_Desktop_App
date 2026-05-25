@@ -27,7 +27,7 @@ api.interceptors.request.use(
     }
 );
 
-// Auto logout on 401 yes
+// Auto logout on 401 ye
 api.interceptors.response.use(
     (response) => response,
     (error) => {
