@@ -1,30 +1,154 @@
+import { useEffect, useMemo, useState } from "react";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, CalendarDays, Award, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  notificationTypeStyle,
+  defaultAdminNotifications,
+  defaultStudentNotifications,
+  getSharedNotifications,
+  sortByCreatedAt,
+  SUBJECT_LIST,
+  type NotificationItem,
+} from "@/lib/notifications";
 
-const notes = [
-  { icon: AlertCircle, cls: "bg-destructive/10 text-destructive", title: "Your OS attendance is below 75%", time: "2h ago" },
-  { icon: CalendarDays, cls: "bg-purple-soft text-purple", title: "PTM on 28 July, 10:00 AM — Hall B", time: "5h ago" },
-  { icon: Award, cls: "bg-success-soft text-success", title: "You scored 18/20 in Linked List Assignment", time: "1d ago" },
-  { icon: FileText, cls: "bg-info-soft text-info", title: "New assignment posted: Binary Tree Traversal", time: "2d ago" },
-];
+const StudentNotifications = () => {
+  const [sharedNotifications, setSharedNotifications] = useState<NotificationItem[]>([]);
+  const [activeTab, setActiveTab] = useState<"admin" | "student">("student");
+  const [studentSubjectFilter, setStudentSubjectFilter] = useState<string>("All");
 
-const StudentNotifications = () => (
-  <RoleShell role="student" title="Notifications" subtitle="All your updates">
-    <Card className="p-3 bg-surface border-border space-y-1">
-      {notes.map((n, i) => (
-        <div key={i} className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/30">
-          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${n.cls}`}>
-            <n.icon className="h-5 w-5" />
+  useEffect(() => {
+    setSharedNotifications(getSharedNotifications());
+
+    const handleNotificationsUpdated = () => {
+      setSharedNotifications(getSharedNotifications());
+    };
+
+    window.addEventListener("gulum-shared-notifications-updated", handleNotificationsUpdated);
+    window.addEventListener("storage", handleNotificationsUpdated);
+
+    return () => {
+      window.removeEventListener("gulum-shared-notifications-updated", handleNotificationsUpdated);
+      window.removeEventListener("storage", handleNotificationsUpdated);
+    };
+  }, []);
+
+  const adminNotes = useMemo(
+    () => sortByCreatedAt([...defaultAdminNotifications, ...sharedNotifications.filter((n) => n.target === "admin")]),
+    [sharedNotifications],
+  );
+
+  const studentNotes = useMemo(
+    () =>
+      sortByCreatedAt(
+        [...defaultStudentNotifications, ...sharedNotifications.filter((n) => n.target === "student")].filter(
+          (n) => studentSubjectFilter === "All" || n.subject === studentSubjectFilter,
+        ),
+      ),
+    [sharedNotifications, studentSubjectFilter],
+  );
+
+  const adminCount = adminNotes.length;
+  const studentCount = studentNotes.length;
+
+  const renderNotes = (notes: NotificationItem[]) =>
+    notes.map((n) => {
+      const Icon = notificationTypeStyle[n.type]?.icon ?? notificationTypeStyle.info.icon;
+      const cls = notificationTypeStyle[n.type]?.cls ?? notificationTypeStyle.info.cls;
+
+      return (
+        <div key={n.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/30">
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${cls}`}>
+            <Icon className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground">{n.title}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-foreground">{n.title}</p>
+              <span className="rounded-full border border-input px-2 py-0.5 text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+                {n.subject}
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground italic">{n.time}</p>
           </div>
         </div>
-      ))}
-    </Card>
-  </RoleShell>
-);
+      );
+    });
+
+  return (
+    <RoleShell role="student" title="Notifications" subtitle="All your updates">
+      <Card className="space-y-4 p-6 bg-surface border-border">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-lg font-semibold text-foreground">Notifications</p>
+            <p className="text-sm text-muted-foreground">Switch between admin and student alerts.</p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex overflow-hidden rounded-full border border-input bg-background">
+              <Button
+                variant={activeTab === "admin" ? "default" : "ghost"}
+                className="rounded-none px-4 py-2"
+                onClick={() => setActiveTab("admin")}
+              >
+                Admin
+              </Button>
+              <Button
+                variant={activeTab === "student" ? "default" : "ghost"}
+                className="rounded-none px-4 py-2"
+                onClick={() => setActiveTab("student")}
+              >
+                Student
+              </Button>
+            </div>
+              {activeTab === "student" ? (
+              <select
+                value={studentSubjectFilter}
+                onChange={(e) => setStudentSubjectFilter(e.target.value)}
+                className="flex h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="All">All subjects</option>
+                {SUBJECT_LIST.map((subjectOption) => (
+                  <option key={subjectOption} value={subjectOption}>
+                    {subjectOption}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        </div>
+      </Card>
+
+      {activeTab === "admin" ? (
+        <Card className="p-4 bg-surface border-border">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-base font-semibold text-foreground">Admin notifications</p>
+              <p className="text-sm text-muted-foreground">Updates sent by the institute administration.</p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive-foreground shadow-sm" />
+              {adminCount} in batch
+            </span>
+          </div>
+          <div className="space-y-2">{renderNotes(adminNotes)}</div>
+        </Card>
+      ) : (
+        <Card className="p-4 bg-surface border-border">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-base font-semibold text-foreground">Student notifications</p>
+              <p className="text-sm text-muted-foreground">Subject-wise alerts and student updates.</p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive-foreground shadow-sm" />
+              {studentCount} in batch
+            </span>
+          </div>
+          <div className="space-y-2">{renderNotes(studentNotes)}</div>
+        </Card>
+      )}
+    </RoleShell>
+  );
+};
 
 export default StudentNotifications;
