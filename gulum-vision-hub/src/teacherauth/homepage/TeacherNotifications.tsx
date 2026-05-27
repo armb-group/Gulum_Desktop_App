@@ -92,6 +92,7 @@ const TeacherNotifications = () => {
   const [description, setDescription] =
     useState("");
 
+  // These fields are populated from backend; no user input required.
   const [institutionId, setInstitutionId] =
     useState(user?.institutionId ?? "");
 
@@ -298,50 +299,15 @@ const TeacherNotifications = () => {
       return;
     }
 
-    if (!institutionId.trim()) {
-      toast({
-        title: "Please enter institution ID.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!batchId.trim()) {
-      toast({
-        title: "Please enter batch ID.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!courseCode.trim()) {
-      toast({
-        title: "Please enter course code.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const payload = {
       title: title.trim(),
       description: description.trim(),
-      institutionId: institutionId.trim(),
-      level: "two",
-      batchId: batchId.trim(),
+      subject: subject.trim(),
       courseCode: courseCode.trim(),
-      startDate: startDate
-        ? format(
-            startDate,
-            "yyyy-MM-dd"
-          )
-        : null,
-      endDate: endDate
-        ? format(
-            endDate,
-            "yyyy-MM-dd"
-          )
-        : null,
-      createdBy: createdBy.trim() || user?.name || "Admin",
+      level: "STUDENT",
+      startDate: startDate ? format(startDate, "yyyy-MM-dd") : null,
+      endDate: endDate ? format(endDate, "yyyy-MM-dd") : null,
     };
 
     setIsSubmitting(true);
@@ -721,28 +687,6 @@ const TeacherNotifications = () => {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="grid gap-2">
-                        <Label htmlFor="notice-institution">Institution ID</Label>
-                        <Input
-                          id="notice-institution"
-                          value={institutionId}
-                          onChange={(e) => setInstitutionId(e.target.value)}
-                          placeholder="Institution ID"
-                        />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="notice-batch">Batch ID</Label>
-                        <Input
-                          id="notice-batch"
-                          value={batchId}
-                          onChange={(e) => setBatchId(e.target.value)}
-                          placeholder="Batch ID"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="grid gap-2">
                         <Label htmlFor="notice-subject">Subject</Label>
                         <select
                           id="notice-subject"
@@ -806,15 +750,6 @@ const TeacherNotifications = () => {
                       </div>
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="notice-created-by">Created By</Label>
-                      <Input
-                        id="notice-created-by"
-                        value={createdBy}
-                        onChange={(e) => setCreatedBy(e.target.value)}
-                        placeholder="Created by"
-                      />
-                    </div>
                   </div>
 
                   <DialogFooter className="pt-4">

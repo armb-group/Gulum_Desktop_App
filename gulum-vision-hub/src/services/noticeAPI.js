@@ -45,7 +45,7 @@ const cleanNoticePayload = (noticeData) => {
   );
 };
 
-export const noticeToNotification = (notice, target = "student") => {
+export const noticeToNotification = (notice, target = "STUDENT") => {
   const title = notice.title ?? "";
   const description = notice.description ?? "";
   const createdAt = notice.createdAt ?? notice.created_at ?? new Date().toISOString();
@@ -86,6 +86,10 @@ export const useGetNoticesByLevel = (level, options = {}) =>
   });
 
 export const addNoticeApi = async (noticeData) => {
+  // Ensure teachers cannot create admin-level notices
+  if (noticeData.level && noticeData.level !== "STUDENT") {
+    throw new Error("Teachers are only allowed to send student notifications.");
+  }
   try {
     const response = await api.post("/notice/add", cleanNoticePayload(noticeData));
     return response.data.responseData ?? response.data;
