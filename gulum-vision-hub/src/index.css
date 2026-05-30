@@ -52,6 +52,10 @@
     --surface: 0 0% 100%;
     --surface-elevated: 0 30% 99%;
 
+    /* Admin hero color (synchronized with theme). Use hex so components can read directly. */
+    --admin-hero: #661414;
+    --admin-hero-foreground: #ffffff;
+
     /* Status colors */
     --success: 142 65% 38%;
     --success-foreground: 0 0% 100%;
@@ -141,12 +145,20 @@
     --sidebar-accent-foreground: 51 100% 85%;
     --sidebar-border: 0 0% 18%;
     --sidebar-ring: 51 100% 81%;
+
+    /* Dark-mode admin hero color (e.g. yellow in dark theme) */
+    --admin-hero: #FFF19E;
+    --admin-hero-foreground: #111827;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    font-size: 16px;
   }
 
   html, body, #root {
@@ -156,12 +168,42 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  p, li, span, button, input, textarea, label {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 1rem;
+    line-height: 1.7;
   }
 
   h1, h2, h3, h4, .font-display {
     font-family: 'DM Serif Display', 'Georgia', serif;
     font-style: normal;
     @apply tracking-tight;
+  }
+
+  h1 {
+    font-size: 2.4rem;
+    line-height: 1.1;
+  }
+
+  h2 {
+    font-size: 2rem;
+    line-height: 1.15;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  h4 {
+    font-size: 1.25rem;
+    line-height: 1.25;
   }
 }
 

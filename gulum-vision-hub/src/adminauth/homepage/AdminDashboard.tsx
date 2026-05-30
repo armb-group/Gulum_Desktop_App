@@ -10,35 +10,25 @@ import {
   GraduationCap,
   BookOpen,
   ArrowRight,
+  Zap,
+  Activity,
+  ClipboardList,
 } from "lucide-react";
 
 import { AdminShell } from "./AdminShell";
+import { initialData as deptData } from "./departmentsData";
 
 const stats = [
-  {
-    label: "Total Students",
-    value: "1,284",
-    icon: GraduationCap,
-    color: "from-blue-500/20 to-cyan-500/20",
-    iconBg: "bg-blue-500/20",
-    iconColor: "text-blue-600",
-  },
-  {
-    label: "Total Teachers",
-    value: "96",
-    icon: BookOpen,
-    color: "from-purple-500/20 to-pink-500/20",
-    iconBg: "bg-purple-500/20",
-    iconColor: "text-purple-600",
-  },
-  {
-    label: "Departments",
-    value: "12",
-    icon: Users,
-    color: "from-emerald-500/20 to-green-500/20",
-    iconBg: "bg-emerald-500/20",
-    iconColor: "text-emerald-600",
-  },
+  { label: "Total Students", value: "3,247", icon: GraduationCap },
+  { label: "Total Teachers", value: "184", icon: BookOpen },
+  { label: "Departments", value: String(deptData.length), icon: Users },
+  { label: "Active Courses", value: "92", icon: Zap },
+];
+
+const recentActivity = [
+  { text: "Dr. Sarah Mitchell uploaded 47 student records", time: "2 min" },
+  { text: "Engineering Dept updated Q3 curriculum", time: "15 min" },
+  { text: "12 new teachers onboarded via bulk import", time: "1 hr" },
 ];
 
 const AdminDashboard = () => {
@@ -46,104 +36,141 @@ const AdminDashboard = () => {
 
   return (
     <AdminShell title="Admin Console">
-      <section className="container py-10 space-y-8">
+      <section className="container py-8 space-y-8">
 
-        {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          
-          <div>
-            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-              Admin Console
-            </h1>
+        {/* Hero Banner */}
+        <div
+          className="relative rounded-2xl overflow-hidden p-8 shadow-lg"
+          style={{ backgroundColor: 'var(--admin-hero)', color: 'var(--admin-hero-foreground)' }}
+        >
+          <div className="flex items-start justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-sm opacity-80">Welcome back,</p>
+              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                Admin Console
+              </h1>
+              <p className="mt-2 text-sm opacity-90">
+                {user?.institution
+                  ? `${user.institution} · Academic Year 2024-25`
+                  : "Gulum University · Academic Year 2024-25"}
+              </p>
 
-            <p className="text-muted-foreground mt-2 text-sm">
-              {user?.institution
-                ? `Institution: ${user.institution}`
-                : "Welcome back"}
-            </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">↑ 12% students this term</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">3 uploads today</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">All systems active</span>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <Button
+                asChild
+                className="bg-white text-rose-800 shadow-md active:scale-95 active:shadow-2xl transition-transform"
+              >
+                <Link to="/admin/bulk-upload" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Bulk Upload
+                </Link>
+              </Button>
+            </div>
           </div>
 
-          <Button
-            asChild
-            className="shadow-lg hover:scale-105 transition-transform"
-          >
-            <Link to="/admin/bulk-upload">
-              <Upload className="h-4 w-4 mr-2" />
-              Bulk Upload
-            </Link>
-          </Button>
-
+          {/* subtle decorative circle */}
+          <div className="absolute right-6 bottom-6 h-40 w-40 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-5 md:grid-cols-3">
-
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((s) => (
             <Card
               key={s.label}
-              className={`p-6 border-0 bg-gradient-to-br ${s.color} backdrop-blur-md shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 rounded-2xl`}
+              className="p-6 rounded-2xl shadow-sm bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6"
             >
-
               <div className="flex items-center justify-between">
-
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {s.label}
-                  </p>
-
-                  <p className="text-4xl font-bold mt-2 text-foreground">
-                    {s.value}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl md:text-3xl font-bold mt-2">{s.value}</p>
                 </div>
 
-                <div
-                  className={`p-4 rounded-2xl ${s.iconBg} shadow-inner`}
-                >
-                  <s.icon
-                    className={`h-8 w-8 ${s.iconColor}`}
-                  />
+                <div className="flex items-center gap-3">
+                  {s.label === "Departments" ? (
+                    <Link to="/admin/departments" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                      <s.icon className="w-5 h-5" />
+                    </Link>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-rose-50 text-rose-700">
+                      <s.icon className="w-6 h-6" />
+                    </div>
+                  )}
                 </div>
-
               </div>
-
             </Card>
           ))}
-
         </div>
 
-        {/* Bulk Upload Section */}
-        <Card className="relative overflow-hidden p-8 border-0 rounded-2xl bg-gradient-to-r from-primary/10 via-blue-500/10 to-purple-500/10 shadow-lg">
+        {/* Quick Actions + Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4">
+            <h3 className="text-xl font-semibold">Quick Actions</h3>
 
-          {/* Decorative Blur */}
-          <div className="absolute top-0 right-0 h-32 w-32 bg-primary/20 blur-3xl rounded-full"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+                <div>
+                  <p className="text-sm font-medium">Bulk Upload</p>
+                  <p className="text-muted-foreground text-sm mt-1">Import users via CSV</p>
+                </div>
+                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
+                  <Link to="/admin/bulk-upload">
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </Button>
+              </Card>
 
-          <div className="relative flex flex-wrap items-center justify-between gap-4">
-
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">
-                Onboard users in bulk
-              </h2>
-
-              <p className="text-muted-foreground mt-2 max-w-xl">
-                Upload a CSV of students or teachers and review parsed
-                records before importing into the system.
-              </p>
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+                <div>
+                  <p className="text-sm font-medium">Manage Roles</p>
+                  <p className="text-muted-foreground text-sm mt-1">Permissions & access</p>
+                </div>
+                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
+                  <Link to="/admin/roles">
+                    <ClipboardList className="w-5 h-5" />
+                  </Link>
+                </Button>
+              </Card>
+              
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+                <div>
+                  <p className="text-sm font-medium">Departments</p>
+                  <p className="text-muted-foreground text-sm mt-1">Manage department hierarchy</p>
+                </div>
+                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
+                  <Link to="/admin/departments">
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </Button>
+              </Card>
             </div>
-
-            <Button
-              asChild
-              variant="default"
-              className="shadow-md hover:scale-105 transition-transform"
-            >
-              <Link to="/admin/bulk-upload">
-                Open Bulk Upload
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-
           </div>
 
-        </Card>
+          <div>
+            <h3 className="text-xl font-semibold">Recent Activity</h3>
+            <Card className="mt-4 p-4 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+              <ul className="space-y-3">
+                {recentActivity.map((r, idx) => (
+                  <li key={idx} className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-rose-50 text-rose-700">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm">{r.text}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{r.time} ago</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        </div>
 
       </section>
     </AdminShell>

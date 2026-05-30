@@ -32,6 +32,7 @@ import BulkUpload from "./adminauth/homepage/BulkUpload";
 import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
 import NoticePage from "./adminauth/homepage/NoticePage";
+import Departments from "./adminauth/homepage/Departments";
 import ForgotPassword  from "./pages/ForgotPassword"; 
 
 const queryClient = new QueryClient();
@@ -167,6 +168,15 @@ const App = () => (
                   element={
                     <ProtectedRoute role="admin">
                       <BulkUpload />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/departments"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <Departments />
                     </ProtectedRoute>
                   }
                 />
