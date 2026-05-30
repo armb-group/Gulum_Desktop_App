@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ const Departments = () => {
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedTab, setSelectedTab] = useState<"teachers" | "students" | "subjects" | null>(null);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
+  const navigate = useNavigate();
 
   const addDepartment = () => {
     if (!newDept.trim()) return;
@@ -171,7 +173,7 @@ const Departments = () => {
             <p className="text-sm text-slate-400">
               {selectedDept.name} · {selectedYear} · {selectedClass}
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 items-center">
               <Button
                 onClick={() => setSelectedTab("teachers")}
                 variant={selectedTab === "teachers" ? "default" : "outline"}
@@ -193,6 +195,16 @@ const Departments = () => {
               >
                 Subjects ({selectedSection?.subjects.length || 0})
               </Button>
+
+              {selectedTab === "teachers" && (
+                <Button
+                  onClick={() => navigate("/admin/TeacherCrud")}
+                  variant="outline"
+                  className="ml-auto border-rose-500 text-rose-300 hover:bg-rose-600/10"
+                >
+                  Manage Teachers
+                </Button>
+              )}
             </div>
           </Card>
         )}

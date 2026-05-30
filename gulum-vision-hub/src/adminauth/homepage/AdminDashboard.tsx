@@ -1,8 +1,11 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getTeachers } from "@/services/teacherCrudAPI";
+import { getStudents } from "@/services/studentCrudAPI";
 
 import {
   Upload,
@@ -18,9 +21,9 @@ import {
 import { AdminShell } from "./AdminShell";
 import { initialData as deptData } from "./departmentsData";
 
-const stats = [
-  { label: "Total Students", value: "3,247", icon: GraduationCap },
-  { label: "Total Teachers", value: "184", icon: BookOpen },
+const stats = (studentCount: string, teacherCount: string) => [
+  { label: "Total Students", value: studentCount, icon: GraduationCap },
+  { label: "Total Teachers", value: teacherCount, icon: BookOpen },
   { label: "Departments", value: String(deptData.length), icon: Users },
   { label: "Active Courses", value: "92", icon: Zap },
 ];
@@ -33,6 +36,30 @@ const recentActivity = [
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const [teacherCount, setTeacherCount] = useState("184");
+  const [studentCount, setStudentCount] = useState("3,247");
+
+  useEffect(() => {
+    getTeachers()
+      .then((list) => {
+        if (Array.isArray(list)) {
+          setTeacherCount(String(list.length));
+        }
+      })
+      .catch(() => {
+        setTeacherCount("184");
+      });
+
+    getStudents()
+      .then((list) => {
+        if (Array.isArray(list)) {
+          setStudentCount(String(list.length));
+        }
+      })
+      .catch(() => {
+        setStudentCount("3,247");
+      });
+  }, []);
 
   return (
     <AdminShell title="Admin Console">
@@ -81,7 +108,7 @@ const AdminDashboard = () => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s) => (
+          {stats(studentCount, teacherCount).map((s) => (
             <Card
               key={s.label}
               className="p-6 rounded-2xl shadow-sm bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6"
@@ -96,6 +123,14 @@ const AdminDashboard = () => {
                   {s.label === "Departments" ? (
                     <Link to="/admin/departments" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
                       <s.icon className="w-5 h-5" />
+                    </Link>
+                  ) : s.label === "Total Teachers" ? (
+                    <Link to="/admin/TeacherCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                      <s.icon className="w-6 h-6" />
+                    </Link>
+                  ) : s.label === "Total Students" ? (
+                    <Link to="/admin/StudentCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                      <s.icon className="w-6 h-6" />
                     </Link>
                   ) : (
                     <div className="p-3 rounded-lg bg-rose-50 text-rose-700">

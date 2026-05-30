@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Upload, LogOut, PanelLeft, GraduationCap, Users } from "lucide-react";
+import { LayoutDashboard, Upload, LogOut, ClipboardList, GraduationCap, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -75,6 +75,22 @@ const AdminSidebar = () => {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Assign Work Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/admin/assign-work" className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" />
+                    <span>Assign Work</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
