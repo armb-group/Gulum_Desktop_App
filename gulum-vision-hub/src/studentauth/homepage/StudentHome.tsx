@@ -70,9 +70,9 @@ const StudentHome = () => {
               <Users className="h-6 w-6" />
             </div>
             <div className="flex-1">
-              <p className="text-xl font-display italic text-foreground">Parent-Teacher Meeting</p>
-              <p className="text-sm text-muted-foreground italic">28 July 2025 - 10:00 AM</p>
-              <p className="text-sm text-muted-foreground italic">Hall B</p>
+            <p className="text-base font-semibold text-foreground">Parent-Teacher Meeting</p>
+              <p className="text-sm text-muted-foreground">28 July 2025 - 10:00 AM</p>
+              <p className="text-sm text-muted-foreground">Hall B</p>
             </div>
             <span className="text-xs font-semibold text-purple bg-purple-soft px-3 py-1 rounded-full">
               SOON
@@ -100,7 +100,7 @@ const StudentHome = () => {
                   {n.description ? (
                     <p className="text-xs text-foreground/80 mt-1 whitespace-pre-line">{n.description}</p>
                   ) : null}
-                  <p className="text-xs text-muted-foreground italic">{n.time}</p>
+                  <p className="text-xs text-muted-foreground">{n.time}</p>
                 </div>
               </div>
             );

@@ -86,7 +86,7 @@ const BulkUpload = () => {
       <section className="container py-10 space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-primary">Bulk Upload</h1>
+            <h1 className="text-2xl font-bold text-foreground">Bulk Upload</h1>
             <p className="text-muted-foreground mt-1">
               Select a role, then upload a CSV to import records.
             </p>
@@ -96,7 +96,7 @@ const BulkUpload = () => {
           </Button>
         </div>
 
-        <Card className="p-5 bg-surface border-border">
+        <Card className="p-5 rounded-2xl admin-glass">
           <Label className="text-sm font-semibold">Select role to upload</Label>
           <Select
             value={role}
@@ -124,7 +124,7 @@ const BulkUpload = () => {
         </Card>
 
         {completed ? (
-          <Card className="p-10 bg-surface border-border text-center">
+          <Card className="p-10 rounded-2xl text-center admin-glass">
             <div className="mx-auto h-14 w-14 rounded-full bg-success/15 flex items-center justify-center mb-4">
               <CheckCircle2 className="h-7 w-7 text-success" />
             </div>
@@ -144,8 +144,13 @@ const BulkUpload = () => {
           <Card
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
+<<<<<<< Updated upstream
             className={`p-10 bg-surface border-2 border-dashed border-border transition-colors text-center ${
               role ? "hover:border-primary/50" : "opacity-60 cursor-not-allowed"
+=======
+            className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${
+              role ? "hover:border-primary/50" : "opacity-60"
+>>>>>>> Stashed changes
             }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">

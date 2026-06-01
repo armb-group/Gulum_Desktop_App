@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Link } from "react-router-dom";
 
 const week = [
   {
@@ -47,7 +48,7 @@ const modules = [
 const TeacherDashboard = () => {
   return (
     <RoleShell role="teacher" title="Teacher">
-      <h2 className="text-3xl text-foreground">Weekly Timetable</h2>
+      <h2 className="text-xl font-bold text-foreground">Weekly Timetable</h2>
 
       <div className="space-y-3">
         {week.map((d) => (
@@ -70,7 +71,7 @@ const TeacherDashboard = () => {
         ))}
       </div>
 
-      <Button className="w-full h-14 rounded-full text-lg font-display">
+      <Button className="w-full h-11 rounded-xl font-semibold">
         View Full Timetable
       </Button>
 
@@ -80,7 +81,7 @@ const TeacherDashboard = () => {
             <BookOpen className="h-7 w-7 text-primary" />
           </div>
           <div>
-            <h3 className="text-2xl text-foreground">Lecture Auditing</h3>
+            <h3 className="text-lg font-semibold text-foreground">Lecture Auditing</h3>
             <p className="text-sm text-muted-foreground">Track lecture progress</p>
           </div>
         </div>
@@ -95,8 +96,8 @@ const TeacherDashboard = () => {
             </div>
           ))}
         </div>
-        <Button className="w-full h-12 rounded-full mt-4 font-display">
-          View Audit Details →
+        <Button asChild className="w-full h-11 rounded-xl mt-4 font-semibold">
+          <Link to="/teacher/lecture-audit">View Audit Details →</Link>
         </Button>
       </Card>
     </RoleShell>

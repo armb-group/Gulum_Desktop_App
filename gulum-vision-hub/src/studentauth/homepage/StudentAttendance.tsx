@@ -23,22 +23,22 @@ const StudentAttendance = () => {
 
       <Card className="p-4 bg-surface border-border">
         <div className="flex justify-between items-center">
-          <p className="text-xl text-foreground">Overall Attendance</p>
-          <p className="text-3xl text-success font-bold italic">77%</p>
+        <p className="text-lg font-semibold text-foreground">Overall Attendance</p>
+          <p className="text-2xl text-success font-bold">77%</p>
         </div>
         <Progress value={77} className="h-2 mt-2 [&>div]:bg-success" />
         <div className="grid grid-cols-3 gap-3 mt-4 text-center">
           <div>
-            <p className="text-2xl text-success font-bold">95</p>
-            <p className="text-xs text-muted-foreground italic">Classes Attended</p>
+            <p className="text-xl text-success font-bold">95</p>
+            <p className="text-xs text-muted-foreground">Classes Attended</p>
           </div>
           <div>
-            <p className="text-2xl text-foreground font-bold">124</p>
-            <p className="text-xs text-muted-foreground italic">Total Classes</p>
+            <p className="text-xl text-foreground font-bold">124</p>
+            <p className="text-xs text-muted-foreground">Total Classes</p>
           </div>
           <div>
-            <p className="text-2xl text-destructive font-bold">2</p>
-            <p className="text-xs text-muted-foreground italic">Low Subjects</p>
+            <p className="text-xl text-destructive font-bold">2</p>
+            <p className="text-xs text-muted-foreground">Low Subjects</p>
           </div>
         </div>
       </Card>
@@ -53,11 +53,11 @@ const StudentAttendance = () => {
             <div className={`p-4 ${s.color}`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-2xl font-display italic">{s.name}</p>
-                  <p className="text-sm opacity-90 italic">{s.code}</p>
+                  <p className="text-base font-semibold">{s.name}</p>
+                  <p className="text-sm opacity-80">{s.code}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold italic">{s.value}%</p>
+                  <p className="text-lg font-bold">{s.value}%</p>
                   {s.low && (
                     <span className="inline-block text-[10px] font-bold bg-black/40 px-2 py-0.5 rounded">
                       LOW
@@ -69,7 +69,7 @@ const StudentAttendance = () => {
             </div>
             <div className="bg-surface p-3">
               <Progress value={s.value} className="h-2 [&>div]:bg-success" />
-              <p className="text-xs text-muted-foreground italic mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {s.attended}/{s.total} classes attended
               </p>
             </div>

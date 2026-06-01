@@ -67,8 +67,12 @@ const AdminDashboard = () => {
 
         {/* Hero Banner */}
         <div
-          className="relative rounded-2xl overflow-hidden p-8 shadow-lg"
-          style={{ backgroundColor: 'var(--admin-hero)', color: 'var(--admin-hero-foreground)' }}
+          className="relative rounded-2xl overflow-hidden p-8"
+          style={{
+            backgroundColor: 'var(--admin-hero)',
+            color: 'var(--admin-hero-foreground)',
+            boxShadow: '0 8px 40px 0 rgba(102,20,20,0.28), 0 1.5px 0 0 rgba(255,255,255,0.08) inset'
+          }}
         >
           <div className="flex items-start justify-between gap-6">
             <div className="max-w-2xl">
@@ -111,7 +115,11 @@ const AdminDashboard = () => {
           {stats(studentCount, teacherCount).map((s) => (
             <Card
               key={s.label}
+<<<<<<< Updated upstream
               className="p-6 rounded-2xl bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+=======
+              className="p-6 rounded-2xl admin-glass"
+>>>>>>> Stashed changes
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -121,19 +129,19 @@ const AdminDashboard = () => {
 
                 <div className="flex items-center gap-3">
                   {s.label === "Departments" ? (
-                    <Link to="/admin/departments" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                    <Link to="/admin/departments" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 text-primary shadow-sm hover:scale-105 transition-transform">
                       <s.icon className="w-5 h-5" />
                     </Link>
                   ) : s.label === "Total Teachers" ? (
-                    <Link to="/admin/TeacherCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                    <Link to="/admin/TeacherCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 text-primary shadow-sm hover:scale-105 transition-transform">
                       <s.icon className="w-6 h-6" />
                     </Link>
                   ) : s.label === "Total Students" ? (
-                    <Link to="/admin/StudentCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-rose-50 text-rose-700 shadow-sm hover:scale-105 transition-transform">
+                    <Link to="/admin/StudentCrud" className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 text-primary shadow-sm hover:scale-105 transition-transform">
                       <s.icon className="w-6 h-6" />
                     </Link>
                   ) : (
-                    <div className="p-3 rounded-lg bg-rose-50 text-rose-700">
+                    <div className="p-3 rounded-lg bg-primary/10 text-primary">
                       <s.icon className="w-6 h-6" />
                     </div>
                   )}
@@ -146,54 +154,66 @@ const AdminDashboard = () => {
         {/* Quick Actions + Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xl font-semibold">Quick Actions</h3>
+            <h3 className="text-base font-semibold text-foreground">Quick Actions</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<<<<<<< Updated upstream
               <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+=======
+              <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
+>>>>>>> Stashed changes
                 <div>
-                  <p className="text-sm font-medium">Bulk Upload</p>
+                  <p className="text-sm font-semibold">Bulk Upload</p>
                   <p className="text-muted-foreground text-sm mt-1">Import users via CSV</p>
                 </div>
-                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
-                  <Link to="/admin/bulk-upload">
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
+                <Button asChild variant="ghost" className="active:scale-95 transition-transform">
+                  <Link to="/admin/bulk-upload"><ArrowRight className="w-5 h-5" /></Link>
                 </Button>
               </Card>
 
+<<<<<<< Updated upstream
               <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+=======
+              <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
+>>>>>>> Stashed changes
                 <div>
-                  <p className="text-sm font-medium">Manage Roles</p>
+                  <p className="text-sm font-semibold">Manage Roles</p>
                   <p className="text-muted-foreground text-sm mt-1">Permissions & access</p>
                 </div>
-                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
-                  <Link to="/admin/roles">
-                    <ClipboardList className="w-5 h-5" />
-                  </Link>
+                <Button asChild variant="ghost" className="active:scale-95 transition-transform">
+                  <Link to="/admin/roles"><ClipboardList className="w-5 h-5" /></Link>
                 </Button>
               </Card>
+<<<<<<< Updated upstream
               
               <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+=======
+
+              <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
+>>>>>>> Stashed changes
                 <div>
-                  <p className="text-sm font-medium">Departments</p>
+                  <p className="text-sm font-semibold">Departments</p>
                   <p className="text-muted-foreground text-sm mt-1">Manage department hierarchy</p>
                 </div>
-                <Button asChild variant="ghost" className="active:scale-95 active:shadow-lg transition-transform">
-                  <Link to="/admin/departments">
-                    <ArrowRight className="w-5 h-5" />
-                  </Link>
+                <Button asChild variant="ghost" className="active:scale-95 transition-transform">
+                  <Link to="/admin/departments"><ArrowRight className="w-5 h-5" /></Link>
                 </Button>
               </Card>
             </div>
           </div>
 
           <div>
+<<<<<<< Updated upstream
             <h3 className="text-xl font-semibold">Recent Activity</h3>
             <Card className="mt-4 p-4 rounded-2xl bg-card border border-border shadow-md">
+=======
+            <h3 className="text-base font-semibold text-foreground">Recent Activity</h3>
+            <Card className="mt-4 p-4 rounded-2xl admin-glass">
+>>>>>>> Stashed changes
               <ul className="space-y-3">
                 {recentActivity.map((r, idx) => (
                   <li key={idx} className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-rose-50 text-rose-700">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">
                       <Activity className="w-4 h-4" />
                     </div>
                     <div>

@@ -287,23 +287,37 @@ const TeacherCrud = () => {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-              Teacher Management
-            </h1>
-            <p className="text-muted-foreground mt-2">Manage all teachers with advanced CRUD operations.</p>
+            <h1 className="text-2xl font-bold text-foreground">Teacher Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage all teachers with advanced CRUD operations.</p>
           </div>
           <Button onClick={() => setModalOpen(true)} className="shadow-md hover:scale-105 transition-transform gap-2">
             <Plus className="h-4 w-4" /> Add Teacher
           </Button>
         </div>
 
+<<<<<<< Updated upstream
+=======
+        {/* Search */}
+        <Card className="p-5 rounded-2xl admin-glass">
+          <div className="relative">
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, employee code, email, specialization..."
+              className="pl-10 h-12 rounded-xl"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </Card>
+
+>>>>>>> Stashed changes
         {/* Table */}
-        <Card className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <Card className="overflow-x-auto rounded-2xl admin-glass-strong">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Teacher Directory</p>
-                <h2 className="text-2xl font-semibold text-foreground">{filteredTeachers.length} teachers found</h2>
+                <h2 className="text-base font-semibold text-foreground">{filteredTeachers.length} teachers found</h2>
               </div>
               <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
             </div>
@@ -405,7 +419,7 @@ const TeacherCrud = () => {
           onClick={(e) => { if (e.target === overlayRef.current && mouseDownTarget.current === overlayRef.current) closeModal(); }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
         >
-          <div className="relative w-full max-w-2xl mx-4 bg-background rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto admin-glass-modal">
 
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b">
               <div>
@@ -527,7 +541,7 @@ const TeacherCrud = () => {
           onClick={() => setViewModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-2xl mx-4 bg-background rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col"
+            className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col admin-glass-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b">

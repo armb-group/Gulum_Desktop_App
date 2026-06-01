@@ -150,7 +150,7 @@ const TeacherHome = () => {
           <Button asChild className="h-20 rounded-2xl flex-col gap-1">
             <Link to="/teacher/attendance">
               <Play className="h-5 w-5" />
-              <span className="font-display">Start Attendance</span>
+            <span className="font-semibold">Start Attendance</span>
             </Link>
           </Button>
           <Button
@@ -158,7 +158,7 @@ const TeacherHome = () => {
             className="h-20 rounded-2xl flex-col gap-1 bg-purple-soft text-purple hover:bg-purple-soft/80"
           >
             <Sparkles className="h-5 w-5" />
-            <span className="font-display">AI Assistant</span>
+            <span className="font-semibold">AI Assistant</span>
           </Button>
         </div>
       </section>

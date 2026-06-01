@@ -100,7 +100,7 @@ const TeacherAttendance = () => {
         })}
       </div>
 
-      <Button onClick={submit} className="w-full h-14 rounded-full text-lg font-display">
+      <Button onClick={submit} className="w-full h-11 rounded-xl font-semibold">
         Submit Attendance
       </Button>
     </RoleShell>
