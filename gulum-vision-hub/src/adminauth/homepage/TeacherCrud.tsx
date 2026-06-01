@@ -297,19 +297,6 @@ const TeacherCrud = () => {
           </Button>
         </div>
 
-        {/* Search */}
-        <Card className="p-5 rounded-2xl border-0 shadow-md bg-gradient-to-r from-background to-muted/40">
-          <div className="relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, employee code, email, specialization..."
-              className="pl-10 h-12 rounded-xl"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </Card>
-
         {/* Table */}
         <Card className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-xl">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -319,6 +306,17 @@ const TeacherCrud = () => {
                 <h2 className="text-2xl font-semibold text-foreground">{filteredTeachers.length} teachers found</h2>
               </div>
               <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+            </div>
+
+            {/* Search Bar in between */}
+            <div className="relative my-2">
+              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, employee code, email, specialization..."
+                className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
 
             {tableLoading ? (

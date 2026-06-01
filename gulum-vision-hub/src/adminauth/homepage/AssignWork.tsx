@@ -17,7 +17,7 @@ import { getStudents } from "@/services/studentCrudAPI";
 import { getTeachers } from "@/services/teacherCrudAPI";
 import { createAssignment } from "@/services/assignmentAPI";
 import { ChevronRight } from "lucide-react";
-import { initialData as deptData, type Department } from "./departmentsData";
+import { initialData as deptData, getDepartmentsInMemory, type Department } from "./departmentsData";
 
 interface StudentOption {
   id: string;
@@ -45,7 +45,7 @@ const AssignWork = () => {
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [form, setForm] = useState(() => ({ ...emptyForm }));
   const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState<Department[]>(deptData);
+  const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
 
   useEffect(() => {
     getTeachers()
@@ -133,18 +133,18 @@ const AssignWork = () => {
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
-            <Card className="p-4 bg-white/70 dark:bg-white/10 border border-border">
+            <Card className="p-4 bg-card border border-border shadow-sm">
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Teachers</div>
               <div className="text-2xl font-semibold mt-2">{teachers.length}</div>
             </Card>
-            <Card className="p-4 bg-white/70 dark:bg-white/10 border border-border">
+            <Card className="p-4 bg-card border border-border shadow-sm">
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Students</div>
               <div className="text-2xl font-semibold mt-2">{students.length}</div>
             </Card>
           </div>
         </div>
 
-        <Card className="p-6 space-y-6 bg-white/80 border border-border">
+        <Card className="p-6 space-y-6 bg-card border border-border shadow-md">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
               <Field label="Department">

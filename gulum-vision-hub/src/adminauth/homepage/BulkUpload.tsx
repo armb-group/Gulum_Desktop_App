@@ -145,7 +145,7 @@ const BulkUpload = () => {
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
             className={`p-10 bg-surface border-2 border-dashed border-border transition-colors text-center ${
-              role ? "hover:border-primary/50" : "opacity-60"
+              role ? "hover:border-primary/50" : "opacity-60 cursor-not-allowed"
             }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">

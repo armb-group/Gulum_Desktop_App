@@ -111,7 +111,7 @@ const AdminDashboard = () => {
           {stats(studentCount, teacherCount).map((s) => (
             <Card
               key={s.label}
-              className="p-6 rounded-2xl shadow-sm bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6"
+              className="p-6 rounded-2xl bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -149,7 +149,7 @@ const AdminDashboard = () => {
             <h3 className="text-xl font-semibold">Quick Actions</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
                 <div>
                   <p className="text-sm font-medium">Bulk Upload</p>
                   <p className="text-muted-foreground text-sm mt-1">Import users via CSV</p>
@@ -161,7 +161,7 @@ const AdminDashboard = () => {
                 </Button>
               </Card>
 
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
                 <div>
                   <p className="text-sm font-medium">Manage Roles</p>
                   <p className="text-muted-foreground text-sm mt-1">Permissions & access</p>
@@ -173,7 +173,7 @@ const AdminDashboard = () => {
                 </Button>
               </Card>
               
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
                 <div>
                   <p className="text-sm font-medium">Departments</p>
                   <p className="text-muted-foreground text-sm mt-1">Manage department hierarchy</p>
@@ -189,7 +189,7 @@ const AdminDashboard = () => {
 
           <div>
             <h3 className="text-xl font-semibold">Recent Activity</h3>
-            <Card className="mt-4 p-4 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/6">
+            <Card className="mt-4 p-4 rounded-2xl bg-card border border-border shadow-md">
               <ul className="space-y-3">
                 {recentActivity.map((r, idx) => (
                   <li key={idx} className="flex items-start gap-3">

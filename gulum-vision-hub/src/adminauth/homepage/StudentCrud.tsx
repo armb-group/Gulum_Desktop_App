@@ -410,19 +410,6 @@ const StudentCrud = () => {
           </Button>
         </div>
 
-        {/* Search */}
-        <Card className="p-5 rounded-2xl border-0 shadow-md bg-gradient-to-r from-background to-muted/40">
-          <div className="relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, roll no, admission no, email..."
-              className="pl-10 h-12 rounded-xl"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </Card>
-
         {/* Table */}
         <Card className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-xl">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -432,6 +419,17 @@ const StudentCrud = () => {
                 <h2 className="text-2xl font-semibold text-foreground">{filteredStudents.length} students found</h2>
               </div>
               <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+            </div>
+
+            {/* Search Bar in between */}
+            <div className="relative my-2">
+              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, roll no, admission no, email..."
+                className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
 
             {tableLoading ? (
@@ -590,7 +588,7 @@ const StudentCrud = () => {
                     <select
                       value={personal.gender}
                       onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="">Select gender</option>
                       <option value="Male">Male</option>

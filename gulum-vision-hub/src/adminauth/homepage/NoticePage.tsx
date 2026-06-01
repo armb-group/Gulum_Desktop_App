@@ -113,7 +113,7 @@ const NoticePage = () => {
         </div>
 
         {/* Search */}
-        <Card className="p-5 rounded-2xl border-0 shadow-md bg-gradient-to-r from-background to-muted/40">
+        <Card className="p-5 rounded-2xl border border-border shadow-md bg-card">
 
           <div className="relative">
 
@@ -138,7 +138,7 @@ const NoticePage = () => {
           {filteredNotices.map((notice) => (
             <Card
               key={notice.id}
-              className="p-6 rounded-2xl border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-background to-muted/30"
+              className="p-6 rounded-2xl border border-border shadow-md hover:shadow-lg transition-all duration-300 bg-card"
             >
 
               <div className="flex flex-wrap items-start justify-between gap-4">

@@ -5,18 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, ChevronDown } from "lucide-react";
 import { AdminShell } from "./AdminShell";
-import { initialData } from "./departmentsData";
+import { initialData, getDepartmentsInMemory, setDepartmentsInMemory } from "./departmentsData";
 import type { Department } from "./departmentsData";
 
 const Departments = () => {
-  const [departments, setDepartments] = useState<Department[]>(initialData);
+  const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
   const [newDept, setNewDept] = useState("");
-  const [selectedDept, setSelectedDept] = useState<Department | null>(departments[0] || null);
+  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedTab, setSelectedTab] = useState<"teachers" | "students" | "subjects" | null>(null);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const navigate = useNavigate();
+
+  // Save departments when changed to in-memory store
+  React.useEffect(() => {
+    setDepartmentsInMemory(departments);
+  }, [departments]);
+
+  // Set default selected department if not set
+  React.useEffect(() => {
+    if (!selectedDept && departments.length > 0) {
+      setSelectedDept(departments[0]);
+    }
+  }, [departments, selectedDept]);
 
   const addDepartment = () => {
     if (!newDept.trim()) return;

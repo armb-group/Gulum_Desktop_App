@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Upload, LogOut, ClipboardList, GraduationCap, Users } from "lucide-react";
+import { LayoutDashboard, Upload, LogOut, ClipboardList, GraduationCap, Users, UserCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -80,14 +80,38 @@ const AdminSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Assign Work Management</SidebarGroupLabel>
+          <SidebarGroupLabel>Assignments</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/admin/assign-work" className="flex items-center gap-2">
+                  <NavLink
+                    to="/admin/assign-work"
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md",
+                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
+                      )
+                    }
+                  >
                     <ClipboardList className="h-4 w-4" />
                     <span>Assign Work</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/admin/assign-teacher"
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md",
+                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
+                      )
+                    }
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    <span>Assign Teacher</span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
