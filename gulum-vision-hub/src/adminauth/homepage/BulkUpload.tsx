@@ -144,13 +144,8 @@ const BulkUpload = () => {
           <Card
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-<<<<<<< Updated upstream
-            className={`p-10 bg-surface border-2 border-dashed border-border transition-colors text-center ${
-              role ? "hover:border-primary/50" : "opacity-60 cursor-not-allowed"
-=======
             className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${
               role ? "hover:border-primary/50" : "opacity-60"
->>>>>>> Stashed changes
             }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">

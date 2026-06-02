@@ -1,12 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
-<<<<<<< Updated upstream
-import { LayoutDashboard, Upload, LogOut, ClipboardList, GraduationCap, Users, UserCheck } from "lucide-react";
-=======
->>>>>>> Stashed changes
 import {
   LayoutDashboard, Upload, LogOut, ClipboardList,
-  GraduationCap, Users, Bell, Menu, X, ShieldCheck,
+  GraduationCap, Users, Bell, Menu, X, ShieldCheck, UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,6 +23,7 @@ const NAV_GROUPS = [
     label: "Work",
     items: [
       { title: "Assign Work",        url: "/admin/assign-work",  icon: ClipboardList },
+      { title: "Assign Teacher",     url: "/admin/assign-teacher", icon: UserCheck },
     ],
   },
   {
@@ -37,129 +34,7 @@ const NAV_GROUPS = [
   },
 ];
 
-<<<<<<< Updated upstream
-const AdminSidebar = () => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/admin/login", { replace: true });
-  };
-
-  return (
-    <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-2">
-          <Logo size="sm" className="!h-8" />
-          <div className="leading-tight">
-            <div className="font-display text-lg text-sidebar-primary">GULUM</div>
-            <div className="text-[11px] text-sidebar-foreground/70">Admin Console</div>
-          </div>
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Manage</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-2",
-                          isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
-                        )
-                      }
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Assignments</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/admin/assign-work"
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md",
-                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
-                      )
-                    }
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    <span>Assign Work</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/admin/assign-teacher"
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md",
-                        isActive && "bg-sidebar-accent text-sidebar-primary font-medium"
-                      )
-                    }
-                  >
-                    <UserCheck className="h-4 w-4" />
-                    <span>Assign Teacher</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick links</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to="/" className="flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4" />
-                    <span>Role chooser</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border">
-        <Button
-          variant="ghost"
-          onClick={handleLogout}
-          className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
-      </SidebarFooter>
-    </Sidebar>
-  );
-};
-
-=======
->>>>>>> Stashed changes
 interface AdminShellProps {
   title: string;
   children: ReactNode;

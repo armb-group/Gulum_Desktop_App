@@ -76,12 +76,7 @@ const NoticePage = () => {
         </div>
 
         {/* Search */}
-<<<<<<< Updated upstream
-        <Card className="p-5 rounded-2xl border border-border shadow-md bg-card">
-
-=======
         <Card className="p-5 rounded-2xl admin-glass">
->>>>>>> Stashed changes
           <div className="relative">
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -98,11 +93,7 @@ const NoticePage = () => {
           {filtered.map((notice) => (
             <Card
               key={notice.id}
-<<<<<<< Updated upstream
-              className="p-6 rounded-2xl border border-border shadow-md hover:shadow-lg transition-all duration-300 bg-card"
-=======
               className="p-6 rounded-2xl admin-glass transition-all duration-300 hover:-translate-y-0.5"
->>>>>>> Stashed changes
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1">

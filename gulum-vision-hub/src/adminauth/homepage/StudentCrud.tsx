@@ -406,8 +406,6 @@ const StudentCrud = () => {
           </Button>
         </div>
 
-<<<<<<< Updated upstream
-=======
         {/* Search */}
         <Card className="p-5 rounded-2xl admin-glass">
           <div className="relative">
@@ -420,8 +418,6 @@ const StudentCrud = () => {
             />
           </div>
         </Card>
-
->>>>>>> Stashed changes
         {/* Table */}
         <Card className="overflow-x-auto rounded-2xl admin-glass-strong">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
