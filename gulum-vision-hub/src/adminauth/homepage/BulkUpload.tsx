@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, FileText, Download, CheckCircle2, GraduationCap, UserCog } from "lucide-react";
+import { Upload, FileText, Download, CheckCircle2, GraduationCap, UserCog, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
+import { getRoles } from "@/services/roleAPI";
+import { uploadBulkFile } from "@/services/uploadAPI";
 
 type Row = Record<string, string>;
 type UploadRole = "student" | "teacher";
+
+interface RoleData {
+  id: string;
+  name?: string;
+  roleName?: string;
+  title?: string;
+}
 
 const SAMPLES: Record<UploadRole, string> = {
   student: `name,email,role,department
@@ -26,28 +35,88 @@ Dr. Mei Lin,mei@example.edu,teacher,Physics
 Prof. John Doe,john@example.edu,teacher,Chemistry`,
 };
 
+const getSampleCSV = (roleName: string) => {
+  const normalized = roleName.toLowerCase();
+  if (normalized === "student") {
+    return SAMPLES.student;
+  }
+  if (normalized === "teacher") {
+    return SAMPLES.teacher;
+  }
+  return `name,email,role,department\nJohn Doe,john@example.edu,${normalized},Computer Science`;
+};
+
+const getRoleIcon = (name: string) => {
+  const norm = name.toLowerCase();
+  if (norm === "student") return <GraduationCap className="h-4 w-4" />;
+  if (norm === "teacher") return <UserCog className="h-4 w-4" />;
+  return <User className="h-4 w-4" />;
+};
+
 const BulkUpload = () => {
-  const [role, setRole] = useState<UploadRole | "">("");
+  const [roles, setRoles] = useState<RoleData[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [completed, setCompleted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const selectedRole = roles.find((r) => r.id === selectedRoleId);
+  const rawRoleName = selectedRole ? (selectedRole.name ?? "") : "";
+  const roleName = rawRoleName.toLowerCase() === "user" ? "Student" : rawRoleName;
+
+  useEffect(() => {
+    getRoles()
+      .then((data) => {
+        const rawList = Array.isArray(data) ? data : [];
+        const normalizedList: RoleData[] = rawList.map((r, index) => {
+          if (typeof r === "string") {
+            return { id: r, name: r };
+          }
+          if (r && typeof r === "object") {
+            const id = r.id ?? r.roleId ?? `role-${index}`;
+            const name = r.name ?? r.roleName ?? r.title ?? "";
+            return { id: String(id), name: String(name) };
+          }
+          return { id: `role-${index}`, name: "" };
+        });
+        setRoles(normalizedList);
+      })
+      .catch((err) => {
+        console.error("Error loading roles from API:", err);
+        setRoles([
+          { id: "student-fallback", name: "Student" },
+          { id: "teacher-fallback", name: "Teacher" },
+        ]);
+        toast.error("Failed to load roles from API. Using local fallbacks.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   const handleFile = (file: File) => {
-    if (!role) {
+    if (!roleName) {
       toast.error("Please select a role before uploading.");
       return;
     }
     setFileName(file.name);
-    Papa.parse<Row>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        const data = res.data.filter((r) => Object.values(r).some((v) => v));
-        toast.success(`Uploaded ${data.length} ${role} records`);
+    setUploading(true);
+
+    const rawRole = selectedRole ? (selectedRole.name ?? selectedRole.roleName ?? "").toLowerCase() : "";
+
+    uploadBulkFile(rawRole, file)
+      .then(() => {
+        toast.success(`Bulk upload for ${roleName} completed successfully!`);
         setCompleted(true);
-      },
-      error: (err) => toast.error(`Parse error: ${err.message}`),
-    });
+      })
+      .catch((err) => {
+        console.error("Bulk upload error:", err);
+        const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
+        toast.error(`Upload failed: ${errorMsg}`);
+      })
+      .finally(() => {
+        setUploading(false);
+      });
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,15 +131,16 @@ const BulkUpload = () => {
   };
 
   const downloadSample = () => {
-    if (!role) {
+    if (!roleName) {
       toast.error("Please select a role first.");
       return;
     }
-    const blob = new Blob([SAMPLES[role]], { type: "text/csv" });
+    const csvContent = getSampleCSV(roleName);
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gulum-${role}-template.csv`;
+    a.download = `gulum-${roleName.toLowerCase()}-template.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -91,7 +161,7 @@ const BulkUpload = () => {
               Select a role, then upload a CSV to import records.
             </p>
           </div>
-          <Button variant="outline" onClick={downloadSample} disabled={!role}>
+          <Button variant="outline" onClick={downloadSample} disabled={!roleName}>
             <Download className="h-4 w-4" /> Download template
           </Button>
         </div>
@@ -99,26 +169,27 @@ const BulkUpload = () => {
         <Card className="p-5 rounded-2xl admin-glass">
           <Label className="text-sm font-semibold">Select role to upload</Label>
           <Select
-            value={role}
+            value={selectedRoleId}
             onValueChange={(v) => {
-              setRole(v as UploadRole);
+              setSelectedRoleId(v);
               reset();
             }}
+            disabled={loading}
           >
             <SelectTrigger className="mt-2 h-12 rounded-xl">
-              <SelectValue placeholder="Choose a role…" />
+              <SelectValue placeholder={loading ? "Loading roles…" : "Choose a role…"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="student">
-                <span className="inline-flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4" /> Student
-                </span>
-              </SelectItem>
-              <SelectItem value="teacher">
-                <span className="inline-flex items-center gap-2">
-                  <UserCog className="h-4 w-4" /> Teacher
-                </span>
-              </SelectItem>
+              {roles.map((r) => {
+                const name = r.name ? (r.name.toLowerCase() === "user" ? "Student" : r.name) : "";
+                return (
+                  <SelectItem key={r.id} value={r.id}>
+                    <span className="inline-flex items-center gap-2">
+                      {getRoleIcon(name)} {name}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </Card>
@@ -140,17 +211,24 @@ const BulkUpload = () => {
               Upload another file
             </Button>
           </Card>
+        ) : uploading ? (
+          <Card className="p-10 text-center rounded-2xl admin-glass flex flex-col items-center justify-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center mb-4">
+              <Loader2 className="h-7 w-7 text-primary animate-spin" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Uploading {fileName || "file"}...
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Please wait while the bulk records are being imported.
+            </p>
+          </Card>
         ) : (
           <Card
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-<<<<<<< Updated upstream
-            className={`p-10 bg-surface border-2 border-dashed border-border transition-colors text-center ${
-              role ? "hover:border-primary/50" : "opacity-60 cursor-not-allowed"
-=======
             className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${
-              role ? "hover:border-primary/50" : "opacity-60"
->>>>>>> Stashed changes
+              roleName ? "hover:border-primary/50" : "opacity-60"
             }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">
@@ -170,17 +248,17 @@ const BulkUpload = () => {
             <Button
               className="mt-4"
               onClick={() => {
-                if (!role) {
+                if (!roleName) {
                   toast.error("Please select a role first.");
                   return;
                 }
                 inputRef.current?.click();
               }}
-              disabled={!role}
+              disabled={!roleName || uploading}
             >
               Choose CSV file
             </Button>
-            {!role && (
+            {!roleName && (
               <p className="mt-3 text-xs text-muted-foreground">
                 Select a role above to enable upload.
               </p>

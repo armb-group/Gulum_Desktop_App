@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "/gulum",
+    baseURL: "/",
     headers: {
         "Content-Type": "application/json"
     }
@@ -13,10 +13,13 @@ api.interceptors.request.use(
 
         const isAuthRoute = config.url?.startsWith("/auth/");
         if (!isAuthRoute) {
-            const user = JSON.parse(localStorage.getItem("gulum-user"));
+            const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
             const token = user?.token;
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
+            }
+            if (user?.institutionId) {
+                config.headers["gulum-institution-id"] = user.institutionId;
             }
         }
 

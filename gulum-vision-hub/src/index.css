@@ -271,3 +271,29 @@
     z-index: 0;
   }
 }
+
+/* Beautiful custom scrollbar utility */
+.scrollbar-beautiful {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+}
+
+.scrollbar-beautiful::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-beautiful::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-beautiful::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 999px;
+  transition: background-color 0.2s;
+}
+
+.scrollbar-beautiful::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.45);
+}
+

@@ -162,3 +162,9 @@ export const useDeleteNotice = () => {
     },
   });
 };
+
+export const getNoticesByInstitution = async (institutionId) => {
+  const response = await api.get(`/notice/institution/${encodeURIComponent(institutionId)}`);
+  return response.data.responseData ?? response.data;
+};
+

@@ -96,3 +96,12 @@ export const updateTeacher = async (id, teacherData) => {
   const response = await api.put(`/teachers/${id}`, payload);
   return response.data.responseData ?? response.data;
 };
+
+export const assignTeachersBulk = async (batchId, departmentId, classId, teacherIds) => {
+  const response = await api.post(
+    `/teachers/assign-bulk?batchId=${encodeURIComponent(batchId)}&departmentId=${encodeURIComponent(departmentId)}&classId=${encodeURIComponent(classId)}`,
+    teacherIds
+  );
+  return response.data.responseData ?? response.data;
+};
+

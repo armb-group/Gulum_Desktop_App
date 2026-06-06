@@ -115,11 +115,7 @@ const AdminDashboard = () => {
           {stats(studentCount, teacherCount).map((s) => (
             <Card
               key={s.label}
-<<<<<<< Updated upstream
-              className="p-6 rounded-2xl bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
-=======
               className="p-6 rounded-2xl admin-glass"
->>>>>>> Stashed changes
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -157,11 +153,7 @@ const AdminDashboard = () => {
             <h3 className="text-base font-semibold text-foreground">Quick Actions</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<<<<<<< Updated upstream
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-=======
               <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
->>>>>>> Stashed changes
                 <div>
                   <p className="text-sm font-semibold">Bulk Upload</p>
                   <p className="text-muted-foreground text-sm mt-1">Import users via CSV</p>
@@ -171,11 +163,7 @@ const AdminDashboard = () => {
                 </Button>
               </Card>
 
-<<<<<<< Updated upstream
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-=======
               <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
->>>>>>> Stashed changes
                 <div>
                   <p className="text-sm font-semibold">Manage Roles</p>
                   <p className="text-muted-foreground text-sm mt-1">Permissions & access</p>
@@ -184,13 +172,7 @@ const AdminDashboard = () => {
                   <Link to="/admin/roles"><ClipboardList className="w-5 h-5" /></Link>
                 </Button>
               </Card>
-<<<<<<< Updated upstream
-              
-              <Card className="p-6 rounded-2xl flex items-center justify-between bg-card border border-border shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-=======
-
               <Card className="p-6 rounded-2xl flex items-center justify-between admin-glass">
->>>>>>> Stashed changes
                 <div>
                   <p className="text-sm font-semibold">Departments</p>
                   <p className="text-muted-foreground text-sm mt-1">Manage department hierarchy</p>
@@ -203,13 +185,8 @@ const AdminDashboard = () => {
           </div>
 
           <div>
-<<<<<<< Updated upstream
-            <h3 className="text-xl font-semibold">Recent Activity</h3>
-            <Card className="mt-4 p-4 rounded-2xl bg-card border border-border shadow-md">
-=======
             <h3 className="text-base font-semibold text-foreground">Recent Activity</h3>
             <Card className="mt-4 p-4 rounded-2xl admin-glass">
->>>>>>> Stashed changes
               <ul className="space-y-3">
                 {recentActivity.map((r, idx) => (
                   <li key={idx} className="flex items-start gap-3">

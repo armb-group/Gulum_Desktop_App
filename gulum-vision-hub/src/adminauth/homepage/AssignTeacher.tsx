@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
@@ -11,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getTeachers } from "@/services/teacherCrudAPI";
+import { getTeachers, assignTeachersBulk } from "@/services/teacherCrudAPI";
+import { getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
 import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department } from "./departmentsData";
-import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search } from "lucide-react";
+import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TeacherData {
   id: number;
@@ -25,17 +27,94 @@ interface TeacherData {
   email: string;
 }
 
+const createDefaultYears = (deptName: string, deptId: string) => {
+  const code = (deptId || deptName || "DEPT").substring(0, 3).toUpperCase();
+  return [
+    {
+      year: "1st Year",
+      sections: [
+        { name: `${code} 1`, teachers: [], students: [], subjects: [] },
+        { name: `${code} 2`, teachers: [], students: [], subjects: [] }
+      ]
+    },
+    {
+      year: "2nd Year",
+      sections: [
+        { name: `${code} 1`, teachers: [], students: [], subjects: [] },
+        { name: `${code} 2`, teachers: [], students: [], subjects: [] }
+      ]
+    },
+    {
+      year: "3rd Year",
+      sections: [
+        { name: `${code} 1`, teachers: [], students: [], subjects: [] },
+        { name: `${code} 2`, teachers: [], students: [], subjects: [] }
+      ]
+    },
+    {
+      year: "4th Year",
+      sections: [
+        { name: `${code} 1`, teachers: [], students: [], subjects: [] },
+        { name: `${code} 2`, teachers: [], students: [], subjects: [] }
+      ]
+    }
+  ];
+};
+
 const AssignTeacher = () => {
   const [teachers, setTeachers] = useState<TeacherData[]>([]);
   const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
+  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(true);
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedSectionName, setSelectedSectionName] = useState<string>("");
+  const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
   const [teacherSearch, setTeacherSearch] = useState<string>("");
+  const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
+  const [confirming, setConfirming] = useState<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleConfirmAssignment = () => {
+    if (!selectedSection) {
+      toast.error("No section selected.");
+      return;
+    }
+
+    const batchId = (selectedSection as any).batchId;
+    const classId = (selectedSection as any).classId;
+    const departmentId = selectedDeptId;
+
+    if (!batchId || !classId || !departmentId) {
+      toast.error("Missing batch, class, or department ID.");
+      return;
+    }
+
+    // Get selected teacher IDs
+    const teacherIds = selectedSection.teachers
+      .map((name) => {
+        const found = teachers.find((t) => t.full_name === name);
+        return found ? found.id : null;
+      })
+      .filter((id): id is number => id !== null);
+
+    setConfirming(true);
+    assignTeachersBulk(batchId, departmentId, classId, teacherIds)
+      .then(() => {
+        toast.success("Teacher assignments confirmed and saved successfully!");
+      })
+      .catch((err: any) => {
+        console.error("Error confirming teacher assignments:", err);
+        const errMsg = err.response?.data?.message ?? err.message ?? "Failed to save teacher assignments.";
+        toast.error(errMsg);
+      })
+      .finally(() => {
+        setConfirming(false);
+      });
+  };
 
   useEffect(() => {
     getTeachers()
@@ -54,6 +133,32 @@ const AssignTeacher = () => {
       })
       .catch(() => toast.error("Unable to load teachers list."))
       .finally(() => setTeachersLoading(false));
+
+    setDepartmentsLoading(true);
+    getDepartments()
+      .then((list) => {
+        const localDepts = getDepartmentsInMemory();
+        const mapped = Array.isArray(list)
+          ? list.map((d) => {
+              const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
+              const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
+              const match = localDepts.find(
+                (ld) => String(ld.id) === id || ld.name.toLowerCase() === name.toLowerCase()
+              );
+              return {
+                id,
+                name,
+                years: d.years ?? match?.years ?? createDefaultYears(name, id)
+              };
+            })
+          : [];
+        setDepartments(mapped);
+      })
+      .catch((err) => {
+        console.error("Error loading departments API:", err);
+        setDepartments(getDepartmentsInMemory());
+      })
+      .finally(() => setDepartmentsLoading(false));
   }, []);
 
   // Save departments back to in-memory store whenever state changes
@@ -75,12 +180,36 @@ const AssignTeacher = () => {
   }, [availableYears, selectedYear]);
 
   const availableSections = useMemo(() => {
-    return selectedYearObj?.sections || [];
+    const sections = selectedYearObj?.sections || [];
+    const names = sections.map((s) => s.name);
+    return Array.from(new Set(names)) as string[];
   }, [selectedYearObj]);
 
+  const availableSemesters = useMemo(() => {
+    const sections = selectedYearObj?.sections || [];
+    const matching = sections.filter((s) => s.name === selectedSectionName);
+    const semesters = matching.map((s) => String((s as any).semester || ""));
+    return Array.from(new Set(semesters.filter(Boolean))) as string[];
+  }, [selectedYearObj, selectedSectionName]);
+
   const selectedSection = useMemo(() => {
-    return availableSections.find((s) => s.name === selectedSectionName) || null;
-  }, [availableSections, selectedSectionName]);
+    const sections = selectedYearObj?.sections || [];
+    return sections.find(
+      (s) => s.name === selectedSectionName && String((s as any).semester || "") === selectedSemester
+    ) || null;
+  }, [selectedYearObj, selectedSectionName, selectedSemester]);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const viewport = scrollContainerRef.current.querySelector("[data-radix-scroll-area-viewport]");
+      if (viewport) {
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [selectedSection?.teachers?.length]);
 
   const filteredTeachersForSelect = useMemo(() => {
     return teachers.filter((t) =>
@@ -90,8 +219,8 @@ const AssignTeacher = () => {
   }, [teachers, teacherSearch]);
 
   const handleAssign = () => {
-    if (!selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName) {
-      toast.error("Please select a teacher, department, year, and section.");
+    if (!selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) {
+      toast.error("Please select a teacher, department, year, section, and semester.");
       return;
     }
 
@@ -112,7 +241,7 @@ const AssignTeacher = () => {
           return {
             ...yr,
             sections: yr.sections.map((sect) => {
-              if (sect.name !== selectedSectionName) return sect;
+              if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
 
               // Check if teacher is already assigned
               if (sect.teachers.includes(teacher.full_name)) {
@@ -120,7 +249,7 @@ const AssignTeacher = () => {
                 return sect;
               }
 
-              toast.success(`Successfully assigned ${teacher.full_name} to ${dept.name} (${yr.year} - ${sect.name})`);
+              toast.success(`Successfully assigned ${teacher.full_name} to ${dept.name} (${yr.year} - ${sect.name} - Sem ${selectedSemester})`);
               return {
                 ...sect,
                 teachers: [...sect.teachers, teacher.full_name],
@@ -135,7 +264,7 @@ const AssignTeacher = () => {
   };
 
   const handleRemove = (teacherName: string) => {
-    if (!selectedDeptId || !selectedYear || !selectedSectionName) return;
+    if (!selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) return;
 
     const updatedDepartments = departments.map((dept) => {
       if (dept.id !== selectedDeptId) return dept;
@@ -148,7 +277,7 @@ const AssignTeacher = () => {
           return {
             ...yr,
             sections: yr.sections.map((sect) => {
-              if (sect.name !== selectedSectionName) return sect;
+              if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
 
               toast.info(`Removed ${teacherName} from section.`);
               return {
@@ -164,16 +293,92 @@ const AssignTeacher = () => {
     saveDepartments(updatedDepartments);
   };
 
-  // Reset dependent fields on parent change
+  // Reset dependent fields on parent change and fetch batches
   const handleDeptChange = (value: string) => {
     setSelectedDeptId(value);
     setSelectedYear("");
     setSelectedSectionName("");
+    setSelectedSemester("");
+
+    if (!value) return;
+
+    setBatchesLoading(true);
+    getAcademicBatchesByDepartment(value)
+      .then((data) => {
+        const rawBatches = Array.isArray(data)
+          ? data
+          : (data?.responseData ?? data?.data ?? []);
+
+        const yearsMap: { [yearName: string]: { name: string; id: string; classId?: string; semester?: string }[] } = {};
+        rawBatches.forEach((batch: any) => {
+          const yearName = batch.year ?? "Unknown Year";
+          const batchId = String(batch.batchId ?? batch.id ?? "");
+          
+          if (batch.classes && Array.isArray(batch.classes)) {
+            batch.classes.forEach((c: any) => {
+              const classId = String(c.id ?? "");
+              const className = c.name ?? "Unknown Section";
+              const semester = String(c.semester ?? "");
+
+              if (!yearsMap[yearName]) {
+                yearsMap[yearName] = [];
+              }
+              yearsMap[yearName].push({ name: className, id: batchId, classId, semester });
+            });
+          }
+        });
+
+        const mappedYears = Object.entries(yearsMap).map(([yearName, sectionsList]) => {
+          return {
+            year: yearName,
+            sections: sectionsList.map((sec) => {
+              const existingDept = departments.find((d) => d.id === value);
+              const existingYear = existingDept?.years?.find((y) => y.year === yearName);
+              const existingSec = existingYear?.sections?.find((s) => s.name === sec.name && String((s as any).semester || "") === sec.semester);
+
+              return {
+                name: sec.name,
+                semester: sec.semester,
+                batchId: sec.id,
+                classId: sec.classId,
+                teachers: existingSec?.teachers ?? [],
+                students: existingSec?.students ?? [],
+                subjects: existingSec?.subjects ?? [],
+              };
+            }),
+          };
+        });
+
+        const updatedDepartments = departments.map((dept) => {
+          if (dept.id === value) {
+            return {
+              ...dept,
+              years: mappedYears,
+            };
+          }
+          return dept;
+        });
+
+        saveDepartments(updatedDepartments);
+      })
+      .catch((err) => {
+        console.error("Error loading academic batches:", err);
+        toast.error("Failed to load academic batches for this department.");
+      })
+      .finally(() => {
+        setBatchesLoading(false);
+      });
   };
 
   const handleYearChange = (value: string) => {
     setSelectedYear(value);
     setSelectedSectionName("");
+    setSelectedSemester("");
+  };
+
+  const handleSectionChange = (value: string) => {
+    setSelectedSectionName(value);
+    setSelectedSemester("");
   };
 
   return (
@@ -248,7 +453,7 @@ const AssignTeacher = () => {
                         ) : (
                           filteredTeachersForSelect.map((t) => (
                             <SelectItem key={t.id} value={String(t.id)}>
-                              {t.full_name} ({t.employee_code}) - {t.specialization}
+                              {t.full_name} ({t.employee_code})
                             </SelectItem>
                           ))
                         )}
@@ -261,56 +466,95 @@ const AssignTeacher = () => {
               {/* Select Department */}
               <div className="space-y-2">
                 <Label htmlFor="department-select">Department</Label>
-                <Select value={selectedDeptId} onValueChange={handleDeptChange}>
-                  <SelectTrigger id="department-select" className="h-11 rounded-lg">
-                    <SelectValue placeholder="Choose department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {departmentsLoading ? (
+                  <div className="h-11 w-full bg-muted animate-pulse rounded-lg flex items-center justify-center text-xs text-muted-foreground">
+                    Loading departments...
+                  </div>
+                ) : (
+                  <Select value={selectedDeptId} onValueChange={handleDeptChange}>
+                    <SelectTrigger id="department-select" className="h-11 rounded-lg">
+                      <SelectValue placeholder="Choose department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Select Year */}
               <div className="space-y-2">
                 <Label htmlFor="year-select">Academic Year</Label>
-                <Select
-                  value={selectedYear}
-                  onValueChange={handleYearChange}
-                  disabled={!selectedDeptId}
-                >
-                  <SelectTrigger id="year-select" className="h-11 rounded-lg disabled:opacity-50">
-                    <SelectValue placeholder={selectedDeptId ? "Choose year" : "Select department first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map((yr) => (
-                      <SelectItem key={yr.year} value={yr.year}>
-                        {yr.year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {batchesLoading ? (
+                  <div className="h-11 w-full bg-muted animate-pulse rounded-lg flex items-center justify-center text-xs text-muted-foreground">
+                    Loading academic years...
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedYear}
+                    onValueChange={handleYearChange}
+                    disabled={!selectedDeptId}
+                  >
+                    <SelectTrigger id="year-select" className="h-11 rounded-lg disabled:opacity-50">
+                      <SelectValue placeholder={selectedDeptId ? "Choose year" : "Select department first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((yr) => (
+                        <SelectItem key={yr.year} value={yr.year}>
+                          {yr.year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Select Section */}
               <div className="space-y-2">
                 <Label htmlFor="section-select">Section / Class</Label>
+                {batchesLoading ? (
+                  <div className="h-11 w-full bg-muted animate-pulse rounded-lg flex items-center justify-center text-xs text-muted-foreground">
+                    Loading sections...
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedSectionName}
+                    onValueChange={handleSectionChange}
+                    disabled={!selectedYear}
+                  >
+                    <SelectTrigger id="section-select" className="h-11 rounded-lg disabled:opacity-50">
+                      <SelectValue placeholder={selectedYear ? "Choose section" : "Select year first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSections.map((sect) => (
+                        <SelectItem key={sect} value={sect}>
+                          {sect}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Select Semester */}
+              <div className="space-y-2">
+                <Label htmlFor="semester-select">Semester</Label>
                 <Select
-                  value={selectedSectionName}
-                  onValueChange={setSelectedSectionName}
-                  disabled={!selectedYear}
+                  value={selectedSemester}
+                  onValueChange={setSelectedSemester}
+                  disabled={!selectedSectionName}
                 >
-                  <SelectTrigger id="section-select" className="h-11 rounded-lg disabled:opacity-50">
-                    <SelectValue placeholder={selectedYear ? "Choose section" : "Select year first"} />
+                  <SelectTrigger id="semester-select" className="h-11 rounded-lg disabled:opacity-50">
+                    <SelectValue placeholder={selectedSectionName ? "Choose semester" : "Select section first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableSections.map((sect) => (
-                      <SelectItem key={sect.name} value={sect.name}>
-                        {sect.name}
+                    {availableSemesters.map((sem) => (
+                      <SelectItem key={sem} value={sem}>
+                        Semester {sem}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -320,11 +564,11 @@ const AssignTeacher = () => {
 
             <Button
               onClick={handleAssign}
-              disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName}
+              disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester}
               className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
             >
-              <UserCheck className="h-4 w-4" />
-              Assign Teacher
+              <Plus className="h-4 w-4" />
+              Add to List
             </Button>
           </Card>
 
@@ -342,7 +586,7 @@ const AssignTeacher = () => {
               )}
             </div>
 
-            {selectedDeptId && selectedYear && selectedSectionName ? (
+            {selectedDeptId && selectedYear && selectedSectionName && selectedSemester ? (
               <div className="flex-1 flex flex-col justify-between">
                 <div>
                   <div className="mb-4 bg-muted/30 p-4 rounded-xl border border-border/50 text-sm">
@@ -355,9 +599,13 @@ const AssignTeacher = () => {
                         <span className="text-muted-foreground block text-xs">Program Year</span>
                         <span className="font-semibold text-foreground">{selectedYear}</span>
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <span className="text-muted-foreground block text-xs">Class Section</span>
                         <span className="font-semibold text-rose-700 dark:text-rose-400">{selectedSectionName}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Semester</span>
+                        <span className="font-semibold text-rose-700 dark:text-rose-400">Semester {selectedSemester}</span>
                       </div>
                     </div>
                   </div>
@@ -372,9 +620,9 @@ const AssignTeacher = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden border border-border/80 rounded-xl">
+                    <ScrollArea ref={scrollContainerRef} className="h-[270px] border border-border/80 rounded-xl">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-muted/50 border-b border-border/80 text-xs text-muted-foreground font-semibold">
+                        <thead className="bg-muted border-b border-border/80 text-xs text-muted-foreground font-semibold sticky top-0 bg-card z-10">
                           <tr>
                             <th className="px-4 py-2">No</th>
                             <th className="px-4 py-2">Faculty Name</th>
@@ -401,16 +649,27 @@ const AssignTeacher = () => {
                           ))}
                         </tbody>
                       </table>
-                    </div>
+                    </ScrollArea>
                   )}
                 </div>
+
+                {selectedSection && selectedSection.teachers.length > 0 && (
+                  <Button
+                    onClick={handleConfirmAssignment}
+                    disabled={confirming}
+                    className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    {confirming ? "Saving assignments..." : "Confirm Assignment"}
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/80 rounded-2xl p-8 text-center bg-muted/5">
                 <Users className="h-12 w-12 text-muted-foreground/60 mb-3 animate-pulse" />
                 <h3 className="text-base font-semibold text-foreground">Select Department & Section</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-[320px]">
-                  Please specify a department, year, and section to view or manage assigned teachers.
+                  Please specify a department, year, section, and semester to view or manage assigned teachers.
                 </p>
               </div>
             )}
