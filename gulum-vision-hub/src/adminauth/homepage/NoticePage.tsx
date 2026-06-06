@@ -1,64 +1,84 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bell, Search, CalendarDays, User, Plus, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getNoticesByInstitution } from "@/services/noticeAPI";
 
 interface Notice {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
-  created_by: string;
-  created_at: string;
-  priority: "High" | "Medium" | "Low";
+  createdBy?: string;
+  created_by?: string;
+  createdAt?: string;
+  created_at?: string;
 }
 
-const initialNotices: Notice[] = [
-  {
-    id: 1,
-    title: "Semester Examination Schedule Published",
-    description:
-      "The semester examination routine for all departments has been published. Students are requested to check the exam portal carefully. The examination will start from June 15 and practical exams will begin one week earlier. Students must carry their admit cards during examinations. Any mismatch in subject code should be immediately reported to the examination department before the examination starts.",
-    created_by: "Admin",
-    created_at: "2026-05-18",
-    priority: "High",
-  },
-  {
-    id: 2,
-    title: "Holiday Notice",
-    description: "College will remain closed on Friday due to maintenance work inside the campus.",
-    created_by: "Principal",
-    created_at: "2026-05-17",
-    priority: "Medium",
-  },
-  {
-    id: 3,
-    title: "Hackathon Registration Open",
-    description:
-      "Students can now register for the annual AI Hackathon event from the student portal. Teams of maximum 4 members are allowed. The hackathon includes AI, ML, Web Development, Cybersecurity, and IoT tracks. Attractive prizes and internship opportunities are available for winners.",
-    created_by: "Event Coordinator",
-    created_at: "2026-05-16",
-    priority: "Low",
-  },
-];
-
-const priorityClass = (p: string) => {
-  if (p === "High") return "bg-red-500/20 text-red-600 border-red-500/30";
-  if (p === "Medium") return "bg-yellow-500/20 text-yellow-600 border-yellow-500/30";
-  return "bg-green-500/20 text-green-600 border-green-500/30";
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (e) {
+    return dateStr;
+  }
 };
 
 const NoticePage = () => {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [notices] = useState<Notice[]>(initialNotices);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = notices.filter(
-    (n) =>
-      n.title.toLowerCase().includes(search.toLowerCase()) ||
-      n.description.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    if (!user?.institutionId) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    getNoticesByInstitution(user.institutionId)
+      .then((data: any) => {
+        const list = data?.responseData ?? data?.data ?? data;
+        if (Array.isArray(list)) {
+          setNotices(list);
+        } else if (Array.isArray(list?.content)) {
+          setNotices(list.content);
+        } else if (Array.isArray(data)) {
+          setNotices(data);
+        } else {
+          setNotices([]);
+        }
+        setError(null);
+      })
+      .catch((err: any) => {
+        console.error("Failed to load notices:", err);
+        setError("Failed to load notices. Please try again later.");
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [user?.institutionId]);
+
+  const filteredAndSorted = [...notices]
+    .filter(
+      (n) =>
+        n.title?.toLowerCase().includes(search.toLowerCase()) ||
+        n.description?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt ?? a.created_at ?? 0).getTime();
+      const dateB = new Date(b.createdAt ?? b.created_at ?? 0).getTime();
+      return dateB - dateA;
+    });
 
   return (
     <AdminShell title="Notice Board">
@@ -88,41 +108,63 @@ const NoticePage = () => {
           </div>
         </Card>
 
-        {/* Notice Cards */}
-        <div className="grid gap-4">
-          {filtered.map((notice) => (
-            <Card
-              key={notice.id}
-              className="p-6 rounded-2xl admin-glass transition-all duration-300 hover:-translate-y-0.5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="p-3 rounded-2xl bg-primary/10 shrink-0">
-                    <Bell className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-base font-bold text-foreground">{notice.title}</h2>
-                    <p
-                      onClick={() => setSelectedNotice(notice)}
-                      className="text-sm text-muted-foreground mt-2 leading-6 cursor-pointer hover:text-primary transition line-clamp-2"
-                    >
-                      {notice.description.length > 180
-                        ? `${notice.description.substring(0, 180)}… Read More`
-                        : notice.description}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{notice.created_by}</span>
-                      <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{notice.created_at}</span>
+        {/* Notice Cards or Loading/Error State */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p className="text-sm text-muted-foreground">Loading notices...</p>
+          </div>
+        ) : error ? (
+          <div className="p-6 rounded-2xl bg-destructive/10 text-destructive text-sm border border-destructive/20 text-center">
+            {error}
+          </div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="p-12 rounded-2xl border border-dashed border-muted-foreground/20 text-center space-y-3">
+            <Bell className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+            <h3 className="text-base font-semibold text-foreground">No Notices Found</h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              There are no notices published for your institution yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredAndSorted.map((notice) => (
+              <Card
+                key={notice.id}
+                className="p-6 rounded-2xl admin-glass transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className="p-3 rounded-2xl bg-primary/10 shrink-0">
+                      <Bell className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-base font-bold text-foreground">{notice.title}</h2>
+                      <p
+                        onClick={() => setSelectedNotice(notice)}
+                        className="text-sm text-muted-foreground mt-2 leading-6 cursor-pointer hover:text-primary transition line-clamp-2"
+                      >
+                        {notice.description && notice.description.length > 180
+                          ? `${notice.description.substring(0, 180)}… Read More`
+                          : notice.description}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5" />
+                          {notice.createdBy ?? notice.created_by ?? "Unknown"}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {formatDate(notice.createdAt ?? notice.created_at)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full border text-xs font-semibold shrink-0 ${priorityClass(notice.priority)}`}>
-                  {notice.priority}
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Modal */}
         {selectedNotice && (
@@ -132,8 +174,14 @@ const NoticePage = () => {
                 <div>
                   <h2 className="text-lg font-bold text-foreground">{selectedNotice.title}</h2>
                   <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{selectedNotice.created_by}</span>
-                    <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{selectedNotice.created_at}</span>
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      {selectedNotice.createdBy ?? selectedNotice.created_by ?? "Unknown"}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {formatDate(selectedNotice.createdAt ?? selectedNotice.created_at)}
+                    </span>
                   </div>
                 </div>
                 <button onClick={() => setSelectedNotice(null)} className="p-2 rounded-xl hover:bg-muted transition">
@@ -141,9 +189,6 @@ const NoticePage = () => {
                 </button>
               </div>
               <div className="p-6 max-h-[65vh] overflow-y-auto">
-                <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold mb-4 ${priorityClass(selectedNotice.priority)}`}>
-                  {selectedNotice.priority} Priority
-                </span>
                 <p className="text-sm leading-7 text-muted-foreground whitespace-pre-line">{selectedNotice.description}</p>
               </div>
             </div>

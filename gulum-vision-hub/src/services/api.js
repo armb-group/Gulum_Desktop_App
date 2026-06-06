@@ -19,7 +19,7 @@ api.interceptors.request.use(
                 config.headers.Authorization = `Bearer ${token}`;
             }
             if (user?.institutionId) {
-                config.headers["X-Institution-Id"] = user.institutionId;
+                config.headers["gulum-institution-id"] = user.institutionId;
             }
         }
 
