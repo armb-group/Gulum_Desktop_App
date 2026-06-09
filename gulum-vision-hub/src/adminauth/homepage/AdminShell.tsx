@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Upload, LogOut, ClipboardList,
-  GraduationCap, Users, Bell, Menu, X, ShieldCheck, UserCheck,
+  GraduationCap, Users, Bell, Menu, X, ShieldCheck, UserCheck, Calendar
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -22,8 +22,9 @@ const NAV_GROUPS = [
   {
     label: "Work",
     items: [
-      { title: "Assign Work",        url: "/admin/assign-work",  icon: ClipboardList },
+      // { title: "Assign Work",        url: "/admin/assign-work",  icon: ClipboardList },
       { title: "Assign Teacher",     url: "/admin/assign-teacher", icon: UserCheck },
+      { title: "Schedule Routine",    url: "/admin/routine",       icon: Calendar },
     ],
   },
   {
