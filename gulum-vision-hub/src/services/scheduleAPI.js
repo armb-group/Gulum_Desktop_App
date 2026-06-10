@@ -31,10 +31,41 @@ export const saveScheduleRoutine = async (instituteId, departmentId, classId, sc
  * @param {string} targetScheduleId
  * @returns {Promise<any>}
  */
-export const swapScheduleRoutine = async (sourceScheduleId, targetScheduleId) => {
-  const response = await api.post("/schedule/swap", {
+export const swapScheduleLayout = async (sourceScheduleId, targetScheduleId) => {
+  const response = await api.post("/schedule/layout", {
+    action: "SWAP",
     sourceScheduleId,
     targetScheduleId
+  });
+  return response.data.responseData ?? response.data;
+};
+
+/**
+ * Move a timeslot in schedule routine.
+ * @param {string} sourceScheduleId
+ * @param {string} targetTimeSlotId
+ * @returns {Promise<any>}
+ */
+export const moveScheduleLayout = async (sourceScheduleId, targetTimeSlotId) => {
+  const response = await api.post("/schedule/layout", {
+    action: "MOVE",
+    sourceScheduleId,
+    targetTimeSlotId
+  });
+  return response.data.responseData ?? response.data;
+};
+
+/**
+ * Extend a timeslot in schedule routine.
+ * @param {string} sourceScheduleId
+ * @param {string} targetTimeSlotId
+ * @returns {Promise<any>}
+ */
+export const extendScheduleLayout = async (sourceScheduleId, targetTimeSlotId) => {
+  const response = await api.post("/schedule/layout", {
+    action: "EXTEND",
+    sourceScheduleId,
+    targetTimeSlotId
   });
   return response.data.responseData ?? response.data;
 };

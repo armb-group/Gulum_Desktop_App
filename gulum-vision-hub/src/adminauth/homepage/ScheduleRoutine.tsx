@@ -34,7 +34,7 @@ import {
 import { initialData as deptData, type Subject } from "./departmentsData";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
-import { getScheduleRoutine, saveScheduleRoutine, swapScheduleRoutine } from "@/services/scheduleAPI";
+import { getScheduleRoutine, saveScheduleRoutine, swapScheduleLayout, moveScheduleLayout, extendScheduleLayout } from "@/services/scheduleAPI";
 import { getTeachers } from "@/services/teacherCrudAPI";
 
 // Define TypeScript interfaces
@@ -49,6 +49,7 @@ interface RoutineItem {
   dbRecordId?: string;
   noofgroups?: number | null;
   timeslotIds?: string[];
+  scheduleIds?: string[];
 }
 
 interface RoutineTrack {
@@ -78,15 +79,15 @@ const DEFAULT_SLOT_TIME_MAP: Record<number, { startTime: string; endTime: string
 const resolveTeacherId = (name: string, teachersList: any[]) => {
   if (!name) return "";
   const normalized = name.trim().toLowerCase();
-  
+
   // Try exact match
   let found = teachersList.find(t => t.full_name?.trim().toLowerCase() === normalized);
   if (found) return found.id;
-  
+
   // Try partial match
   found = teachersList.find(t => t.full_name?.trim().toLowerCase().includes(normalized) || normalized.includes(t.full_name?.trim().toLowerCase()));
   if (found) return found.id;
-  
+
   return "";
 };
 
@@ -94,7 +95,7 @@ const resolveTeacherId = (name: string, teachersList: any[]) => {
 const serializeStateToBackend = (
   routine: DayRoutine[],
   teachersList: any[],
-  originalRecords: any[],
+  originalRecords: any,
   institutionId: string,
   classId: string,
   semesterVal: number,
@@ -106,6 +107,7 @@ const serializeStateToBackend = (
     day: string;
     slotNumber: number;
     timeslotId?: string;
+    scheduleId?: string;
     courseName: string;
     courseCode: string;
     noofgroups: number | null;
@@ -123,7 +125,7 @@ const serializeStateToBackend = (
 
   routine.forEach((dayItem) => {
     const dbDayName = dayMap[dayItem.day] || dayItem.day;
-    
+
     dayItem.tracks.forEach((track) => {
       // Process left side (Slots 1-4)
       let leftSlotIdx = 1;
@@ -131,17 +133,19 @@ const serializeStateToBackend = (
         const span = cell.colSpan;
         if (cell.subject) {
           let tId = cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
-          
+
           for (let i = 0; i < span; i++) {
             const slotNum = leftSlotIdx + i;
             const tIdFromCell = cell.timeslotIds && cell.timeslotIds[i];
-            
+            const sIdFromCell = cell.scheduleIds && cell.scheduleIds[i];
+
             flatSlots.push({
               teacherId: tId,
               teacherName: cell.teacher,
               day: dbDayName,
               slotNumber: slotNum,
               timeslotId: tIdFromCell || undefined,
+              scheduleId: sIdFromCell || undefined,
               courseName: cell.subject,
               courseCode: cell.code,
               noofgroups: cell.noofgroups || null
@@ -157,17 +161,19 @@ const serializeStateToBackend = (
         const span = cell.colSpan;
         if (cell.subject) {
           let tId = cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
-          
+
           for (let i = 0; i < span; i++) {
             const slotNum = rightSlotIdx + i;
             const tIdFromCell = cell.timeslotIds && cell.timeslotIds[i];
-            
+            const sIdFromCell = cell.scheduleIds && cell.scheduleIds[i];
+
             flatSlots.push({
               teacherId: tId,
               teacherName: cell.teacher,
               day: dbDayName,
               slotNumber: slotNum,
               timeslotId: tIdFromCell || undefined,
+              scheduleId: sIdFromCell || undefined,
               courseName: cell.subject,
               courseCode: cell.code,
               noofgroups: cell.noofgroups || null
@@ -195,10 +201,21 @@ const serializeStateToBackend = (
     const teacherId = firstSlot.teacherId;
     const teacherName = firstSlot.teacherName;
 
-    const originalRecord = originalRecords.find((r) => 
-      (teacherId && r.teacherId === teacherId) || 
-      (r.teacherName && r.teacherName.trim().toLowerCase() === teacherName.trim().toLowerCase())
-    );
+    let originalRecord: any = null;
+    if (Array.isArray(originalRecords)) {
+      originalRecord = originalRecords.find((r) =>
+        (teacherId && r.teacherId === teacherId) ||
+        (r.teacherName && r.teacherName.trim().toLowerCase() === teacherName.trim().toLowerCase())
+      );
+    } else if (originalRecords && Array.isArray((originalRecords as any).timetable)) {
+      const foundSlot = (originalRecords as any).timetable.find((s: any) =>
+        (teacherId && s.teacherId === teacherId) ||
+        (s.teacherName && s.teacherName.trim().toLowerCase() === teacherName.trim().toLowerCase())
+      );
+      if (foundSlot) {
+        originalRecord = { id: foundSlot.scheduleId || undefined };
+      }
+    }
 
     return {
       id: originalRecord?.id || undefined,
@@ -210,6 +227,7 @@ const serializeStateToBackend = (
       timeslot: slots.map((s) => {
         const timeInfo = slotTimeMap[s.slotNumber] || DEFAULT_SLOT_TIME_MAP[s.slotNumber];
         return {
+          scheduleId: s.scheduleId || undefined,
           timeslotId: s.timeslotId || undefined,
           day: s.day,
           startTime: timeInfo.startTime,
@@ -269,7 +287,7 @@ export default function ScheduleRoutine() {
 
   // Teachers, raw records, and slot time map state
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [rawRoutineData, setRawRoutineData] = useState<any[]>([]);
+  const [rawRoutineData, setRawRoutineData] = useState<any>(null);
   const [slotTimeMap, setSlotTimeMap] = useState<Record<number, { startTime: string; endTime: string }>>(DEFAULT_SLOT_TIME_MAP);
 
   // Dynamically compute left/right slots and break text
@@ -296,6 +314,41 @@ export default function ScheduleRoutine() {
     const breakEnd = slotTimeMap[1]?.startTime || "04:00";
     return `${breakStart}-${breakEnd}`;
   }, [slotTimeMap]);
+
+  const findTimeslotId = (dayShort: string, slotNum: number): string | undefined => {
+    const dayMap: Record<string, string> = {
+      "MON": "Monday",
+      "TUES": "Tuesday",
+      "WED": "Wednesday",
+      "THURS": "Thursday",
+      "FRI": "Friday",
+      "SAT": "Saturday",
+      "SUN": "Sunday"
+    };
+    const fullDay = dayMap[dayShort] || dayShort;
+
+    if (rawRoutineData && Array.isArray((rawRoutineData as any).timetable)) {
+      const found = (rawRoutineData as any).timetable.find(
+        (s: any) =>
+          String(s.day).toLowerCase() === fullDay.toLowerCase() &&
+          s.slotNumber === slotNum
+      );
+      if (found?.timeslotId) return found.timeslotId;
+    }
+
+    if (Array.isArray(rawRoutineData)) {
+      for (const record of rawRoutineData) {
+        const slots = record.timeslot || record.timeslots || [];
+        const found = slots.find(
+          (s: any) =>
+            String(s.day).toLowerCase() === fullDay.toLowerCase() &&
+            s.slotNumber === slotNum
+        );
+        if (found?.timeslotId) return found.timeslotId;
+      }
+    }
+    return undefined;
+  };
 
 
   // Edit Cell Modal State
@@ -446,61 +499,121 @@ export default function ScheduleRoutine() {
   // Map backend timetable items to structured DayRoutine[]
   const mapBackendToState = (data: any): DayRoutine[] => {
     if (!data) return createBlankRoutine();
-    
-    // Normalize data if it's wrapped in responseData
-    const records = Array.isArray(data) 
-      ? data 
-      : (data.responseData ?? data.data ?? []);
-      
-    if (!Array.isArray(records) || records.length === 0) {
-      return createBlankRoutine();
+
+    // 1. Extract timetable array
+    let timetableArray: any[] = [];
+    if (data && Array.isArray(data.timetable)) {
+      timetableArray = data.timetable;
+    } else if (Array.isArray(data)) {
+      // old format support or fallback
+      data.forEach((record: any) => {
+        const timeslots = record.timeslot || record.timeslots || [];
+        if (Array.isArray(timeslots)) {
+          timeslots.forEach((slot: any) => {
+            timetableArray.push({
+              timeslotId: slot.timeslotId,
+              day: slot.day,
+              slotNumber: slot.slotNumber,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              occupied: true,
+              scheduleId: slot.scheduleId,
+              courseName: slot.courseName,
+              courseCode: slot.courseCode,
+              teacherId: record.teacherId,
+              teacherName: record.teacherName,
+              noofgroups: slot.noofgroups
+            });
+          });
+        }
+      });
+    } else if (data && data.responseData) {
+      if (Array.isArray(data.responseData.timetable)) {
+        timetableArray = data.responseData.timetable;
+      } else if (Array.isArray(data.responseData)) {
+        data.responseData.forEach((record: any) => {
+          const timeslots = record.timeslot || record.timeslots || [];
+          if (Array.isArray(timeslots)) {
+            timeslots.forEach((slot: any) => {
+              timetableArray.push({
+                timeslotId: slot.timeslotId,
+                day: slot.day,
+                slotNumber: slot.slotNumber,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                occupied: true,
+                scheduleId: slot.scheduleId,
+                courseName: slot.courseName,
+                courseCode: slot.courseCode,
+                teacherId: record.teacherId,
+                teacherName: record.teacherName,
+                noofgroups: slot.noofgroups
+              });
+            });
+          }
+        });
+      }
     }
 
     // Proactively extract time slot configurations dynamically from database response
     const newSlotTimeMap = { ...slotTimeMap };
-    records.forEach((record: any) => {
-      const timeslots = record.timeslot || record.timeslots || [];
-      if (Array.isArray(timeslots)) {
-        timeslots.forEach((slot: any) => {
-          if (slot.slotNumber && slot.startTime && slot.endTime) {
-            newSlotTimeMap[slot.slotNumber] = {
-              startTime: slot.startTime,
-              endTime: slot.endTime
-            };
-          }
-        });
+    timetableArray.forEach((slot: any) => {
+      if (slot.slotNumber && slot.startTime && slot.endTime) {
+        newSlotTimeMap[slot.slotNumber] = {
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        };
       }
     });
     setSlotTimeMap(newSlotTimeMap);
-    
-    // Flatten all timeslots from all teacher groups
+
+    // Helper to find timeslotId inside this local function to avoid React state delay
+    const getLocalTimeslotId = (dayShort: string, slotNum: number): string | undefined => {
+      const dayMap: Record<string, string> = {
+        "MON": "Monday",
+        "TUES": "Tuesday",
+        "WED": "Wednesday",
+        "THURS": "Thursday",
+        "FRI": "Friday",
+        "SAT": "Saturday",
+        "SUN": "Sunday"
+      };
+      const fullDay = dayMap[dayShort] || dayShort;
+      const found = timetableArray.find(
+        (s: any) =>
+          String(s.day).toLowerCase() === fullDay.toLowerCase() &&
+          s.slotNumber === slotNum
+      );
+      return found?.timeslotId;
+    };
+
+    // Flatten all occupied timeslots
     const flatSlots: {
       dbRecordId: string;
       teacherId: string;
       teacherName: string;
       timeslotId: string;
+      scheduleId: string;
       slotNumber: number;
       courseName: string;
       courseCode: string;
       noofgroups: number | null;
       day: string;
     }[] = [];
-    
-    records.forEach((record: any) => {
-      const timeslots = record.timeslot || record.timeslots || [];
-      if (Array.isArray(timeslots)) {
-        timeslots.forEach((slot: any) => {
-          flatSlots.push({
-            dbRecordId: record.id,
-            teacherId: record.teacherId,
-            teacherName: record.teacherName,
-            timeslotId: slot.timeslotId,
-            slotNumber: slot.slotNumber,
-            courseName: slot.courseName || "",
-            courseCode: slot.courseCode || "",
-            noofgroups: slot.noofgroups ?? null,
-            day: slot.day
-          });
+
+    timetableArray.forEach((slot: any) => {
+      if (slot.occupied) {
+        flatSlots.push({
+          dbRecordId: slot.scheduleId || "", // use scheduleId as dbRecordId since we group by schedule
+          teacherId: slot.teacherId || "",
+          teacherName: slot.teacherName || "",
+          timeslotId: slot.timeslotId || "",
+          scheduleId: slot.scheduleId || "",
+          slotNumber: slot.slotNumber,
+          courseName: slot.courseName || "",
+          courseCode: slot.courseCode || "",
+          noofgroups: slot.noofgroups ?? null,
+          day: slot.day
         });
       }
     });
@@ -526,16 +639,74 @@ export default function ScheduleRoutine() {
 
     const base = createBlankRoutine();
 
+    // Helper to build side segment
+    const localBuildSideSegment = (trackBlocks: any[], side: "left" | "right", dayShort: string): RoutineItem[] => {
+      const minSlot = side === "left" ? 1 : 5;
+      const items: any[] = [];
+
+      for (let offset = 0; offset < 4; offset++) {
+        const slotNum = minSlot + offset;
+        const tId = getLocalTimeslotId(dayShort, slotNum);
+        items.push({
+          id: generateId(),
+          subject: "",
+          code: "",
+          teacher: "",
+          room: "",
+          colSpan: 1,
+          slotNumber: slotNum,
+          timeslotIds: tId ? [tId] : undefined
+        });
+      }
+
+      trackBlocks.forEach((b) => {
+        const relevantSlots = b.slots.filter((s: number) => side === "left" ? s <= 4 : s >= 5);
+        if (relevantSlots.length === 0) return;
+
+        relevantSlots.sort((a: number, b: number) => a - b);
+        const startSlot = relevantSlots[0];
+        const span = relevantSlots.length;
+
+        const idx = items.findIndex(item => item.slotNumber === startSlot);
+        if (idx !== -1) {
+          items[idx] = {
+            id: generateId(),
+            subject: b.subject,
+            code: b.code,
+            teacher: b.teacher,
+            room: b.room || "",
+            colSpan: span,
+            slotNumber: startSlot,
+            teacherId: b.teacherId,
+            dbRecordId: b.dbRecordId,
+            noofgroups: b.noofgroups,
+            timeslotIds: b.timeslotIds,
+            scheduleIds: b.scheduleIds
+          };
+          items.splice(idx + 1, span - 1);
+        }
+      });
+
+      return items;
+    };
+
     // Process day by day
     base.forEach((dayObj) => {
       const targetDayShort = dayObj.day;
-      
+
       const daySlots = flatSlots.filter(s => {
         const slotDayNormalized = String(s.day).toLowerCase();
         return dayNameMap[slotDayNormalized] === targetDayShort;
       });
 
-      if (daySlots.length === 0) return;
+      if (daySlots.length === 0) {
+        dayObj.tracks = [{
+          id: generateId(),
+          left: localBuildSideSegment([], "left", targetDayShort),
+          right: localBuildSideSegment([], "right", targetDayShort)
+        }];
+        return;
+      }
 
       const blocks: {
         subject: string;
@@ -546,6 +717,7 @@ export default function ScheduleRoutine() {
         noofgroups: number | null;
         slots: number[];
         timeslotIds: string[];
+        scheduleIds: string[];
       }[] = [];
 
       daySlots.sort((a, b) => a.slotNumber - b.slotNumber);
@@ -569,6 +741,7 @@ export default function ScheduleRoutine() {
               b.slots.push(s.slotNumber);
               b.slots.sort((a, b) => a - b);
               b.timeslotIds.push(s.timeslotId);
+              b.scheduleIds.push(s.scheduleId);
               merged = true;
               break;
             }
@@ -584,7 +757,8 @@ export default function ScheduleRoutine() {
             dbRecordId: s.dbRecordId,
             noofgroups: s.noofgroups,
             slots: [s.slotNumber],
-            timeslotIds: [s.timeslotId]
+            timeslotIds: [s.timeslotId],
+            scheduleIds: [s.scheduleId]
           });
         }
       });
@@ -610,68 +784,21 @@ export default function ScheduleRoutine() {
       dayObj.tracks = tracks.map((trackBlocks) => {
         return {
           id: generateId(),
-          left: buildSideSegment(trackBlocks, "left"),
-          right: buildSideSegment(trackBlocks, "right")
+          left: localBuildSideSegment(trackBlocks, "left", targetDayShort),
+          right: localBuildSideSegment(trackBlocks, "right", targetDayShort)
         };
       });
-      
+
       if (dayObj.tracks.length === 0) {
         dayObj.tracks = [{
           id: generateId(),
-          left: createBlankSegment(),
-          right: createBlankSegment()
+          left: localBuildSideSegment([], "left", targetDayShort),
+          right: localBuildSideSegment([], "right", targetDayShort)
         }];
       }
     });
 
     return base;
-  };
-
-  const buildSideSegment = (trackBlocks: any[], side: "left" | "right"): RoutineItem[] => {
-    const minSlot = side === "left" ? 1 : 5;
-    const items: any[] = [];
-    
-    for (let offset = 0; offset < 4; offset++) {
-      const slotNum = minSlot + offset;
-      items.push({
-        id: generateId(),
-        subject: "",
-        code: "",
-        teacher: "",
-        room: "",
-        colSpan: 1,
-        slotNumber: slotNum
-      });
-    }
-
-    trackBlocks.forEach((b) => {
-      const relevantSlots = b.slots.filter((s: number) => side === "left" ? s <= 4 : s >= 5);
-      if (relevantSlots.length === 0) return;
-
-      relevantSlots.sort((a: number, b: number) => a - b);
-      const startSlot = relevantSlots[0];
-      const span = relevantSlots.length;
-
-      const idx = items.findIndex(item => item.slotNumber === startSlot);
-      if (idx !== -1) {
-        items[idx] = {
-          id: generateId(),
-          subject: b.subject,
-          code: b.code,
-          teacher: b.teacher,
-          room: b.room || "",
-          colSpan: span,
-          slotNumber: startSlot,
-          teacherId: b.teacherId,
-          dbRecordId: b.dbRecordId,
-          noofgroups: b.noofgroups,
-          timeslotIds: b.timeslotIds
-        };
-        items.splice(idx + 1, span - 1);
-      }
-    });
-
-    return items;
   };
 
   const loadLocalFallback = () => {
@@ -741,7 +868,7 @@ export default function ScheduleRoutine() {
       return;
     }
     setSaving(true);
-    
+
     const payload = serializeStateToBackend(
       routineState,
       teachers,
@@ -825,7 +952,7 @@ export default function ScheduleRoutine() {
     const { dayIndex, trackIndex, side, cellIndex } = editingCell;
     const updated = [...routineState];
     const cell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
-    
+
     const resolvedId = resolveTeacherId(editForm.teacher, teachers);
 
     updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
@@ -955,7 +1082,8 @@ export default function ScheduleRoutine() {
         teacherId: sourceCell.teacherId,
         dbRecordId: sourceCell.dbRecordId,
         noofgroups: sourceCell.noofgroups,
-        timeslotIds: sourceCell.timeslotIds
+        timeslotIds: sourceCell.timeslotIds,
+        scheduleIds: sourceCell.scheduleIds
       };
 
       updated[srcDay].tracks[srcTrack][srcSide][srcCellIdx] = {
@@ -967,29 +1095,62 @@ export default function ScheduleRoutine() {
         teacherId: targetCell.teacherId,
         dbRecordId: targetCell.dbRecordId,
         noofgroups: targetCell.noofgroups,
-        timeslotIds: targetCell.timeslotIds
+        timeslotIds: targetCell.timeslotIds,
+        scheduleIds: targetCell.scheduleIds
       };
 
       // Optimistically update the local state
       updateRoutine(updated);
 
-      const sourceTimeslotId = sourceCell.timeslotIds?.[0];
-      const targetTimeslotId = targetCell.timeslotIds?.[0];
+      const sourceScheduleId = sourceCell.scheduleIds?.[0];
+      const targetScheduleId = targetCell.scheduleIds?.[0];
+      
+      let targetTimeslotId = targetCell.timeslotIds?.[0];
+      if (!targetTimeslotId) {
+        const minSlot = (side === "left" ? 1 : 5);
+        const sideList = updated[dayIndex].tracks[trackIndex][side];
+        let targetSlotIdx = 0;
+        for (let i = 0; i < cellIndex; i++) {
+          targetSlotIdx += sideList[i].colSpan;
+        }
+        const targetSlotNumber = minSlot + targetSlotIdx;
+        targetTimeslotId = findTimeslotId(updated[dayIndex].day, targetSlotNumber);
+      }
 
-      if (sourceTimeslotId && targetTimeslotId) {
-        const toastId = toast.loading("Swapping scheduling periods on server...");
-        swapScheduleRoutine(sourceTimeslotId, targetTimeslotId)
-          .then(() => {
-            toast.success("Swapped scheduling periods successfully!", { id: toastId });
-            fetchRoutine();
-          })
-          .catch((err) => {
-            console.error("Failed to swap scheduling periods:", err);
-            toast.error("Failed to swap scheduling periods on server. Reverting swap.", { id: toastId });
-            fetchRoutine(); // Revert local state by reloading from backend
-          });
+      if (targetCell.subject) {
+        // SWAP: two occupied class slots
+        if (sourceScheduleId && targetScheduleId) {
+          const toastId = toast.loading("Swapping scheduling periods on server...");
+          swapScheduleLayout(sourceScheduleId, targetScheduleId)
+            .then(() => {
+              toast.success("Swapped scheduling periods successfully!", { id: toastId });
+              fetchRoutine();
+            })
+            .catch((err) => {
+              console.error("Failed to swap scheduling periods:", err);
+              toast.error("Failed to swap scheduling periods on server. Reverting swap.", { id: toastId });
+              fetchRoutine(); // Revert local state by reloading from backend
+            });
+        } else {
+          toast.success("Swapped scheduling periods locally");
+        }
       } else {
-        toast.success("Swapped scheduling periods");
+        // MOVE: one class moved to an empty slot
+        if (sourceScheduleId && targetTimeslotId) {
+          const toastId = toast.loading("Moving scheduling period on server...");
+          moveScheduleLayout(sourceScheduleId, targetTimeslotId)
+            .then(() => {
+              toast.success("Moved scheduling period successfully!", { id: toastId });
+              fetchRoutine();
+            })
+            .catch((err) => {
+              console.error("Failed to move scheduling period:", err);
+              toast.error("Failed to move scheduling period on server. Reverting move.", { id: toastId });
+              fetchRoutine();
+            });
+        } else {
+          toast.success("Moved scheduling period locally");
+        }
       }
     }
 
@@ -1030,17 +1191,17 @@ export default function ScheduleRoutine() {
     for (let i = 0; i < cellIndex; i++) {
       startSlotIdx += sideList[i].colSpan;
     }
-    
+
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const width = rect.width;
-    
+
     const span = sideList[cellIndex].colSpan;
     const slotWidth = width / span;
-    
+
     const hoveredSlotOffset = Math.floor(offsetX / slotWidth);
     const boundedOffset = Math.max(0, Math.min(span - 1, hoveredSlotOffset));
-    
+
     return startSlotIdx + boundedOffset;
   };
 
@@ -1053,14 +1214,15 @@ export default function ScheduleRoutine() {
   ) => {
     const updated = [...routineState];
     const sideList = updated[dayIndex].tracks[trackIndex][side];
-    
+
     // Rebuild flat array of 4 slots
     const flat: any[] = [];
     sideList.forEach((cell) => {
       for (let i = 0; i < cell.colSpan; i++) {
         flat.push({
           ...cell,
-          timeslotIds: cell.timeslotIds ? [cell.timeslotIds[i]] : undefined
+          timeslotIds: cell.timeslotIds ? [cell.timeslotIds[i]] : undefined,
+          scheduleIds: cell.scheduleIds ? [cell.scheduleIds[i]] : undefined
         });
       }
     });
@@ -1130,6 +1292,9 @@ export default function ScheduleRoutine() {
         if (item.timeslotIds && item.timeslotIds[0]) {
           currentCell.timeslotIds = [...(currentCell.timeslotIds || []), item.timeslotIds[0]];
         }
+        if (item.scheduleIds && item.scheduleIds[0]) {
+          currentCell.scheduleIds = [...(currentCell.scheduleIds || []), item.scheduleIds[0]];
+        }
       } else {
         if (currentCell) {
           newSideList.push(currentCell);
@@ -1144,7 +1309,8 @@ export default function ScheduleRoutine() {
           teacherId: item.teacherId,
           dbRecordId: item.dbRecordId,
           noofgroups: item.noofgroups,
-          timeslotIds: item.timeslotIds ? [item.timeslotIds[0]] : undefined
+          timeslotIds: item.timeslotIds ? [item.timeslotIds[0]] : undefined,
+          scheduleIds: item.scheduleIds ? [item.scheduleIds[0]] : undefined
         };
       }
     }
@@ -1152,9 +1318,29 @@ export default function ScheduleRoutine() {
       newSideList.push(currentCell);
     }
 
+    const sourceScheduleId = srcCell.scheduleIds?.[0];
+    const minSlot = (side === "left" ? 1 : 5);
+    const targetSlotNumber = minSlot + targetSlotIdx;
+    const targetTimeslotId = findTimeslotId(updated[dayIndex].day, targetSlotNumber);
+
     updated[dayIndex].tracks[trackIndex][side] = newSideList;
     updateRoutine(updated);
-    toast.success("Resized schedule period successfully!");
+
+    if (sourceScheduleId && targetTimeslotId) {
+      const toastId = toast.loading("Extending scheduling period on server...");
+      extendScheduleLayout(sourceScheduleId, targetTimeslotId)
+        .then(() => {
+          toast.success("Extended scheduling period successfully!", { id: toastId });
+          fetchRoutine();
+        })
+        .catch((err) => {
+          console.error("Failed to extend scheduling period:", err);
+          toast.error("Failed to extend scheduling period on server. Reverting extend.", { id: toastId });
+          fetchRoutine();
+        });
+    } else {
+      toast.success("Resized schedule period successfully!");
+    }
   };
 
   // Print timetable
@@ -1165,7 +1351,7 @@ export default function ScheduleRoutine() {
   // Generate color tints for classes based on subject name
   const getSubjectColorClass = (subject: string) => {
     if (!subject) return "bg-background border-dashed border border-border/80 hover:bg-muted/30";
-    
+
     // Hash function to pick color
     let hash = 0;
     for (let i = 0; i < subject.length; i++) {
@@ -1186,9 +1372,10 @@ export default function ScheduleRoutine() {
   return (
     <AdminShell title="Routine Scheduling Console">
       <section className="container py-8 space-y-6 print:p-0 print:m-0">
-        
+
         {/* Style block for printing */}
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           @page {
             size: landscape;
             margin: 5mm 10mm;
@@ -1423,49 +1610,49 @@ export default function ScheduleRoutine() {
 
         {/* ── Main Scheduler Work Area ── */}
         <div className="w-full print-timetable-area relative">
-            {!selectedClassId ? (
-              <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px] text-center border-dashed">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-                  <Move className="w-8 h-8 animate-pulse text-primary/80" />
-                </div>
-                <h3 className="text-lg font-black text-foreground mb-1">Select Target Class</h3>
-                <p className="text-xs font-bold text-muted-foreground max-w-sm">
-                  Please select a Department, Year, Section, and Semester in the controls above to load and edit the class routine.
+          {!selectedClassId ? (
+            <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px] text-center border-dashed">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
+                <Move className="w-8 h-8 animate-pulse text-primary/80" />
+              </div>
+              <h3 className="text-lg font-black text-foreground mb-1">Select Target Class</h3>
+              <p className="text-xs font-bold text-muted-foreground max-w-sm">
+                Please select a Department, Year, Section, and Semester in the controls above to load and edit the class routine.
+              </p>
+            </Card>
+          ) : routineLoading ? (
+            <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px]">
+              <RefreshCw className="h-8 w-8 text-primary animate-spin mb-3" />
+              <p className="text-sm font-semibold text-muted-foreground">Fetching routine...</p>
+            </Card>
+          ) : (
+            <Card className="p-6 bg-card border-border shadow-lg rounded-2xl overflow-hidden overflow-x-auto scrollbar-beautiful">
+
+              {/* Timetable Header */}
+              <div className="mb-6 border-b pb-4 text-center">
+                <h2 className="text-2xl font-black text-foreground">
+                  {departments.find((d: any) => String(d.id ?? d.departmentId ?? d.department_id ?? "") === selectedDeptId)?.name || "Class Timetable"}
+                </h2>
+                <p className="text-sm font-semibold text-muted-foreground mt-1 uppercase tracking-widest">
+                  {selectedYear || "N/A"} · Section {selectedSection || "N/A"} · {selectedSemester ? `Semester ${selectedSemester}` : "N/A"}
                 </p>
-              </Card>
-            ) : routineLoading ? (
-              <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px]">
-                <RefreshCw className="h-8 w-8 text-primary animate-spin mb-3" />
-                <p className="text-sm font-semibold text-muted-foreground">Fetching routine...</p>
-              </Card>
-            ) : (
-              <Card className="p-6 bg-card border-border shadow-lg rounded-2xl overflow-hidden overflow-x-auto scrollbar-beautiful">
-                
-                {/* Timetable Header */}
-                <div className="mb-6 border-b pb-4 text-center">
-                  <h2 className="text-2xl font-black text-foreground">
-                    {departments.find((d: any) => String(d.id ?? d.departmentId ?? d.department_id ?? "") === selectedDeptId)?.name || "Class Timetable"}
-                  </h2>
-                  <p className="text-sm font-semibold text-muted-foreground mt-1 uppercase tracking-widest">
-                    {selectedYear || "N/A"} · Section {selectedSection || "N/A"} · {selectedSemester ? `Semester ${selectedSemester}` : "N/A"}
-                  </p>
-                </div>
+              </div>
 
               {/* Responsive Grid Table */}
               <table className="w-full min-w-[1000px] border-collapse table-fixed select-none">
                 <colgroup>
                   {/* Day (MON, TUE) */}
                   <col className="w-24" />
-                  
+
                   {/* Slots I to IV */}
                   <col className="w-[11.25%]" />
                   <col className="w-[11.25%]" />
                   <col className="w-[11.25%]" />
                   <col className="w-[11.25%]" />
-                  
+
                   {/* Lunch Break divider */}
                   <col className="w-16" />
-                  
+
                   {/* Slots V to VIII */}
                   <col className="w-[11.25%]" />
                   <col className="w-[11.25%]" />
@@ -1477,20 +1664,20 @@ export default function ScheduleRoutine() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="sticky left-0 z-20 bg-muted p-3 text-center text-xs font-bold text-muted-foreground uppercase border border-border">DAY</th>
-                    
+
                     {dynamicTimeSlotsLeft.map((slot, idx) => (
                       <th key={slot.name} className="p-3 text-center border border-border">
                         <div className="text-xs font-black text-foreground">{slot.time}</div>
                         <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">({slot.name})</div>
                       </th>
                     ))}
-                    
+
                     {/* Break header */}
                     <th className="p-3 text-center border border-border bg-orange-50/20 dark:bg-orange-950/10">
                       <div className="text-xs font-black text-orange-600 dark:text-orange-400">{breakIntervalText}</div>
                       <div className="text-[10px] text-orange-500/80 font-bold mt-0.5">BREAK</div>
                     </th>
-                    
+
                     {dynamicTimeSlotsRight.map((slot, idx) => (
                       <th key={slot.name} className="p-3 text-center border border-border">
                         <div className="text-xs font-black text-foreground">{slot.time}</div>
@@ -1504,13 +1691,13 @@ export default function ScheduleRoutine() {
                 <tbody>
                   {routineState.map((dayItem, dayIndex) => {
                     const totalTracks = dayItem.tracks.length;
-                    
+
                     return dayItem.tracks.map((track, trackIndex) => {
                       const isFirstTrack = trackIndex === 0;
 
                       return (
                         <tr key={track.id} className="hover:bg-muted/5 group/row border-b border-border">
-                          
+
                           {/* DAY Cell: spans all tracks of the day */}
                           {isFirstTrack && (
                             <td
@@ -1539,33 +1726,30 @@ export default function ScheduleRoutine() {
                           {track.left.map((cell, cellIndex) => {
                             const cellKey = `${dayIndex}-${trackIndex}-left-${cellIndex}`;
                             const isHovered = hoveredCell === cellKey;
-                            
+
                             return (
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${
-                                  isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
-                                }`}
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                                  }`}
                                 onDragOver={(e) => handleDragOverCell(e, dayIndex, trackIndex, "left", cellIndex)}
                                 onDragLeave={handleDragLeaveCell}
                                 onDrop={(e) => handleDropOnCell(e, dayIndex, trackIndex, "left", cellIndex)}
+                                onClick={() => console.log("Clicked cell details:", cell)}
                               >
                                 <div
                                   draggable={isEditMode && !!cell.subject}
                                   onDragStart={(e) => handleDragStartFromCell(e, dayIndex, trackIndex, "left", cellIndex)}
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${
-                                    isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                                  } ${
-                                    cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
-                                  } transition-all duration-200 ${
-                                    cell.subject
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+                                    } ${cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
+                                    } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
                                         ? getSubjectColorClass("")
                                         : "bg-white dark:bg-zinc-900"
-                                  } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
+                                    } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
                                 >
                                   {cell.subject ? (
                                     <>
@@ -1658,33 +1842,30 @@ export default function ScheduleRoutine() {
                           {track.right.map((cell, cellIndex) => {
                             const cellKey = `${dayIndex}-${trackIndex}-right-${cellIndex}`;
                             const isHovered = hoveredCell === cellKey;
-                            
+
                             return (
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${
-                                  isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
-                                }`}
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                                  }`}
                                 onDragOver={(e) => handleDragOverCell(e, dayIndex, trackIndex, "right", cellIndex)}
                                 onDragLeave={handleDragLeaveCell}
                                 onDrop={(e) => handleDropOnCell(e, dayIndex, trackIndex, "right", cellIndex)}
+                                onClick={() => console.log("Clicked cell details:", cell)}
                               >
                                 <div
                                   draggable={isEditMode && !!cell.subject}
                                   onDragStart={(e) => handleDragStartFromCell(e, dayIndex, trackIndex, "right", cellIndex)}
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${
-                                    isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                                  } ${
-                                    cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
-                                  } transition-all duration-200 ${
-                                    cell.subject
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+                                    } ${cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
+                                    } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
                                         ? getSubjectColorClass("")
                                         : "bg-white dark:bg-zinc-900"
-                                  } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
+                                    } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
                                 >
                                   {cell.subject ? (
                                     <>
@@ -1780,12 +1961,12 @@ export default function ScheduleRoutine() {
                     });
                   })}
                 </tbody>
-                </table>
-              </Card>
-            )}
+              </table>
+            </Card>
+          )}
 
-            {/* Routine Saving Overlay */}
-            {/* {routineLoading && (
+          {/* Routine Saving Overlay */}
+          {/* {routineLoading && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-2xl">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1793,7 +1974,7 @@ export default function ScheduleRoutine() {
                 </div>
               </div>
             )} */}
-          </div>
+        </div>
 
       </section>
 
