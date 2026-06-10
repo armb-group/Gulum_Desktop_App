@@ -437,11 +437,21 @@ export default function ScheduleRoutine() {
 
   // Derived selections
   const availableYears = useMemo(() => {
+    let list: string[] = [];
     if (batches.length === 0 && selectedDeptId) {
       const dept = deptData.find(d => d.id === selectedDeptId);
-      return dept?.years.map(y => y.year) || [];
+      list = dept?.years.map(y => y.year) || [];
+    } else {
+      list = Array.from(new Set(batches.map((b: any) => b.year).filter(Boolean))) as string[];
     }
-    return Array.from(new Set(batches.map((b: any) => b.year).filter(Boolean))) as string[];
+    return [...list].sort((a, b) => {
+      const numA = parseInt(a, 10);
+      const numB = parseInt(b, 10);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
   }, [batches, selectedDeptId]);
 
   const availableSections = useMemo(() => {
@@ -1663,7 +1673,7 @@ export default function ScheduleRoutine() {
                 {/* Table Header: time slots */}
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="sticky left-0 z-20 bg-muted p-3 text-center text-xs font-bold text-muted-foreground uppercase border border-border">DAY</th>
+                    <th className="bg-muted p-3 text-center text-xs font-bold text-muted-foreground uppercase border border-border">DAY</th>
 
                     {dynamicTimeSlotsLeft.map((slot, idx) => (
                       <th key={slot.name} className="p-3 text-center border border-border">
@@ -1702,7 +1712,7 @@ export default function ScheduleRoutine() {
                           {isFirstTrack && (
                             <td
                               rowSpan={totalTracks}
-                              className="sticky left-0 z-10 p-3 font-extrabold text-sm border border-border text-center align-middle bg-card text-foreground"
+                              className="p-3 font-extrabold text-sm border border-border text-center align-middle bg-card text-foreground"
                             >
                               <div className="w-full text-center flex flex-col items-center justify-center">
                                 <span>{dayItem.day}</span>
