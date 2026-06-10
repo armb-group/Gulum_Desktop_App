@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Upload, LogOut, ClipboardList,
+  LayoutDashboard, Upload, LogOut, Building2,
   GraduationCap, Users, Bell, Menu, X, ShieldCheck, UserCheck, Calendar
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ const NAV_GROUPS = [
     items: [
       { title: "Dashboard",          url: "/admin/dashboard",    icon: LayoutDashboard },
       { title: "Bulk Upload",        url: "/admin/bulk-upload",  icon: Upload },
+      { title: "Department",        url: "/admin/department",  icon: Building2 },
       { title: "Teachers",           url: "/admin/TeacherCrud",  icon: Users },
       { title: "Students",           url: "/admin/StudentCrud",  icon: GraduationCap },
       { title: "Notice",             url: "/admin/NoticePage",   icon: Bell },
@@ -22,7 +23,6 @@ const NAV_GROUPS = [
   {
     label: "Work",
     items: [
-      // { title: "Assign Work",        url: "/admin/assign-work",  icon: ClipboardList },
       { title: "Assign Teacher",     url: "/admin/assign-teacher", icon: UserCheck },
       { title: "Schedule Routine",    url: "/admin/routine",       icon: Calendar },
     ],

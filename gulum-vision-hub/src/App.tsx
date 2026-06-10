@@ -194,7 +194,7 @@ const App = () => (
                 />
 
                 <Route
-                  path="/admin/departments"
+                  path="/admin/department"
                   element={
                     <ProtectedRoute role="admin">
                       <Departments />
