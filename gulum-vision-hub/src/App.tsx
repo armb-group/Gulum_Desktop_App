@@ -12,9 +12,7 @@ import Welcome from "./pages/Welcome";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
 
-import StudentHome from "./studentauth/homepage/StudentHome";
 import StudentDashboard from "./studentauth/homepage/StudentDashboard";
-import StudentAssignments from "./studentauth/homepage/StudentAssignments";
 import StudentNotifications from "./studentauth/homepage/StudentNotifications";
 import StudentProfile from "./studentauth/homepage/StudentProfile";
 import StudentAttendance from "./studentauth/homepage/StudentAttendance";
@@ -61,7 +59,7 @@ const App = () => (
                   path="/student"
                   element={
                     <ProtectedRoute role="student">
-                      <StudentHome />
+                      <StudentDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -70,14 +68,6 @@ const App = () => (
                   element={
                     <ProtectedRoute role="student">
                       <StudentDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/student/assignments"
-                  element={
-                    <ProtectedRoute role="student">
-                      <StudentAssignments />
                     </ProtectedRoute>
                   }
                 />

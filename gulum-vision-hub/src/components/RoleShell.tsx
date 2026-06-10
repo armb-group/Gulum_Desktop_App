@@ -3,7 +3,7 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
-import { Home, LayoutDashboard, FolderClosed, Bell, User, LogOut, Menu, X } from "lucide-react";
+import { Home, FolderClosed, Bell, User, LogOut, Menu, X } from "lucide-react";
 
 interface RoleShellProps {
   role: "student" | "teacher";
@@ -13,12 +13,13 @@ interface RoleShellProps {
   children: ReactNode;
 }
 
-const getMenuItems = (base: string) => [
-  { title: "Home",        url: base,                    icon: Home,           end: true },
-  { title: "Dashboard",   url: `${base}/dashboard`,     icon: LayoutDashboard },
-  { title: "Assignments", url: `${base}/assignments`,   icon: FolderClosed },
-  { title: "Alerts",      url: `${base}/notifications`, icon: Bell },
-  { title: "Profile",     url: `${base}/profile`,       icon: User },
+const getMenuItems = (base: string, role: string) => [
+  { title: "Home",      url: base,                    icon: Home,           end: true },
+  ...(role === "teacher"
+    ? [{ title: "Assignments", url: `${base}/assignments`, icon: FolderClosed }]
+    : []),
+  { title: "Alerts",    url: `${base}/notifications`, icon: Bell },
+  { title: "Profile",   url: `${base}/profile`,       icon: User },
 ];
 
 const formatDate = () =>
@@ -35,7 +36,7 @@ export const RoleShell = ({ role, title, subtitle, showDate, children }: RoleShe
   if (user.role !== role) return <Navigate to="/" replace />;
 
   const base = role === "student" ? "/student" : "/teacher";
-  const items = getMenuItems(base);
+  const items = getMenuItems(base, role);
   const headerSubtitle = subtitle ?? user.institution ?? "MCKV Institute of Engineering";
   const handleLogout = () => { logout(); navigate(`${base}/login`, { replace: true }); };
 

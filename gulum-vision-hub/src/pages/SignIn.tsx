@@ -10,6 +10,7 @@ import {
   IdCard,
   Info,
   Lock,
+  Mail,
   Sparkles,
   User,
 } from "lucide-react";
@@ -26,10 +27,10 @@ interface SignInProps {
 const config = {
   student: {
     portalLabel: "Student Portal",
-    idLabel: "Roll Number",
-    idPlaceholder: "e.g. BCA2024001",
-    idIcon: IdCard,
-    helper: "Your roll number and password are provided by your institution",
+    idLabel: "Email",
+    idPlaceholder: "e.g. student@example.com",
+    idIcon: Mail,
+    helper: "Use the email issued by your institution",
     switchLabel: "Sign in as Teacher instead",
     switchTo: "/teacher/login",
     redirect: "/student",
