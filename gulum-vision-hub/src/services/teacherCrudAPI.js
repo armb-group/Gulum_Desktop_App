@@ -75,6 +75,7 @@ export const createTeacher = async (teacherData) => {
     createdBy: teacherData.created_by ?? "Admin",
     email: teacherData.email,
     phone: teacherData.phone,
+    password: teacherData.password,
   };
   const response = await api.post("/teachers", payload);
   return response.data.responseData ?? response.data;

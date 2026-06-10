@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getTeachers, createUser, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const TeacherCrud = () => {
+  const { user } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
 
@@ -193,14 +195,11 @@ const TeacherCrud = () => {
     submittingRef.current = true;
     setLoading(true);
     try {
-      // Step 1: Create User
-      const userData = await createUser({ email: account.email, phone: account.phone, password: account.password });
-      const userId = userData?.user_id ?? userData?.id ?? userData?.data?.user_id ?? userData?.data?.id;
-      if (!userId) throw new Error(`User creation failed: no user_id returned. Received: ${JSON.stringify(userData)}`);
-
-      // Step 2: Create Teacher
-      const teacherData = await createTeacher({
-        user_id: userId,
+      // Create Teacher (registers user credentials and profile details in one call)
+      await createTeacher({
+        email: account.email,
+        phone: account.phone,
+        password: account.password,
         institution_id: professional.institution_id,
         employee_code: professional.employee_code,
         full_name: personal.full_name,
@@ -209,29 +208,8 @@ const TeacherCrud = () => {
         experience_year: professional.experience_year,
         joining_date: professional.joining_date,
         metadata: professional.metadata,
-        email: account.email,
-        phone: account.phone,
-        created_by: "Admin",
+        created_by: user?.name ?? "Admin",
       });
-
-      const newTeacher: Teacher = {
-        ...emptyTeacher,
-        ...teacherData,
-        id: teacherData?.id ?? teachers.length + 1,
-        user_id: userId,
-        institution_id: professional.institution_id,
-        employee_code: professional.employee_code,
-        full_name: personal.full_name,
-        qualification: personal.qualification,
-        specialization: personal.specialization,
-        experience_year: professional.experience_year,
-        joining_date: professional.joining_date,
-        metadata: professional.metadata,
-        email: account.email,
-        phone: account.phone,
-        created_by: "Admin",
-        created_at: new Date().toISOString().split("T")[0],
-      };
 
       toast.success("Teacher registered successfully!");
       closeModal();

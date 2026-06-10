@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createUser, createStudent, getStudents, updateStudent } from "@/services/studentCrudAPI";
+import { createStudent, getStudents, updateStudent } from "@/services/studentCrudAPI";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -174,6 +175,7 @@ const Field = ({
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const StudentCrud = () => {
+  const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
 
@@ -292,25 +294,8 @@ const StudentCrud = () => {
     setLoading(true);
 
     try {
-      // Step 1: Create User
-      const userData = await createUser({
-        email: account.email,
-        phone: account.phone,
-        password: account.password,
-      });
-
-      const userId: string | number =
-        userData?.user_id ??
-        userData?.id ??
-        userData?.data?.user_id ??
-        userData?.data?.id;
-      if (!userId)
-        throw new Error(
-          `User creation failed: no user_id returned. Received: ${JSON.stringify(userData)}`
-        );
-
-      // Step 2: Create Student Record
-      const studentData = await createStudent({
+      // Create Student (registers user credentials and profile details in one call)
+      await createStudent({
         institution_id: academic.institution_id,
         admission_no: academic.admission_no,
         roll_no: academic.roll_no,
@@ -319,33 +304,13 @@ const StudentCrud = () => {
         gender: personal.gender,
         email_id: account.email,
         phone_number: account.phone,
+        password: account.password,
         batch_id: academic.batch_id,
         classess_id: academic.classess_id,
         department_id: academic.department_id,
-        user_id: userId,
-        created_by: "Admin",
+        created_by: user?.name ?? "Admin",
         metadata: "",
       });
-
-      const newStudent: Student = {
-        ...emptyStudent,
-        ...studentData,
-        id: studentData?.id ?? students.length + 1,
-        institution_id: academic.institution_id,
-        admission_no: academic.admission_no,
-        roll_no: academic.roll_no,
-        full_name: personal.full_name,
-        dob: personal.dob,
-        gender: personal.gender,
-        email_id: account.email,
-        phone_number: account.phone,
-        batch_id: academic.batch_id,
-        classess_id: academic.classess_id,
-        department_id: academic.department_id,
-        user_id: userId,
-        created_by: "Admin",
-        created_at: new Date().toISOString().split("T")[0],
-      };
 
       toast.success("Student registered successfully!");
       closeModal();
