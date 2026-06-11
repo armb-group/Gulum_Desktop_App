@@ -10,9 +10,12 @@ import {
   useStudentModules,
   useStudentTrackingStatus,
   useStudentTrackingAll,
+  getProgress,
+
 } from "@/services/lectureAuditAPI";
 
 type StudentSubject = {
+  classId?: string;
   name?: string;
   semester?: string;
   totalCompleted?: number;
@@ -25,6 +28,7 @@ type StudentSubject = {
   trackingId?: string;
   id?: string;
   modules: Array<{
+     id?: string;
     title?: string;
     moduleTitle?: string;
     completed?: number;
@@ -64,24 +68,34 @@ const STATIC_SUBJECTS = [
 ];
 
 export default function StudentLectureAudit() {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [selectedCourseCode, setSelectedCourseCode] = useState("");
   const [selectedTrackingId, setSelectedTrackingId] = useState("");
   const { data: apiSubjects, isLoading: isMastersLoading } = useStudentMasters();
   const { data: moduleData } = useStudentModules(selectedCourseCode);
   const { data: trackingStatus } = useStudentTrackingStatus(selectedTrackingId);
-  const { data: trackingAll } = useStudentTrackingAll(selectedTrackingId);
+  const { data: progressData } = getProgress(selectedTrackingId);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const { data: trackingAll } = useStudentTrackingAll(selectedClassId);
+
   const navigate = useNavigate();
 
-  const subjects: StudentSubject[] = apiSubjects ?? STATIC_SUBJECTS;
+  const subjects = apiSubjects ?? [];
 
   useEffect(() => {
-    if (apiSubjects?.length > 0) {
+    if (apiSubjects?.length > 0 && !selectedClassId) {
       const firstSubject = apiSubjects[0];
-      setSelectedCourseCode(firstSubject.courseCode ?? "");
-      setSelectedTrackingId(firstSubject.trackingId ?? firstSubject.id ?? "");
+
+      setSelectedClassId(firstSubject.classId ?? "");
     }
-  }, [apiSubjects]);
+  }, [apiSubjects, selectedClassId]);
+  useEffect(() => {
+    console.log("selectedCourseCode changed:", selectedCourseCode);
+  }, [selectedCourseCode]);
+
+  useEffect(() => {
+    console.log("moduleData changed:", moduleData);
+  }, [moduleData]);
 
   return (
     <RoleShell role="student" title="Lecture Progress" subtitle="Your syllabus coverage">
@@ -93,14 +107,18 @@ export default function StudentLectureAudit() {
       )}
       {/* Mini summary cards */}
       <div className="flex gap-3 mb-6">
-        {subjects.map((s: StudentSubject, i: number) => {
-          const completed = s.totalCompleted ?? s.completedHours ?? 0;
-          const hours = s.totalHours ?? s.expectedHours ?? 1;
-          const pct = Math.round((completed / hours) * 100);
+        {(subjects ?? []).map((t: StudentSubject, i: number) => {
+          const trackingRecord = trackingAll?.find(
+            (item) => item.syllabusMasterId === t.id
+          );
+
+
+          const pct = trackingRecord?.progressPercentage ?? 0;
+
           return (
             <div key={i} className="flex-1 rounded-2xl border border-border bg-surface p-3 flex flex-col items-center">
               <span className="text-primary font-extrabold text-xl">{pct}%</span>
-              <span className="text-muted-foreground text-xs mt-1 text-center">{s.name ?? s.courseName ?? s.syllabusName}</span>
+              <span className="text-muted-foreground text-xs mt-1 text-center">{t.name ?? t.courseName ?? t.syllabusName}</span>
             </div>
           );
         })}
@@ -109,26 +127,45 @@ export default function StudentLectureAudit() {
       <div className="space-y-4">
         {subjects.map((subject: StudentSubject, si: number) => {
           const isOpen = expandedIdx === si;
-          const completed = subject.totalCompleted ?? subject.completedHours ?? 0;
-          const hours = subject.totalHours ?? subject.expectedHours ?? 1;
-          const pct = Math.round((completed / hours) * 100);
-          const subjectModules = moduleData?.modules ?? moduleData ?? subject.modules;
-          const subjectTrackingId = subject.trackingId ?? subject.id ?? selectedTrackingId;
-          const trackedItems = trackingAll?.items ?? trackingAll?.modules ?? [];
-          const trackingStatusLabel = trackingStatus?.status ?? trackingAll?.status;
 
+          const trackingRecord = trackingAll?.find(
+            (item: any) => item.syllabusMasterId === subject.id
+          );
+
+          const pct = trackingRecord?.progressPercentage ?? 0;
+
+          const subjectModules =
+            isOpen && selectedCourseCode === subject.courseCode
+              ? (moduleData?.modules ?? moduleData ?? [])
+              : [];
+          
+          const trackingStatusLabel =
+            trackingRecord?.trackingStatus ?? "";
           return (
             <Card key={si} className="p-5 bg-surface border-border">
               <button
                 className="w-full flex items-center justify-between gap-3 text-left"
-                onClick={() => setExpandedIdx(isOpen ? null : si)}
+                onClick={() => {
+                  const opening = expandedIdx !== si;
+
+                  setExpandedIdx(opening ? si : null);
+
+                  if (opening) {
+                    const trackingRecord = trackingAll?.find(
+                      (item: any) => item.syllabusMasterId === subject.id
+                    );
+                    setSelectedCourseCode(subject.courseCode ?? "");
+                    setSelectedTrackingId(trackingRecord?.id ?? "");
+                    setSelectedClassId(subject.classId ?? "");
+                  }
+                }}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-foreground text-lg truncate">{subject.name}</p>
-                  <p className="text-sm text-muted-foreground">{subject.semester}</p>
+                  <p className="font-bold text-foreground text-lg truncate">{subject.name ?? subject.syllabusName ?? subject.courseName}</p>
+                  <p className="text-sm text-muted-foreground">{subject.courseCode}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-primary font-bold text-sm">{subject.totalCompleted}/{subject.totalHours} hrs</span>
+                  <span className="text-primary font-bold text-sm">{pct}% completed</span>
                   {trackingStatusLabel ? <span className="text-muted-foreground text-xs">{trackingStatusLabel}</span> : null}
                   {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
@@ -138,18 +175,28 @@ export default function StudentLectureAudit() {
 
               {isOpen && (
                 <div className="mt-4 space-y-3">
-                  {subjectTrackingId && trackingStatusLabel ? (
-                    <div className="rounded-xl border border-border bg-background p-4 mb-3">
-                      <p className="text-sm font-semibold text-foreground mb-2">Tracking Info</p>
-                      <p className="text-sm text-muted-foreground">Status: {trackingStatusLabel}</p>
-                      <p className="text-sm text-muted-foreground">Total tracked items: {Array.isArray(trackedItems) ? trackedItems.length : "-"}</p>
-                    </div>
-                  ) : null}
+
                   {(subjectModules ?? []).map((mod, mi) => {
-                    const modCompleted = mod.completed ?? mod.completedHours ?? 0;
-                    const modTotal = mod.total ?? mod.totalHours ?? mod.expectedHours ?? 1;
-                    const modPct = Math.round((modCompleted / modTotal) * 100);
-                    const done = modCompleted >= modTotal;
+                  
+const progressRecord = progressData?.progress?.find(
+  (p: any) => p.moduleId === mod.id
+);
+
+const modCompleted = progressRecord?.hoursCompleted ?? 0;
+
+const modTotal = mod.expectedHours ?? mod.totalHours ?? 0;
+console.log("mod.id", mod.id);
+console.log("progressData", progressData);
+const done =
+  trackingStatus?.find(
+    (s: any) => s.moduleId === mod.id
+  )?.status === "COMPLETED";
+const modPct =
+  modTotal > 0
+    ? Math.round((modCompleted / modTotal) * 100)
+    : 0;
+
+
                     return (
                       <div key={mi} className="rounded-xl border border-border bg-background p-4">
                         <div className="flex items-center gap-2 mb-2">

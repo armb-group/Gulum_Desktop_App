@@ -70,12 +70,27 @@ export const useStudentTrackingStatus = (trackingId) =>
     },
   });
 
-export const useStudentTrackingAll = (trackingId) =>
+export const useStudentTrackingAll = (classId) =>
   useQuery({
-    queryKey: ["student-tracking-all", trackingId],
-    enabled: !!trackingId,
+    queryKey: ["student-tracking-all", classId],
+    enabled: !!classId,
     queryFn: async () => {
-      const { data } = await api.get(`/api/tracking/all/${trackingId}`);
+      const { data } = await api.get(`/api/tracking/all/${classId}`);
       return data;
     },
   });
+  
+export const progressApi = async (trackingId) => {
+  const res = await api.get(`/api/progress/${trackingId}`);
+
+  return res.data;
+};
+
+export const getProgress = (trackingId) => {
+  return useQuery({
+    queryKey: ["progress", trackingId],
+    queryFn: () => progressApi(trackingId),
+    enabled: !!trackingId,
+    staleTime: 0,
+  });
+};

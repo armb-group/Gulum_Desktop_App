@@ -9,7 +9,7 @@ import {
   AlertTriangle, ChevronRight,
   Users,
 } from "lucide-react";
-import { useStudentSyllabus } from "@/services/lectureAuditAPI";
+import { useStudentSyllabus,useStudentTrackingAll ,useStudentMasters} from "@/services/lectureAuditAPI";
 import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
 import {
   defaultStudentNotifications,
@@ -62,9 +62,12 @@ const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; l
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const StudentDashboard = () => {
-  const { data: apiSubjects } = useStudentSyllabus();
+  const { data: apiSubjects } = useStudentMasters();
+  console.log("apiSubjects =", apiSubjects);
   const subjects = apiSubjects ?? STATIC_SYLLABUS;
+const classId = apiSubjects?.[0]?.classId;
 
+const { data: trackingAll } = useStudentTrackingAll(classId);
   const studentNoticeQuery = useGetNoticesByLevel("STUDENT");
   const apiNotifications = useMemo(
     () => (studentNoticeQuery.data ?? []).map((n: any) => noticeToNotification(n, "student")),
@@ -123,11 +126,16 @@ const StudentDashboard = () => {
           <SectionHeader title="Syllabus Coverage" to="/student/lecture-audit" linkLabel="Full progress" />
           <div className="space-y-3">
             {subjects.map((s: any) => {
-              const pct = Math.round((s.totalCompleted / s.totalHours) * 100);
+              const trackingRecord = trackingAll?.find(
+  (item: any) => item.syllabusMasterId === s.id
+);
+
+const pct = trackingRecord?.progressPercentage ?? 0;
               return (
-                <div key={s.name}>
+                
+                <div key={s.id ?? s.name}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-foreground">{s.name}</span>
+                    <span className="font-semibold text-foreground"> {s.name ?? s.syllabusName ?? s.courseName}</span>
                     <span className="text-primary font-semibold">{pct}%</span>
                   </div>
                   <Progress value={pct} className="h-2 [&>div]:bg-primary" />
