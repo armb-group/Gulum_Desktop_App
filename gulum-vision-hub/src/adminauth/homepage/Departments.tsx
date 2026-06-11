@@ -7,6 +7,7 @@ import { Plus, ChevronDown, Loader2 } from "lucide-react";
 import { AdminShell } from "./AdminShell";
 import type { Department } from "./departmentsData";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { getDepartments, getAcademicBatchesByDepartment, createDepartment } from "@/services/departmentAPI";
 import {
   Dialog,
@@ -56,6 +57,8 @@ import api from "@/services/api";
 };*/
 
 const Departments = () => {
+  const { user } = useAuth();
+  console.log("user ",user)
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -101,14 +104,14 @@ const Departments = () => {
       .then((list) => {
         const mapped: Department[] = Array.isArray(list)
           ? list.map((d) => {
-              const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
-              const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
-              return {
-                id,
-                name,
-                years: []
-              };
-            })
+            const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
+            const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
+            return {
+              id,
+              name,
+              years: []
+            };
+          })
           : [];
         setDepartments(mapped);
       })
@@ -158,18 +161,16 @@ const Departments = () => {
 
     setIsSubmitting(true);
     const payload = {
+      institutionId: user?.institutionId || "",
       name: newDeptName.trim(),
-      departmentName: newDeptName.trim(),
-      code: newDeptCode.trim() || undefined,
-      description: newDeptDescription.trim() || undefined,
     };
 
     try {
       const result = await createDepartment(payload);
-      
+
       const newId = String(result?.id ?? result?.departmentId ?? result?.department_id ?? Date.now().toString());
       const newName = result?.name ?? result?.departmentName ?? result?.department_name ?? newDeptName.trim();
-      
+
       const newDepartmentItem: Department = {
         id: newId,
         name: newName,
@@ -179,14 +180,14 @@ const Departments = () => {
       setDepartments((current) => [newDepartmentItem, ...current]);
       toast.success("Department created successfully!");
       setIsAddModalOpen(false);
-      
+
       // Reset form fields
       setNewDeptName("");
       setNewDeptCode("");
       setNewDeptDescription("");
     } catch (err: any) {
       console.error("Failed to create department in backend:", err);
-      
+
       // Fallback: Add locally
       const localId = Date.now().toString();
       const localDept: Department = {
@@ -194,10 +195,10 @@ const Departments = () => {
         name: newDeptName.trim(),
         years: []
       };
-      
+
       setDepartments((current) => [localDept, ...current]);
       toast.warning("Failed to save to database, but added locally for this session.");
-      
+
       setIsAddModalOpen(false);
       setNewDeptName("");
       setNewDeptCode("");
@@ -405,11 +406,10 @@ const Departments = () => {
                           handleDeptChange(dept.id);
                           setShowDeptDropdown(false);
                         }}
-                        className={`w-full text-left px-4 py-3 text-sm transition hover:bg-accent hover:text-accent-foreground ${
-                          selectedDeptId === dept.id
+                        className={`w-full text-left px-4 py-3 text-sm transition hover:bg-accent hover:text-accent-foreground ${selectedDeptId === dept.id
                             ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
                             : "text-foreground"
-                        }`}
+                          }`}
                       >
                         {dept.name}
                       </button>
@@ -621,31 +621,22 @@ const Departments = () => {
             </DialogHeader>
             <form onSubmit={handleCreateDepartment} className="space-y-4 py-4">
               <div className="space-y-2">
+                <Label htmlFor="institute-name">Institute Name</Label>
+                <Input
+                  id="institute-name"
+                  value={user?.institution ?? ""}
+                  readOnly
+                  className="cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="dept-name">Department Name <span className="text-destructive">*</span></Label>
-                <Input 
-                  id="dept-name" 
-                  placeholder="e.g. Computer Science & Engineering" 
-                  value={newDeptName} 
-                  onChange={(e) => setNewDeptName(e.target.value)} 
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dept-code">Department Code / Abbreviation</Label>
-                <Input 
-                  id="dept-code" 
-                  placeholder="e.g. CSE" 
-                  value={newDeptCode} 
-                  onChange={(e) => setNewDeptCode(e.target.value)} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dept-desc">Description</Label>
-                <Textarea 
-                  id="dept-desc" 
-                  placeholder="Enter department details..." 
-                  value={newDeptDescription} 
-                  onChange={(e) => setNewDeptDescription(e.target.value)} 
+                <Input
+                  id="dept-name"
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  required
                 />
               </div>
               <DialogFooter className="pt-4">
