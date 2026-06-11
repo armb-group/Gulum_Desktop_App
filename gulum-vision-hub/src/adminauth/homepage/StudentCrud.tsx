@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { CustomTooltip } from "@/components/CustomTooltip";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -443,29 +444,47 @@ const StudentCrud = () => {
                           return (
                             <td key={column.key} className={`px-3 py-2 align-middle border-r border-slate-300 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
                               <div className="flex items-center justify-between gap-2 group/cell">
-                                {column.key === "full_name" ? (
-                                  <span title={String(value ?? "")} className="font-semibold text-indigo-700">{String(value ?? "—")}</span>
-                                ) : column.key === "email_id" ? (
-                                  <span title={String(value ?? "")} className="text-blue-600 text-xs">{String(value ?? "—")}</span>
-                                ) : column.key === "admission_no" ? (
-                                  <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
-                                ) : column.key === "roll_no" ? (
-                                  <span title={String(value ?? "")} className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
-                                ) : column.key === "gender" ? (
-                                  <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>{String(value || "—")}</Badge>
-                                ) : (column.key === "id" || column.key === "user_id") ? (
-                                  <span title={String(value ?? "")} className="text-slate-500 text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>
-                                ) : (
-                                  <span title={String(value ?? "")} className="text-slate-700 text-xs">{String(value ?? "—")}</span>
-                                )}
+                                {(() => {
+                                  const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
+                                  const contentStr = String(value ?? "");
+
+                                  const getElement = () => {
+                                    if (column.key === "full_name") {
+                                      return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                    } else if (column.key === "email_id") {
+                                      return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                    } else if (column.key === "admission_no") {
+                                      return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                    } else if (column.key === "roll_no") {
+                                      return <span className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                    } else if (column.key === "gender") {
+                                      return (
+                                        <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>
+                                          {String(value || "—")}
+                                        </Badge>
+                                      );
+                                    } else if (column.key === "id" || column.key === "user_id") {
+                                      return <span className="text-slate-500 text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>;
+                                    } else {
+                                      return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                    }
+                                  };
+
+                                  const element = getElement();
+                                  if (hasTooltip && column.key !== "gender") {
+                                    return <CustomTooltip content={contentStr}>{element}</CustomTooltip>;
+                                  }
+                                  return element;
+                                })()}
                                 {value && value !== "—" && (
-                                  <button
-                                    onClick={() => handleCopy(String(value))}
-                                    className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
-                                    title="Copy"
-                                  >
-                                    <Copy className="h-3.5 w-3.5" />
-                                  </button>
+                                  <CustomTooltip content="Copy">
+                                    <button
+                                      onClick={() => handleCopy(String(value))}
+                                      className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </button>
+                                  </CustomTooltip>
                                 )}
                               </div>
                             </td>
@@ -473,12 +492,16 @@ const StudentCrud = () => {
                         })}
                         <td className="px-3 py-2 align-middle">
                           <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} title="View Details" className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <CustomTooltip content="View Details">
+                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </CustomTooltip>
+                            <CustomTooltip content="Delete Student">
+                              <Button size="sm" variant="destructive" onClick={() => handleDelete(student.id)} className="rounded-lg">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </CustomTooltip>
                           </div>
                         </td>
                       </tr>
@@ -735,9 +758,20 @@ const StudentCrud = () => {
                         className="h-9"
                       />
                     ) : (
-                      <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewStudent[column.key] ?? "—")}>
-                        {String(selectedViewStudent[column.key] ?? "—")}
-                      </div>
+                      (() => {
+                        const val = selectedViewStudent[column.key];
+                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                        const divEl = (
+                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
+                            {String(val ?? "—")}
+                          </div>
+                        );
+                        return hasTooltip ? (
+                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                        ) : (
+                          divEl
+                        );
+                      })()
                     )}
                   </div>
                 ))}

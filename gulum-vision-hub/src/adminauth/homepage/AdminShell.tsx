@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
+import { CustomTooltip } from "@/components/CustomTooltip";
 import {
   SidebarProvider,
   Sidebar,
@@ -62,27 +63,30 @@ const AdminSidebarHeader = () => {
           <p className="text-[10px] text-sidebar-foreground/60 mt-0.5 truncate">Admin Console</p>
         </div>
       </div>
-      <button
-        onClick={toggleSidebar}
-        className="p-1 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-primary transition-colors shrink-0 print-hide"
-        title="Collapse Sidebar"
-      >
-        <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
-      </button>
+      <CustomTooltip content="Collapse Sidebar" side="right">
+        <button
+          onClick={toggleSidebar}
+          className="p-1 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-primary transition-colors shrink-0 print-hide"
+        >
+          <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
+        </button>
+      </CustomTooltip>
     </div>
   ) : (
     <div className="flex items-center justify-center px-3 py-4 border-b border-sidebar-border h-14 shrink-0">
-      <button
-        onClick={toggleSidebar}
-        className="relative h-9 w-9 flex items-center justify-center shrink-0 group/logo-btn cursor-ew-resize hover:bg-sidebar-accent hover:text-sidebar-primary rounded-lg transition-all duration-200"
-      >
-        <div className="group-hover/logo-btn:hidden">
-          <Logo size="sm" className="!h-7 w-7" />
-        </div>
-        <div className="hidden group-hover/logo-btn:block animate-in fade-in zoom-in-95 duration-150">
-          <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
-        </div>
-      </button>
+      <CustomTooltip content="Expand Sidebar" side="right">
+        <button
+          onClick={toggleSidebar}
+          className="relative h-9 w-9 flex items-center justify-center shrink-0 group/logo-btn cursor-ew-resize hover:bg-sidebar-accent hover:text-sidebar-primary rounded-lg transition-all duration-200"
+        >
+          <div className="group-hover/logo-btn:hidden">
+            <Logo size="sm" className="!h-7 w-7" />
+          </div>
+          <div className="hidden group-hover/logo-btn:block animate-in fade-in zoom-in-95 duration-150">
+            <PanelLeft className="h-4 w-4 text-sidebar-foreground" />
+          </div>
+        </button>
+      </CustomTooltip>
     </div>
   );
 };

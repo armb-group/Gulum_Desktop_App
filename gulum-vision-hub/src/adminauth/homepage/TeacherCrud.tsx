@@ -4,6 +4,7 @@ import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCru
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { CustomTooltip } from "@/components/CustomTooltip";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,29 +349,45 @@ const TeacherCrud = () => {
                             return (
                               <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-slate-300 last:border-r-0">
                                   <div className="flex items-center justify-between gap-2 group/cell">
-                                    {col.key === "full_name" ? (
-                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{String(value ?? "—")}</span>
-                                    ) : col.key === "email" ? (
-                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{String(value ?? "—")}</span>
-                                    ) : col.key === "employee_code" ? (
-                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
-                                    ) : col.key === "is_active" ? (
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                                        {value ? "Active" : "Inactive"}
-                                      </span>
-                                    ) : (col.key === "id" || col.key === "user_id") ? (
-                                      <span title={String(value ?? "")} className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>
-                                    ) : (
-                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{String(value ?? "—")}</span>
-                                    )}
+                                    {(() => {
+                                      const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
+                                      const contentStr = String(value ?? "");
+                                      
+                                      const getSpan = () => {
+                                        if (col.key === "full_name") {
+                                          return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "email") {
+                                          return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "employee_code") {
+                                          return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "is_active") {
+                                          return (
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                              {value ? "Active" : "Inactive"}
+                                            </span>
+                                          );
+                                        } else if (col.key === "id" || col.key === "user_id") {
+                                          return <span className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
+                                        } else {
+                                          return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                        }
+                                      };
+
+                                      const spanEl = getSpan();
+                                      if (hasTooltip && col.key !== "is_active") {
+                                        return <CustomTooltip content={contentStr}>{spanEl}</CustomTooltip>;
+                                      }
+                                      return spanEl;
+                                    })()}
                                     {value !== undefined && value !== "—" && (
-                                      <button
-                                        onClick={() => handleCopy(String(value))}
-                                        className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
-                                        title="Copy"
-                                      >
-                                        <Copy className="h-3.5 w-3.5" />
-                                      </button>
+                                      <CustomTooltip content="Copy">
+                                        <button
+                                          onClick={() => handleCopy(String(value))}
+                                          className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                                        >
+                                          <Copy className="h-3.5 w-3.5" />
+                                        </button>
+                                      </CustomTooltip>
                                     )}
                                   </div>
                               </td>
@@ -378,11 +395,15 @@ const TeacherCrud = () => {
                           })}
                           <td className="px-3 py-2 align-middle">
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                
-                              <Button size="sm" variant="destructive" onClick={() => handleDelete(teacher.id)} className="rounded-lg"><Trash2 className="h-4 w-4" /></Button>
+                               <CustomTooltip content="View Details">
+                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                   <Eye className="h-4 w-4" />
+                                 </Button>
+                               </CustomTooltip>
+                 
+                               <CustomTooltip content="Delete Teacher">
+                                 <Button size="sm" variant="destructive" onClick={() => handleDelete(teacher.id)} className="rounded-lg"><Trash2 className="h-4 w-4" /></Button>
+                               </CustomTooltip>
                             </div>
                           </td>
                         </tr>
@@ -550,9 +571,20 @@ const TeacherCrud = () => {
                         className="h-9"
                       />
                     ) : (
-                      <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewTeacher[col.key] ?? "—")}>
-                        {String(selectedViewTeacher[col.key] ?? "—")}
-                      </div>
+                      (() => {
+                        const val = selectedViewTeacher[col.key];
+                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                        const divEl = (
+                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
+                            {String(val ?? "—")}
+                          </div>
+                        );
+                        return hasTooltip ? (
+                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                        ) : (
+                          divEl
+                        );
+                      })()
                     )}
                   </div>
                 ))}

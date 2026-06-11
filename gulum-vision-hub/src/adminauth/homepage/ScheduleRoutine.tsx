@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { CustomTooltip } from "@/components/CustomTooltip";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -1807,34 +1808,37 @@ export default function ScheduleRoutine() {
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <button
-                                            title="Edit Slot"
-                                            onClick={() => handleOpenEditCell(dayIndex, trackIndex, "left", cellIndex)}
-                                            className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                          >
-                                            <Edit2 className="w-3.5 h-3.5" />
-                                          </button>
-                                          <button
-                                            title="Clear Slot"
-                                            onClick={() => handleClearCell(dayIndex, trackIndex, "left", cellIndex)}
-                                            className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
+                                          <CustomTooltip content="Edit Slot">
+                                            <button
+                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "left", cellIndex)}
+                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                                            >
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </CustomTooltip>
+                                          <CustomTooltip content="Clear Slot">
+                                            <button
+                                              onClick={() => handleClearCell(dayIndex, trackIndex, "left", cellIndex)}
+                                              className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </CustomTooltip>
                                         </div>
                                       )}
 
                                       {/* Resize Handle */}
                                       {isEditMode && (
-                                        <div
-                                          draggable
-                                          onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "left", cellIndex)}
-                                          onDragEnd={handleResizeEnd}
-                                          className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
-                                          title="Drag edge to resize"
-                                        >
-                                          <div className="w-[1.5px] h-4 bg-primary/45 group-hover/resize:h-6 transition-all duration-150 rounded" />
-                                        </div>
+                                        <CustomTooltip content="Drag edge to resize">
+                                          <div
+                                            draggable
+                                            onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "left", cellIndex)}
+                                            onDragEnd={handleResizeEnd}
+                                            className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
+                                          >
+                                            <div className="w-[1.5px] h-4 bg-primary/45 group-hover/resize:h-6 transition-all duration-150 rounded" />
+                                          </div>
+                                        </CustomTooltip>
                                       )}
                                     </>
                                   ) : (
@@ -1923,34 +1927,37 @@ export default function ScheduleRoutine() {
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <button
-                                            title="Edit Slot"
-                                            onClick={() => handleOpenEditCell(dayIndex, trackIndex, "right", cellIndex)}
-                                            className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                          >
-                                            <Edit2 className="w-3.5 h-3.5" />
-                                          </button>
-                                          <button
-                                            title="Clear Slot"
-                                            onClick={() => handleClearCell(dayIndex, trackIndex, "right", cellIndex)}
-                                            className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
+                                          <CustomTooltip content="Edit Slot">
+                                            <button
+                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "right", cellIndex)}
+                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                                            >
+                                              <Edit2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </CustomTooltip>
+                                          <CustomTooltip content="Clear Slot">
+                                            <button
+                                              onClick={() => handleClearCell(dayIndex, trackIndex, "right", cellIndex)}
+                                              className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </CustomTooltip>
                                         </div>
                                       )}
 
                                       {/* Resize Handle */}
                                       {isEditMode && (
-                                        <div
-                                          draggable
-                                          onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "right", cellIndex)}
-                                          onDragEnd={handleResizeEnd}
-                                          className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
-                                          title="Drag edge to resize"
-                                        >
-                                          <div className="w-[1.5px] h-4 bg-primary/45 group-hover/resize:h-6 transition-all duration-150 rounded" />
-                                        </div>
+                                        <CustomTooltip content="Drag edge to resize">
+                                          <div
+                                            draggable
+                                            onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "right", cellIndex)}
+                                            onDragEnd={handleResizeEnd}
+                                            className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
+                                          >
+                                            <div className="w-[1.5px] h-4 bg-primary/45 group-hover/resize:h-6 transition-all duration-150 rounded" />
+                                          </div>
+                                        </CustomTooltip>
                                       )}
                                     </>
                                   ) : (
@@ -1982,14 +1989,16 @@ export default function ScheduleRoutine() {
                           {/* Track Management Delete Button (Right sidebar helper) */}
                           <td className="w-8 border border-transparent align-middle text-center print-hide">
                             {isEditMode && totalTracks > 1 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => handleRemoveTrack(dayIndex, trackIndex)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
+                              <CustomTooltip content="Remove parallel row">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => handleRemoveTrack(dayIndex, trackIndex)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </CustomTooltip>
                             )}
                           </td>
                         </tr>
