@@ -4,6 +4,7 @@ import { createStudent, getStudents, updateStudent } from "@/services/studentCru
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,6 +202,7 @@ const StudentCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [academic, setAcademic] = useState<AcademicForm>(emptyAcademic);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -346,7 +348,14 @@ const StudentCrud = () => {
   };
 
   const handleDelete = (id: number) => {
-    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTargetId !== null) {
+      setStudents((prev) => prev.filter((s) => s.id !== deleteTargetId));
+      toast.success("Student deleted successfully");
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -752,6 +761,13 @@ const StudentCrud = () => {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Student"
+        description="Are you sure you want to delete this student's record? This action cannot be undone."
+      />
     </AdminShell>
   );
 };

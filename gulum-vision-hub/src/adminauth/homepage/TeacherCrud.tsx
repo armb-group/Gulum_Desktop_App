@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,7 @@ const TeacherCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [professional, setProfessional] = useState<ProfessionalForm>(emptyProfessional);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -248,7 +250,16 @@ const TeacherCrud = () => {
     }
   };
 
-  const handleDelete = (id: number) => setTeachers((prev) => prev.filter((t) => t.id !== id));
+  const handleDelete = (id: number) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTargetId !== null) {
+      setTeachers((prev) => prev.filter((t) => t.id !== deleteTargetId));
+      toast.success("Teacher deleted successfully");
+    }
+  };
 
   const handleCopy = (value: string) => {
     if (!value || value === "—") return;
@@ -563,6 +574,13 @@ const TeacherCrud = () => {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Teacher"
+        description="Are you sure you want to delete this teacher's record? This action cannot be undone."
+      />
     </AdminShell>
   );
 };

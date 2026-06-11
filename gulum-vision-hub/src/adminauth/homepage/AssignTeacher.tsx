@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -77,6 +78,7 @@ const AssignTeacher = () => {
   const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
   const [confirming, setConfirming] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [removeTargetTeacherName, setRemoveTargetTeacherName] = useState<string | null>(null);
 
   const handleConfirmAssignment = () => {
     if (!selectedSection) {
@@ -264,6 +266,11 @@ const AssignTeacher = () => {
   };
 
   const handleRemove = (teacherName: string) => {
+    setRemoveTargetTeacherName(teacherName);
+  };
+
+  const confirmRemove = () => {
+    if (!removeTargetTeacherName) return;
     if (!selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) return;
 
     const updatedDepartments = departments.map((dept) => {
@@ -279,10 +286,10 @@ const AssignTeacher = () => {
             sections: yr.sections.map((sect) => {
               if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
 
-              toast.info(`Removed ${teacherName} from section.`);
+              toast.info(`Removed ${removeTargetTeacherName} from section.`);
               return {
                 ...sect,
-                teachers: sect.teachers.filter((t) => t !== teacherName),
+                teachers: sect.teachers.filter((t) => t !== removeTargetTeacherName),
               };
             }),
           };
@@ -676,6 +683,13 @@ const AssignTeacher = () => {
           </Card>
         </div>
       </section>
+      <ConfirmModal
+        isOpen={removeTargetTeacherName !== null}
+        onClose={() => setRemoveTargetTeacherName(null)}
+        onConfirm={confirmRemove}
+        title="Remove Teacher Assignment"
+        description={`Are you sure you want to remove ${removeTargetTeacherName} from this section assignment?`}
+      />
     </AdminShell>
   );
 };

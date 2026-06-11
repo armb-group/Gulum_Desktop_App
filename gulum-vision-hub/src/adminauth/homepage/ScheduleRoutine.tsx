@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -382,6 +383,18 @@ export default function ScheduleRoutine() {
   } | null>(null);
 
   const [hoveredCell, setHoveredCell] = useState<string | null>(null); // formatted: "day-track-side-cell"
+
+  const [clearCellTarget, setClearCellTarget] = useState<{
+    dayIndex: number;
+    trackIndex: number;
+    side: "left" | "right";
+    cellIndex: number;
+  } | null>(null);
+
+  const [removeTrackTarget, setRemoveTrackTarget] = useState<{
+    dayIndex: number;
+    trackIndex: number;
+  } | null>(null);
 
   // Storage Key for loading/saving
   const storageKey = useMemo(() => {
@@ -934,12 +947,19 @@ export default function ScheduleRoutine() {
   };
 
   const handleRemoveTrack = (dayIndex: number, trackIndex: number) => {
-    const updated = [...routineState];
-    const day = updated[dayIndex];
+    const day = routineState[dayIndex];
     if (day.tracks.length <= 1) {
       toast.error("At least one schedule track is required per day.");
       return;
     }
+    setRemoveTrackTarget({ dayIndex, trackIndex });
+  };
+
+  const confirmRemoveTrack = () => {
+    if (!removeTrackTarget) return;
+    const { dayIndex, trackIndex } = removeTrackTarget;
+    const updated = [...routineState];
+    const day = updated[dayIndex];
     day.tracks.splice(trackIndex, 1);
     updateRoutine(updated);
     toast.info(`Removed schedule row from ${day.day}`);
@@ -980,6 +1000,12 @@ export default function ScheduleRoutine() {
 
   // Clear cell details
   const handleClearCell = (dayIndex: number, trackIndex: number, side: "left" | "right", cellIndex: number) => {
+    setClearCellTarget({ dayIndex, trackIndex, side, cellIndex });
+  };
+
+  const confirmClearCell = () => {
+    if (!clearCellTarget) return;
+    const { dayIndex, trackIndex, side, cellIndex } = clearCellTarget;
     const updated = [...routineState];
     const cell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
     updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
@@ -2069,6 +2095,20 @@ export default function ScheduleRoutine() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmModal
+        isOpen={clearCellTarget !== null}
+        onClose={() => setClearCellTarget(null)}
+        onConfirm={confirmClearCell}
+        title="Clear Schedule Slot"
+        description="Are you sure you want to clear this schedule slot? The slot will be reset to empty."
+      />
+      <ConfirmModal
+        isOpen={removeTrackTarget !== null}
+        onClose={() => setRemoveTrackTarget(null)}
+        onConfirm={confirmRemoveTrack}
+        title="Remove Parallel Row"
+        description="Are you sure you want to remove this parallel scheduling row? All slot data in this row will be deleted."
+      />
     </AdminShell>
   );
 }
