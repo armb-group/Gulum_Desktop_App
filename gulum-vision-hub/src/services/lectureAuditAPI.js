@@ -40,3 +40,42 @@ export const useStudentSyllabus = () =>
       return data;
     },
   });
+
+export const useStudentMasters = () =>
+  useQuery({
+    queryKey: ["student-masters"],
+    queryFn: async () => {
+      const { data } = await api.get("/api/master");
+      return data;
+    },
+  });
+
+export const useStudentModules = (courseCode) =>
+  useQuery({
+    queryKey: ["student-modules", courseCode],
+    enabled: !!courseCode,
+    queryFn: async () => {
+      const { data } = await api.get(`/api/module/${courseCode}`);
+      return data;
+    },
+  });
+
+export const useStudentTrackingStatus = (trackingId) =>
+  useQuery({
+    queryKey: ["student-tracking-status", trackingId],
+    enabled: !!trackingId,
+    queryFn: async () => {
+      const { data } = await api.get(`/api/module/status/${trackingId}`);
+      return data;
+    },
+  });
+
+export const useStudentTrackingAll = (trackingId) =>
+  useQuery({
+    queryKey: ["student-tracking-all", trackingId],
+    enabled: !!trackingId,
+    queryFn: async () => {
+      const { data } = await api.get(`/api/tracking/all/${trackingId}`);
+      return data;
+    },
+  });

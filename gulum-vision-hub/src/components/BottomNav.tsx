@@ -12,7 +12,6 @@ interface BottomNavProps {
 const items = [
   { to: "", icon: Home, label: "Home", end: true },
   { to: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { to: "/assignments", icon: FolderClosed, label: "Assignments" },
   { to: "/notifications", icon: Bell, label: "Alerts" },
   { to: "/profile", icon: User, label: "Profile" },
 ];
