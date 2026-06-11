@@ -612,7 +612,10 @@ const Departments = () => {
 
         {/* Add Department Dialog Modal */}
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent 
+            className="sm:max-w-[425px] admin-white-modal"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>Add New Department</DialogTitle>
               <DialogDescription>
@@ -640,7 +643,7 @@ const Departments = () => {
                 />
               </div>
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting}>
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting} className="cancel-gray-btn">
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>

@@ -2025,7 +2025,10 @@ export default function ScheduleRoutine() {
 
       {/* ── CELL DETAIL EDIT DIALOG (Hidden on print) ── */}
       <Dialog open={editingCell !== null} onOpenChange={(open) => !open && setEditingCell(null)}>
-        <DialogContent className="sm:max-w-[425px] admin-glass-modal print-hide border border-border/80">
+        <DialogContent 
+          className="sm:max-w-[425px] admin-white-modal print-hide"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
               <Edit2 className="w-5 h-5 text-primary" />
@@ -2091,7 +2094,7 @@ export default function ScheduleRoutine() {
             <Button
               variant="outline"
               onClick={() => setEditingCell(null)}
-              className="h-10 text-xs font-bold"
+              className="h-10 text-xs font-bold cancel-gray-btn"
             >
               Cancel
             </Button>

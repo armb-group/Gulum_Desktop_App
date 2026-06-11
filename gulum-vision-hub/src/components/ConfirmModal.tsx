@@ -53,7 +53,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-white dark:bg-zinc-900 sm:max-w-[400px] rounded-2xl border border-white/20 dark:border-white/10 shadow-2xl p-6">
+      <DialogContent 
+        className="admin-white-modal sm:max-w-[400px] rounded-2xl shadow-2xl p-6"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex flex-col items-center text-center space-y-4 py-2">
           <div className={`p-3.5 rounded-full ${iconBgColor} shrink-0`}>
             <Icon className="h-6 w-6" />
@@ -76,7 +79,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               onClose();
             }}
             disabled={isLoading}
-            className="rounded-xl flex-1 w-full sm:w-auto"
+            className="rounded-xl flex-1 w-full sm:w-auto cancel-gray-btn"
           >
             {cancelText}
           </Button>

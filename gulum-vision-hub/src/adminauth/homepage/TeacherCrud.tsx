@@ -525,7 +525,7 @@ const TeacherCrud = () => {
             </div>
 
             <div className="flex items-center justify-between px-6 pb-6 pt-2 border-t gap-3">
-              <Button variant="outline" onClick={() => (step === 0 ? closeModal() : setStep((s) => s - 1))} disabled={loading} className="gap-2">
+              <Button variant="outline" onClick={() => (step === 0 ? closeModal() : setStep((s) => s - 1))} disabled={loading} className="gap-2 cancel-gray-btn">
                 {step === 0 ? "Cancel" : <><ChevronLeft className="h-4 w-4" /> Back</>}
               </Button>
               {step < STEPS.length - 1 ? (
@@ -595,7 +595,7 @@ const TeacherCrud = () => {
               <div className="flex gap-2">
                 {isEditingView ? (
                   <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
                     <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
                   </>
                 ) : (

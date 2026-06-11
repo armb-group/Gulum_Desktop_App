@@ -692,7 +692,7 @@ const StudentCrud = () => {
                 variant="outline"
                 onClick={() => (step === 0 ? closeModal() : setStep((s) => s - 1))}
                 disabled={loading}
-                className="gap-2"
+                className="gap-2 cancel-gray-btn"
               >
                 {step === 0 ? (
                   "Cancel"
@@ -784,7 +784,7 @@ const StudentCrud = () => {
               <div className="flex gap-2">
                 {isEditingView ? (
                   <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
                     <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
                   </>
                 ) : (
