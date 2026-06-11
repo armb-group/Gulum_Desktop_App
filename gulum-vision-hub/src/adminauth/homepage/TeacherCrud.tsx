@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getTeachers, createUser, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { CustomTooltip } from "@/components/CustomTooltip";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +115,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const TeacherCrud = () => {
+  const { user } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
 
@@ -136,6 +140,7 @@ const TeacherCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [professional, setProfessional] = useState<ProfessionalForm>(emptyProfessional);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -193,14 +198,11 @@ const TeacherCrud = () => {
     submittingRef.current = true;
     setLoading(true);
     try {
-      // Step 1: Create User
-      const userData = await createUser({ email: account.email, phone: account.phone, password: account.password });
-      const userId = userData?.user_id ?? userData?.id ?? userData?.data?.user_id ?? userData?.data?.id;
-      if (!userId) throw new Error(`User creation failed: no user_id returned. Received: ${JSON.stringify(userData)}`);
-
-      // Step 2: Create Teacher
-      const teacherData = await createTeacher({
-        user_id: userId,
+      // Create Teacher (registers user credentials and profile details in one call)
+      await createTeacher({
+        email: account.email,
+        phone: account.phone,
+        password: account.password,
         institution_id: professional.institution_id,
         employee_code: professional.employee_code,
         full_name: personal.full_name,
@@ -209,29 +211,8 @@ const TeacherCrud = () => {
         experience_year: professional.experience_year,
         joining_date: professional.joining_date,
         metadata: professional.metadata,
-        email: account.email,
-        phone: account.phone,
-        created_by: "Admin",
+        created_by: user?.name ?? "Admin",
       });
-
-      const newTeacher: Teacher = {
-        ...emptyTeacher,
-        ...teacherData,
-        id: teacherData?.id ?? teachers.length + 1,
-        user_id: userId,
-        institution_id: professional.institution_id,
-        employee_code: professional.employee_code,
-        full_name: personal.full_name,
-        qualification: personal.qualification,
-        specialization: personal.specialization,
-        experience_year: professional.experience_year,
-        joining_date: professional.joining_date,
-        metadata: professional.metadata,
-        email: account.email,
-        phone: account.phone,
-        created_by: "Admin",
-        created_at: new Date().toISOString().split("T")[0],
-      };
 
       toast.success("Teacher registered successfully!");
       closeModal();
@@ -270,7 +251,16 @@ const TeacherCrud = () => {
     }
   };
 
-  const handleDelete = (id: number) => setTeachers((prev) => prev.filter((t) => t.id !== id));
+  const handleDelete = (id: number) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTargetId !== null) {
+      setTeachers((prev) => prev.filter((t) => t.id !== deleteTargetId));
+      toast.success("Teacher deleted successfully");
+    }
+  };
 
   const handleCopy = (value: string) => {
     if (!value || value === "—") return;
@@ -359,29 +349,45 @@ const TeacherCrud = () => {
                             return (
                               <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-slate-300 last:border-r-0">
                                   <div className="flex items-center justify-between gap-2 group/cell">
-                                    {col.key === "full_name" ? (
-                                      <span title={String(value ?? "")} className="font-semibold text-indigo-700">{String(value ?? "—")}</span>
-                                    ) : col.key === "email" ? (
-                                      <span title={String(value ?? "")} className="text-blue-600 text-xs">{String(value ?? "—")}</span>
-                                    ) : col.key === "employee_code" ? (
-                                      <span title={String(value ?? "")} className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>
-                                    ) : col.key === "is_active" ? (
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                                        {value ? "Active" : "Inactive"}
-                                      </span>
-                                    ) : (col.key === "id" || col.key === "user_id") ? (
-                                      <span title={String(value ?? "")} className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>
-                                    ) : (
-                                      <span title={String(value ?? "")} className="text-slate-700 text-xs">{String(value ?? "—")}</span>
-                                    )}
+                                    {(() => {
+                                      const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
+                                      const contentStr = String(value ?? "");
+                                      
+                                      const getSpan = () => {
+                                        if (col.key === "full_name") {
+                                          return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "email") {
+                                          return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "employee_code") {
+                                          return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                        } else if (col.key === "is_active") {
+                                          return (
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                              {value ? "Active" : "Inactive"}
+                                            </span>
+                                          );
+                                        } else if (col.key === "id" || col.key === "user_id") {
+                                          return <span className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
+                                        } else {
+                                          return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                        }
+                                      };
+
+                                      const spanEl = getSpan();
+                                      if (hasTooltip && col.key !== "is_active") {
+                                        return <CustomTooltip content={contentStr}>{spanEl}</CustomTooltip>;
+                                      }
+                                      return spanEl;
+                                    })()}
                                     {value !== undefined && value !== "—" && (
-                                      <button
-                                        onClick={() => handleCopy(String(value))}
-                                        className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
-                                        title="Copy"
-                                      >
-                                        <Copy className="h-3.5 w-3.5" />
-                                      </button>
+                                      <CustomTooltip content="Copy">
+                                        <button
+                                          onClick={() => handleCopy(String(value))}
+                                          className="opacity-0 group-hover/cell:opacity-100 text-muted-foreground hover:text-primary transition-opacity p-1"
+                                        >
+                                          <Copy className="h-3.5 w-3.5" />
+                                        </button>
+                                      </CustomTooltip>
                                     )}
                                   </div>
                               </td>
@@ -389,11 +395,15 @@ const TeacherCrud = () => {
                           })}
                           <td className="px-3 py-2 align-middle">
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                
-                              <Button size="sm" variant="destructive" onClick={() => handleDelete(teacher.id)} className="rounded-lg"><Trash2 className="h-4 w-4" /></Button>
+                               <CustomTooltip content="View Details">
+                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                   <Eye className="h-4 w-4" />
+                                 </Button>
+                               </CustomTooltip>
+                 
+                               <CustomTooltip content="Delete Teacher">
+                                 <Button size="sm" variant="destructive" onClick={() => handleDelete(teacher.id)} className="rounded-lg"><Trash2 className="h-4 w-4" /></Button>
+                               </CustomTooltip>
                             </div>
                           </td>
                         </tr>
@@ -515,7 +525,7 @@ const TeacherCrud = () => {
             </div>
 
             <div className="flex items-center justify-between px-6 pb-6 pt-2 border-t gap-3">
-              <Button variant="outline" onClick={() => (step === 0 ? closeModal() : setStep((s) => s - 1))} disabled={loading} className="gap-2">
+              <Button variant="outline" onClick={() => (step === 0 ? closeModal() : setStep((s) => s - 1))} disabled={loading} className="gap-2 cancel-gray-btn">
                 {step === 0 ? "Cancel" : <><ChevronLeft className="h-4 w-4" /> Back</>}
               </Button>
               {step < STEPS.length - 1 ? (
@@ -561,9 +571,20 @@ const TeacherCrud = () => {
                         className="h-9"
                       />
                     ) : (
-                      <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate" title={String(selectedViewTeacher[col.key] ?? "—")}>
-                        {String(selectedViewTeacher[col.key] ?? "—")}
-                      </div>
+                      (() => {
+                        const val = selectedViewTeacher[col.key];
+                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                        const divEl = (
+                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
+                            {String(val ?? "—")}
+                          </div>
+                        );
+                        return hasTooltip ? (
+                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                        ) : (
+                          divEl
+                        );
+                      })()
                     )}
                   </div>
                 ))}
@@ -574,7 +595,7 @@ const TeacherCrud = () => {
               <div className="flex gap-2">
                 {isEditingView ? (
                   <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
                     <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
                   </>
                 ) : (
@@ -585,6 +606,13 @@ const TeacherCrud = () => {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Teacher"
+        description="Are you sure you want to delete this teacher's record? This action cannot be undone."
+      />
     </AdminShell>
   );
 };

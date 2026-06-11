@@ -90,6 +90,7 @@ export const createStudent = async (studentData) => {
       classessId: studentData.classess_id,
       departmentId: studentData.department_id,
       userId: studentData.user_id,
+      password: studentData.password,
     };
     console.log("createStudent payload:", JSON.stringify(payload, null, 2));
     const response = await api.post("/api/students", payload);

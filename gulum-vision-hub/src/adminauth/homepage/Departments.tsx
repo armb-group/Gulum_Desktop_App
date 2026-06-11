@@ -7,8 +7,20 @@ import { Plus, ChevronDown, Loader2 } from "lucide-react";
 import { AdminShell } from "./AdminShell";
 import type { Department } from "./departmentsData";
 import { toast } from "sonner";
-import { getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
+import { useAuth } from "@/contexts/AuthContext";
+import { getDepartments, getAcademicBatchesByDepartment, createDepartment } from "@/services/departmentAPI";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import api from "@/services/api";
+
 
 /*const createDefaultYears = (deptName: string, deptId: string) => {
   const code = (deptId || deptName || "DEPT").substring(0, 3).toUpperCase();
@@ -45,9 +57,15 @@ import api from "@/services/api";
 };*/
 
 const Departments = () => {
+  const { user } = useAuth();
+  console.log("user ",user)
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [newDept, setNewDept] = useState("");
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [newDeptCode, setNewDeptCode] = useState("");
+  const [newDeptDescription, setNewDeptDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
@@ -86,14 +104,14 @@ const Departments = () => {
       .then((list) => {
         const mapped: Department[] = Array.isArray(list)
           ? list.map((d) => {
-              const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
-              const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
-              return {
-                id,
-                name,
-                years: []
-              };
-            })
+            const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
+            const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
+            return {
+              id,
+              name,
+              years: []
+            };
+          })
           : [];
         setDepartments(mapped);
       })
@@ -134,12 +152,62 @@ const Departments = () => {
       });
   };
 
-  const addDepartment = () => {
-    if (!newDept.trim()) return;
-    const dept: Department = { id: Date.now().toString(), name: newDept.trim(), years: [] };
-    setDepartments((current) => [dept, ...current]);
-    setNewDept("");
+  const handleCreateDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) {
+      toast.error("Department name is required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const payload = {
+      institutionId: user?.institutionId || "",
+      name: newDeptName.trim(),
+    };
+
+    try {
+      const result = await createDepartment(payload);
+
+      const newId = String(result?.id ?? result?.departmentId ?? result?.department_id ?? Date.now().toString());
+      const newName = result?.name ?? result?.departmentName ?? result?.department_name ?? newDeptName.trim();
+
+      const newDepartmentItem: Department = {
+        id: newId,
+        name: newName,
+        years: []
+      };
+
+      setDepartments((current) => [newDepartmentItem, ...current]);
+      toast.success("Department created successfully!");
+      setIsAddModalOpen(false);
+
+      // Reset form fields
+      setNewDeptName("");
+      setNewDeptCode("");
+      setNewDeptDescription("");
+    } catch (err: any) {
+      console.error("Failed to create department in backend:", err);
+
+      // Fallback: Add locally
+      const localId = Date.now().toString();
+      const localDept: Department = {
+        id: localId,
+        name: newDeptName.trim(),
+        years: []
+      };
+
+      setDepartments((current) => [localDept, ...current]);
+      toast.warning("Failed to save to database, but added locally for this session.");
+
+      setIsAddModalOpen(false);
+      setNewDeptName("");
+      setNewDeptCode("");
+      setNewDeptDescription("");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   // Get available years from batches
   const availableYears = useMemo(() => {
@@ -300,37 +368,36 @@ const Departments = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Departments</h1>
-            <p className="text-sm text-slate-400">Select a department, then choose year and section to view data.</p>
+            <p className="text-sm text-muted-foreground">Select a department, then choose year and section to view data.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Input placeholder="New department name" value={newDept} onChange={(e) => setNewDept(e.target.value)} />
-            <Button onClick={addDepartment} className="flex items-center gap-2">
+            <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2">
               <Plus className="w-4 h-4" /> Add Department
             </Button>
           </div>
         </div>
 
         {/* Department, Year, and Section Dropdowns in Single Bar */}
-        <Card className="p-6 space-y-4">
+        <Card className="p-6 space-y-4 shadow-md border-border bg-card">
           <div className="flex gap-4 items-end">
             {/* Department Dropdown */}
             <div className="flex-1">
-              <label className="text-sm text-slate-400 block mb-2">Select Department</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Select Department</label>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowDeptDropdown(!showDeptDropdown)}
                   disabled={departmentsLoading}
-                  className="w-full flex items-center justify-between gap-4 rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-left hover:border-slate-600 transition disabled:opacity-50"
+                  className="w-full flex items-center justify-between gap-4 rounded-lg border border-input bg-card px-4 py-3 text-left hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 shadow-sm"
                 >
                   <span className="text-foreground font-medium">
                     {departmentsLoading ? "Loading departments..." : (selectedDept?.name || "Select department")}
                   </span>
-                  <ChevronDown className={`w-5 h-5 text-slate-400 transition ${showDeptDropdown ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-5 h-5 text-muted-foreground transition ${showDeptDropdown ? "rotate-180" : ""}`} />
                 </button>
 
                 {showDeptDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto backdrop-blur-md">
                     {departments.map((dept) => (
                       <button
                         key={dept.id}
@@ -339,7 +406,9 @@ const Departments = () => {
                           handleDeptChange(dept.id);
                           setShowDeptDropdown(false);
                         }}
-                        className={`w-full text-left px-4 py-3 hover:bg-slate-800 transition ${selectedDeptId === dept.id ? "bg-rose-700/20 text-rose-300" : "text-slate-200"
+                        className={`w-full text-left px-4 py-3 text-sm transition hover:bg-accent hover:text-accent-foreground ${selectedDeptId === dept.id
+                            ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                            : "text-foreground"
                           }`}
                       >
                         {dept.name}
@@ -352,17 +421,17 @@ const Departments = () => {
 
             {/* Year Dropdown */}
             <div className="flex-1">
-              <label className="text-sm text-slate-400 block mb-2">Select Year</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Select Year</label>
               {batchesLoading ? (
-                <div className="w-full flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-400">
-                  <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                <div className="w-full flex items-center gap-2 rounded-lg border border-input bg-card px-4 py-3 text-muted-foreground shadow-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   <span className="text-sm">Loading batches...</span>
                 </div>
               ) : (
                 <select
                   value={selectedYear}
                   onChange={(e) => handleYearChange(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-foreground hover:border-slate-600 transition"
+                  className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring shadow-sm [&>option]:bg-card [&>option]:text-foreground"
                 >
                   <option value="">Select year</option>
                   {availableYears.map((year) => (
@@ -376,10 +445,10 @@ const Departments = () => {
 
             {/* Section Dropdown */}
             <div className="flex-1">
-              <label className="text-sm text-slate-400 block mb-2">Select Section</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Select Section</label>
               {batchesLoading ? (
-                <div className="w-full flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-400">
-                  <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                <div className="w-full flex items-center gap-2 rounded-lg border border-input bg-card px-4 py-3 text-muted-foreground shadow-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   <span className="text-sm">Loading sections...</span>
                 </div>
               ) : (
@@ -387,7 +456,7 @@ const Departments = () => {
                   value={selectedClass}
                   onChange={(e) => handleClassChange(e.target.value)}
                   disabled={!selectedYear}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-foreground hover:border-slate-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed shadow-sm [&>option]:bg-card [&>option]:text-foreground"
                 >
                   <option value="">Select section</option>
                   {availableClasses.map((cls) => (
@@ -401,7 +470,7 @@ const Departments = () => {
 
             {/* Semester Dropdown */}
             <div className="flex-1">
-              <label className="text-sm text-slate-400 block mb-2">Select Semester</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">Select Semester</label>
               <select
                 value={selectedSemester}
                 onChange={(e) => {
@@ -412,7 +481,7 @@ const Departments = () => {
                   setActiveSubjects([]);
                 }}
                 disabled={!selectedClass}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-foreground hover:border-slate-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed shadow-sm [&>option]:bg-card [&>option]:text-foreground"
               >
                 <option value="">Select semester</option>
                 {availableSemesters.map((sem) => (
@@ -427,29 +496,26 @@ const Departments = () => {
 
         {/* Teacher/Student/Subject Buttons */}
         {selectedDept && selectedYear && selectedClass && selectedSemester && (
-          <Card className="p-6 space-y-4">
-            <p className="text-sm text-slate-400">
+          <Card className="p-6 space-y-4 border-border bg-card shadow-sm">
+            <p className="text-sm text-muted-foreground">
               {selectedDept.name} · {selectedYear} · {selectedClass} · Semester {selectedSemester}
             </p>
             <div className="flex flex-wrap gap-3 items-center">
               <Button
                 onClick={() => setSelectedTab("teachers")}
                 variant={selectedTab === "teachers" ? "default" : "outline"}
-                className={selectedTab === "teachers" ? "bg-rose-700 hover:bg-rose-800 text-white border-none" : ""}
               >
                 Teachers ({activeTeachers.length})
               </Button>
               <Button
                 onClick={() => setSelectedTab("students")}
                 variant={selectedTab === "students" ? "default" : "outline"}
-                className={selectedTab === "students" ? "bg-rose-700 hover:bg-rose-800 text-white border-none" : ""}
               >
                 Students ({activeStudents.length})
               </Button>
               <Button
                 onClick={() => setSelectedTab("subjects")}
                 variant={selectedTab === "subjects" ? "default" : "outline"}
-                className={selectedTab === "subjects" ? "bg-rose-700 hover:bg-rose-800 text-white border-none" : ""}
               >
                 Subjects ({activeSubjects.length})
               </Button>
@@ -458,7 +524,7 @@ const Departments = () => {
                 <Button
                   onClick={() => navigate("/admin/TeacherCrud")}
                   variant="outline"
-                  className="ml-auto border-rose-500 text-rose-300 hover:bg-rose-600/10"
+                  className="ml-auto border-primary/50 text-primary hover:bg-primary/10 transition"
                 >
                   Manage Teachers
                 </Button>
@@ -469,9 +535,9 @@ const Departments = () => {
 
         {/* Data Table */}
         {selectedTab && selectedDeptId && selectedYear && selectedClass && selectedSemester && (
-          <Card className="p-6 overflow-x-auto">
+          <Card className="p-6 overflow-x-auto border-border bg-card shadow-sm">
             <div className="mb-4">
-              <p className="text-sm text-slate-400 mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 {selectedTab === "teachers" && "Teachers List"}
                 {selectedTab === "students" && "Students List"}
                 {selectedTab === "subjects" && "Subjects List"}
@@ -479,14 +545,14 @@ const Departments = () => {
             </div>
 
             {tabLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-rose-600" />
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <span className="text-sm font-medium">Fetching {selectedTab} list...</span>
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-700">
+                  <tr className="border-b border-border">
                     <th className="px-4 py-3 text-left font-semibold text-foreground">No</th>
                     {selectedTab === "teachers" && (
                       <>
@@ -509,26 +575,26 @@ const Departments = () => {
                 <tbody>
                   {selectedTab === "teachers" &&
                     activeTeachers.map((teacher, idx) => (
-                      <tr key={idx} className="border-b border-slate-800 hover:bg-slate-950/50 transition">
-                        <td className="px-4 py-3 text-slate-300">{idx + 1}</td>
-                        <td className="px-4 py-3 text-slate-200">{teacher}</td>
+                      <tr key={idx} className="border-b border-border hover:bg-muted/30 transition">
+                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3 text-foreground">{teacher}</td>
                       </tr>
                     ))}
 
                   {selectedTab === "students" &&
                     activeStudents.map((student, idx) => (
-                      <tr key={idx} className="border-b border-slate-800 hover:bg-slate-950/50 transition">
-                        <td className="px-4 py-3 text-slate-300">{idx + 1}</td>
-                        <td className="px-4 py-3 text-slate-200">{student}</td>
+                      <tr key={idx} className="border-b border-border hover:bg-muted/30 transition">
+                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3 text-foreground">{student}</td>
                       </tr>
                     ))}
 
                   {selectedTab === "subjects" &&
                     activeSubjects.map((subject, idx) => (
-                      <tr key={idx} className="border-b border-slate-800 hover:bg-slate-950/50 transition">
-                        <td className="px-4 py-3 text-slate-300">{idx + 1}</td>
-                        <td className="px-4 py-3 text-slate-200">{subject.name}</td>
-                        <td className="px-4 py-3 text-slate-400 font-mono text-xs uppercase">{subject.code}</td>
+                      <tr key={idx} className="border-b border-border hover:bg-muted/30 transition">
+                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3 text-foreground">{subject.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs uppercase">{subject.code}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -539,10 +605,61 @@ const Departments = () => {
 
         {/* Empty State */}
         {!selectedTab && (
-          <Card className="p-12 text-center">
-            <p className="text-slate-400">Select department, year, section, and semester above to view data.</p>
+          <Card className="p-12 text-center border-border bg-card shadow-sm">
+            <p className="text-muted-foreground">Select department, year, section, and semester above to view data.</p>
           </Card>
         )}
+
+        {/* Add Department Dialog Modal */}
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogContent 
+            className="sm:max-w-[425px] admin-white-modal"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle>Add New Department</DialogTitle>
+              <DialogDescription>
+                Create a new department in the institution. Fill in the details below.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateDepartment} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="institute-name">Institute Name</Label>
+                <Input
+                  id="institute-name"
+                  value={user?.institution ?? ""}
+                  readOnly
+                  className="cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dept-name">Department Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="dept-name"
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  required
+                />
+              </div>
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting} className="cancel-gray-btn">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Department"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </section>
     </AdminShell>
   );

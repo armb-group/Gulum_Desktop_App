@@ -87,7 +87,7 @@ export const useGetNoticesByLevel = (level, options = {}) =>
 
 export const addNoticeApi = async (noticeData) => {
   // Ensure teachers cannot create admin-level notices
-  if (noticeData.level && noticeData.level !== "STUDENT") {
+  if (noticeData.level && noticeData.level !== "STUDENT" && !noticeData.isAdmin) {
     throw new Error("Teachers are only allowed to send student notifications.");
   }
   try {

@@ -35,6 +35,7 @@ import NoticePage from "./adminauth/homepage/NoticePage";
 import Departments from "./adminauth/homepage/Departments";
 // import AssignWork from "./adminauth/homepage/AssignWork";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
+import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
 import ForgotPassword  from "./pages/ForgotPassword"; 
 
 const queryClient = new QueryClient();
@@ -183,7 +184,7 @@ const App = () => (
                 />
 
                 <Route
-                  path="/admin/departments"
+                  path="/admin/department"
                   element={
                     <ProtectedRoute role="admin">
                       <Departments />
@@ -230,6 +231,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="admin">
                       <AssignTeacher />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/routine"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <ScheduleRoutine />
                     </ProtectedRoute>
                   }
                 />

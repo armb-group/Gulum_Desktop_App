@@ -19,3 +19,14 @@ export const getAcademicBatchesByDepartment = async (departmentId) => {
   return response.data.responseData ?? response.data;
 };
 
+/**
+ * Create a new department in the backend.
+ * @param {object} departmentData
+ * @returns {Promise<object>} The created department data.
+ */
+export const createDepartment = async (departmentData) => {
+  const response = await api.post("/departments", departmentData);
+  return response.data.responseData ?? response.data;
+};
+
+
