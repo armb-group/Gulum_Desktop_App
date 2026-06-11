@@ -62,10 +62,10 @@ const StudentProfile = () => {
         <Field label="Phone Number" value={student?.phoneNumber} />
       </Card>
 
-      <Card className="p-4 bg-surface border-border space-y-2">
+      {/* <Card className="p-4 bg-surface border-border space-y-2">
         <p className="text-sm font-semibold text-primary">Institution</p>
         <p className="font-semibold text-foreground">{student?.institutionId}</p>
-      </Card>
+      </Card> */}
 
       <Button onClick={handleLogout} variant="outline" className="w-full h-11 rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10">
         <LogOut className="h-4 w-4 mr-2" /> Logout
