@@ -473,29 +473,29 @@ const StudentCrud = () => {
                 <p className="text-sm">No students match your search.</p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+              <div className="w-full overflow-x-auto rounded-lg border border-border/60">
                 <table className="w-full border-collapse text-sm">
-                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
+                  <thead className="bg-primary text-primary-foreground text-left text-xs font-bold uppercase tracking-wider">
                     <tr>
-                      <th className="px-3 py-2 border-b border-slate-500" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
+                      <th className="px-3 py-2 border-b border-border/80" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
                       {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => (
-                        <th key={column.key} className="px-3 py-2 border-b border-slate-500" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
+                        <th key={column.key} className="px-3 py-2 border-b border-border/80" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
                           {column.label}
                         </th>
                       ))}
-                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
+                      <th className="px-3 py-2 border-b border-border/80">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredStudents.map((student, index) => (
-                      <tr key={student.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
-                        <td className="px-3 py-2 align-middle border-r border-slate-300 text-slate-500 text-xs font-medium">
+                      <tr key={student.id} className={`border-b border-border/40 transition-colors duration-200 hover:bg-muted/40 ${index % 2 === 0 ? "bg-card" : "bg-muted/20"}`}>
+                        <td className="px-3 py-2 align-middle border-r border-border/45 text-black dark:text-[#FFF19E] text-xs font-medium">
                           {index + 1}
                         </td>
                         {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => {
                           const value = student[column.key];
                           return (
-                            <td key={column.key} className={`px-3 py-2 align-middle border-r border-slate-300 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
+                            <td key={column.key} className={`px-3 py-2 align-middle border-r border-border/45 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
                               <div className="flex items-center justify-between gap-2 group/cell">
                                 {(() => {
                                   const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
@@ -503,23 +503,29 @@ const StudentCrud = () => {
 
                                   const getElement = () => {
                                     if (column.key === "full_name") {
-                                      return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                      return <span className="font-semibold text-black dark:text-[#FFF19E]">{String(value ?? "—")}</span>;
                                     } else if (column.key === "email_id") {
-                                      return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                     } else if (column.key === "admission_no") {
-                                      return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                      return <span className="bg-amber-100 dark:bg-amber-950/40 text-black dark:text-[#FFF19E] border border-amber-200/50 dark:border-amber-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                     } else if (column.key === "roll_no") {
-                                      return <span className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                      return <span className="bg-emerald-100 dark:bg-emerald-950/40 text-black dark:text-[#FFF19E] border border-emerald-200/50 dark:border-emerald-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                     } else if (column.key === "gender") {
                                       return (
-                                        <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>
+                                        <Badge className={
+                                          String(value).toLowerCase() === "female"
+                                            ? "bg-pink-100 dark:bg-pink-950/40 text-black dark:text-[#FFF19E] border border-pink-200/50 dark:border-pink-900/30 hover:bg-pink-100 dark:hover:bg-pink-950/50"
+                                            : String(value).toLowerCase() === "male"
+                                            ? "bg-sky-100 dark:bg-sky-950/40 text-black dark:text-[#FFF19E] border border-sky-200/50 dark:border-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-950/50"
+                                            : "bg-slate-100 dark:bg-zinc-800 text-black dark:text-[#FFF19E] border border-slate-200/50 dark:border-zinc-700/50 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                                        }>
                                           {String(value || "—")}
                                         </Badge>
                                       );
                                     } else if (column.key === "id" || column.key === "user_id") {
-                                      return <span className="text-slate-500 text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>;
                                     } else {
-                                      return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                     }
                                   };
 
@@ -546,7 +552,7 @@ const StudentCrud = () => {
                         <td className="px-3 py-2 align-middle">
                           <div className="flex items-center gap-2">
                             <CustomTooltip content="View Details">
-                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} className="rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-900/50">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </CustomTooltip>

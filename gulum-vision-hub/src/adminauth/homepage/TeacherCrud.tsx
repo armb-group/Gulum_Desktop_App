@@ -353,30 +353,30 @@ const TeacherCrud = () => {
                 <p className="text-sm">No teachers match your search.</p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+              <div className="w-full overflow-x-auto rounded-lg border border-border/60">
                 <table className="w-full border-collapse text-sm">
-                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
+                  <thead className="bg-primary text-primary-foreground text-left text-xs font-bold uppercase tracking-wider">
                     <tr>
-                      <th className="px-3 py-2 border-b border-slate-500" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
+                      <th className="px-3 py-2 border-b border-border/80" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
                       {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => (
-                        <th key={col.key} className="px-3 py-2 border-b border-slate-500">
+                        <th key={col.key} className="px-3 py-2 border-b border-border/80">
                           {col.label}
                         </th>
                       ))}
-                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
+                      <th className="px-3 py-2 border-b border-border/80">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTeachers.map((teacher, index) => {
                       return (
-                        <tr key={teacher.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
-                          <td className="px-3 py-2 align-middle border-r border-slate-300 text-slate-500 text-xs font-medium">
+                        <tr key={teacher.id} className={`border-b border-border/40 transition-colors duration-200 hover:bg-muted/40 ${index % 2 === 0 ? "bg-card" : "bg-muted/20"}`}>
+                          <td className="px-3 py-2 align-middle border-r border-border/45 text-black dark:text-[#FFF19E] text-xs font-medium">
                             {index + 1}
                           </td>
                           {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => {
                             const value = teacher[col.key];
                             return (
-                              <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-slate-300 last:border-r-0">
+                              <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-border/45 last:border-r-0">
                                   <div className="flex items-center justify-between gap-2 group/cell">
                                     {(() => {
                                       const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
@@ -384,21 +384,21 @@ const TeacherCrud = () => {
                                       
                                       const getSpan = () => {
                                         if (col.key === "full_name") {
-                                          return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                          return <span className="font-semibold text-black dark:text-[#FFF19E]">{String(value ?? "—")}</span>;
                                         } else if (col.key === "email") {
-                                          return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                         } else if (col.key === "employee_code") {
-                                          return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                          return <span className="bg-amber-100 dark:bg-amber-950/40 text-black dark:text-[#FFF19E] border border-amber-200/50 dark:border-amber-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                         } else if (col.key === "is_active") {
                                           return (
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border text-black dark:text-[#FFF19E] ${value ? "bg-emerald-100 dark:bg-emerald-950/40 border-emerald-200/50 dark:border-emerald-900/30" : "bg-red-100 dark:bg-red-950/40 border-red-200/50 dark:border-red-900/30"}`}>
                                               {value ? "Active" : "Inactive"}
                                             </span>
                                           );
                                         } else if (col.key === "id" || col.key === "user_id") {
-                                          return <span className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
                                         } else {
-                                          return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                         }
                                       };
 
@@ -425,7 +425,7 @@ const TeacherCrud = () => {
                           <td className="px-3 py-2 align-middle">
                             <div className="flex items-center gap-2">
                                <CustomTooltip content="View Details">
-                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-900/50">
                                    <Eye className="h-4 w-4" />
                                  </Button>
                                </CustomTooltip>
