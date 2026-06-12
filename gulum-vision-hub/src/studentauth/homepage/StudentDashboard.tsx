@@ -55,7 +55,7 @@ const StudentDashboard = () => {
 
  const { data: attendance = [], isLoading } = useStudentAttendance();
 
-  const subjects = apiSubjects ;
+  const subjects = apiSubjects??[] ;
 
   // ✅ FIX 1: SAFE ATTENDANCE HANDLING
 
