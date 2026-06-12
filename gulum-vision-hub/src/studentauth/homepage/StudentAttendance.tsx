@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertTriangle, ChevronDown } from "lucide-react";
+import { useStudentAttendance } from "@/services/studentAttendanceAPI";
 
 const subjects = [
   { code: "CS301 · Prof. A. Sharma", name: "DBMS", value: 82, attended: 28, total: 34, color: "bg-primary text-primary-foreground" },
@@ -12,6 +13,33 @@ const subjects = [
 
 const StudentAttendance = () => {
   const navigate = useNavigate();
+  const { data } = useStudentAttendance();
+ const overallAttendance =
+  data?.length
+    ? Math.round(
+        data.reduce(
+          (sum, item) => sum + item.attendancePercentage,
+          0
+        ) / data.length
+      )
+    : 0;
+
+const totalAttended =
+  data?.reduce(
+    (sum, item) => sum + item.presentCount,
+    0
+  ) || 0;
+
+const totalClasses =
+  data?.reduce(
+    (sum, item) => sum + item.totalClasses,
+    0
+  ) || 0;
+
+const lowSubjects =
+  data?.filter(
+    (item) => item.attendancePercentage < 75
+  ).length || 0;
   return (
     <RoleShell role="student" title="My Attendance" subtitle="Subject-wise attendance record">
       <button
@@ -24,53 +52,53 @@ const StudentAttendance = () => {
       <Card className="p-4 bg-surface border-border">
         <div className="flex justify-between items-center">
         <p className="text-lg font-semibold text-foreground">Overall Attendance</p>
-          <p className="text-2xl text-success font-bold">77%</p>
+          <p className="text-2xl text-success font-bold">{overallAttendance}%</p>
         </div>
-        <Progress value={77} className="h-2 mt-2 [&>div]:bg-success" />
+        <Progress value={overallAttendance} className="h-2 mt-2 [&>div]:bg-success" />
         <div className="grid grid-cols-3 gap-3 mt-4 text-center">
           <div>
-            <p className="text-xl text-success font-bold">95</p>
+            <p className="text-xl text-success font-bold">{totalAttended}</p>
             <p className="text-xs text-muted-foreground">Classes Attended</p>
           </div>
           <div>
-            <p className="text-xl text-foreground font-bold">124</p>
+            <p className="text-xl text-foreground font-bold">{totalClasses}</p>
             <p className="text-xs text-muted-foreground">Total Classes</p>
           </div>
           <div>
-            <p className="text-xl text-destructive font-bold">2</p>
+            <p className="text-xl text-destructive font-bold">{lowSubjects}</p>
             <p className="text-xs text-muted-foreground">Low Subjects</p>
           </div>
         </div>
       </Card>
 
-      <div className="rounded-2xl bg-destructive/10 text-destructive p-3 flex items-center gap-2 text-sm font-semibold">
-        <AlertTriangle className="h-5 w-5" /> 2 subjects below 75% — risk of detention!
+      <div className="rounded-2xl bg-destructive/10 text-destructive p-3 m-2 flex items-center gap-2 text-sm font-semibold">
+        <AlertTriangle className="h-5 w-5" /> {lowSubjects} subjects below 75% — risk of detention!
       </div>
 
       <div className="space-y-3">
-        {subjects.map((s) => (
-          <Card key={s.name} className="overflow-hidden border-transparent">
+        {data?.map((s, index) => (
+          <Card key={index} className="overflow-hidden border-transparent">
             <div className={`p-4 ${s.color}`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-base font-semibold">{s.name}</p>
-                  <p className="text-sm opacity-80">{s.code}</p>
+                  <p className="text-base font-semibold">{s.courseName}</p>
+                  <p className="text-sm opacity-80">{s.courseCode}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold">{s.value}%</p>
-                  {s.low && (
+                  <p className="text-lg font-bold">{s.attendancePercentage}%</p>
+                  {s.attendancePercentage < 75 && (
                     <span className="inline-block text-[10px] font-bold bg-black/40 px-2 py-0.5 rounded">
                       LOW
                     </span>
                   )}
-                  <ChevronDown className="h-5 w-5 inline-block ml-1" />
+                  {/* <ChevronDown className="h-5 w-5 inline-block ml-1" /> */}
                 </div>
               </div>
             </div>
             <div className="bg-surface p-3">
-              <Progress value={s.value} className="h-2 [&>div]:bg-success" />
+              <Progress value={s.attendancePercentage} className="h-2 [&>div]:bg-success" />
               <p className="text-xs text-muted-foreground mt-2">
-                {s.attended}/{s.total} classes attended
+                {s.presentCount}/{s.totalClasses} classes attended
               </p>
             </div>
           </Card>

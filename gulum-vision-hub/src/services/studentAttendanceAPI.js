@@ -6,18 +6,23 @@ export const useStudentAttendance = () =>
     queryKey: ["student-attendance"],
     queryFn: async () => {
       const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
+
+      console.log("USER =", user);
+
       const studentId = user?.id;
 
-      const { data } = await api.get(
-        `/gulum/attendance/all`,
-        {
-          params: { studentId },
-        }
-      );
+      console.log("STUDENT ID =", studentId);
 
-      console.log("🔥 RAW ATTENDANCE API RESPONSE:", data);
+      const response = await api.get(`/attendance/all`, {
+        params: { studentId },
+        headers: {
+      Authorization: `Bearer ${user.token}`,
+      "gulum-institution-id": user.institutionId,
+    },
+      });
 
-      // IMPORTANT: backend returns ARRAY directly
-      return Array.isArray(data) ? data : [];
+      
+
+      return Array.isArray(response.data) ? response.data : [];
     },
   });

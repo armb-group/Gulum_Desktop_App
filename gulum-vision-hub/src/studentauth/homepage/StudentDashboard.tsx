@@ -32,12 +32,6 @@ const ATTENDANCE = [
   { subject: "Web Development",  value: 91, low: false },
 ];
 
-const shortcutTiles = [
-  { label: "Today's Schedule", icon: CalendarDays, to: "/student/dashboard" },
-  { label: "Lecture Progress", icon: BookOpen, to: "/student/lecture-audit" },
-  { label: "My Attendance", icon: BarChart3, to: "/student/attendance" },
-];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon: Icon, label, value, sub, color }: {
@@ -71,15 +65,14 @@ const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; l
 const StudentDashboard = () => {
   const { data: apiSubjects } = useStudentMasters();
 
-  const [attendance, setAttendance] = useState<any[]>([]);
-  console.log("apiSubjects =", apiSubjects);
+ const { data: attendance = [], isLoading } = useStudentAttendance();
 
   const subjects = apiSubjects ?? STATIC_SYLLABUS;
 
   // ✅ FIX 1: SAFE ATTENDANCE HANDLING
 
 
-  console.log("Attendance Data:", attendance);
+
 
   const classId = apiSubjects?.[0]?.classId;
 
@@ -144,25 +137,6 @@ const StudentDashboard = () => {
       subtitle="Your academic overview"
       showDate
     >
-      <section>
-        <div className="flex items-center gap-2 text-primary text-xs font-semibold tracking-widest mb-2">
-          <Sparkles className="h-4 w-4" /> SHORTCUTS
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          {shortcutTiles.map((tile) => (
-            <Link
-              key={tile.label}
-              to={tile.to}
-              className="rounded-2xl border border-border/80 bg-surface p-4 flex flex-col items-start gap-3 hover:border-primary transition"
-            >
-              <div className="h-11 w-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                <tile.icon className="h-5 w-5" />
-              </div>
-              <p className="font-semibold text-foreground">{tile.label}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
