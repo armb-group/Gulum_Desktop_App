@@ -23,6 +23,12 @@ import {
   Copy,
   Eye
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -100,7 +106,7 @@ const emptyStudent: Student = {
   department_id: 0,
 };
 
-const HIDDEN_IN_ROW = new Set<keyof Student>(["classess_id", "batch_id", "created_by", "created_at", "metadata", "dob", "institution_id", "admission_no", "department_id"]);
+const HIDDEN_IN_ROW = new Set<keyof Student>(["id", "user_id", "created_by", "created_at", "metadata", "dob", "institution_id", "admission_no"]);
 
 const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "id", label: "ID" },
@@ -116,9 +122,9 @@ const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "created_by", label: "Created By" },
   { key: "email_id", label: "Email ID" },
   { key: "phone_number", label: "Phone No" },
-  { key: "batch_id", label: "Batch ID" },
-  { key: "classess_id", label: "Classess ID" },
-  { key: "department_id", label: "Department ID" },
+  { key: "batch_id", label: "Year" },
+  { key: "classess_id", label: "Section" },
+  { key: "department_id", label: "Department" },
 ];
 
 // ─── Stepper Component ─────────────────────────────────────────────────────────
@@ -188,6 +194,22 @@ const StudentCrud = () => {
       .finally(() => setTableLoading(false));
   }, []);
   const [search, setSearch] = useState("");
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState("");
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState("");
+  const [selectedYearFilter, setSelectedYearFilter] = useState("");
+
+  const uniqueDepartments = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.department_id || "")).filter(Boolean))),
+    [students]
+  );
+  const uniqueSections = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.classess_id || "")).filter(Boolean))),
+    [students]
+  );
+  const uniqueYears = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.batch_id || "")).filter(Boolean))),
+    [students]
+  );
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -336,10 +358,14 @@ const StudentCrud = () => {
 
   const filteredStudents = useMemo(
     () =>
-      students.filter((s) =>
-        Object.values(s).join(" ").toLowerCase().includes(search.toLowerCase())
-      ),
-    [students, search]
+      students.filter((s) => {
+        const matchesSearch = Object.values(s).join(" ").toLowerCase().includes(search.toLowerCase());
+        const matchesDept = !selectedDeptFilter || String(s.department_id || "") === selectedDeptFilter;
+        const matchesSection = !selectedSectionFilter || String(s.classess_id || "") === selectedSectionFilter;
+        const matchesYear = !selectedYearFilter || String(s.batch_id || "") === selectedYearFilter;
+        return matchesSearch && matchesDept && matchesSection && matchesYear;
+      }),
+    [students, search, selectedDeptFilter, selectedSectionFilter, selectedYearFilter]
   );
 
   const handleCopy = (value: string) => {
@@ -381,18 +407,7 @@ const StudentCrud = () => {
           </Button>
         </div>
 
-        {/* Search */}
-        <Card className="p-5 rounded-2xl admin-glass">
-          <div className="relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, roll no, admission no, email..."
-              className="pl-10 h-12 rounded-xl"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </Card>
+
         {/* Table */}
         <Card className="overflow-x-auto rounded-2xl admin-glass-strong">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -404,15 +419,49 @@ const StudentCrud = () => {
               <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
             </div>
 
-            {/* Search Bar in between */}
-            <div className="relative my-2">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, roll no, admission no, email..."
-                className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            {/* Search Bar & Filters in between */}
+            <div className="flex flex-col gap-3 my-2">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, roll no, admission no, email..."
+                  className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <select
+                  value={selectedDeptFilter}
+                  onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Departments</option>
+                  {uniqueDepartments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedSectionFilter}
+                  onChange={(e) => setSelectedSectionFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Sections</option>
+                  {uniqueSections.map((sec) => (
+                    <option key={sec} value={sec}>{sec}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYearFilter}
+                  onChange={(e) => setSelectedYearFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Years</option>
+                  {uniqueYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {tableLoading ? (
@@ -428,6 +477,7 @@ const StudentCrud = () => {
                 <table className="w-full border-collapse text-sm">
                   <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
                     <tr>
+                      <th className="px-3 py-2 border-b border-slate-500" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
                       {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => (
                         <th key={column.key} className="px-3 py-2 border-b border-slate-500" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
                           {column.label}
@@ -439,6 +489,9 @@ const StudentCrud = () => {
                   <tbody>
                     {filteredStudents.map((student, index) => (
                       <tr key={student.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                        <td className="px-3 py-2 align-middle border-r border-slate-300 text-slate-500 text-xs font-medium">
+                          {index + 1}
+                        </td>
                         {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => {
                           const value = student[column.key];
                           return (
@@ -720,81 +773,70 @@ const StudentCrud = () => {
       )}
 
       {/* ── View Details Modal ── */}
-      {viewModalOpen && selectedViewStudent && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setViewModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col admin-glass-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div>
-                <h2 className="text-xl font-bold text-primary">Student Profile</h2>
-                <p className="text-xs text-muted-foreground">Detailed information view</p>
+      <Dialog open={viewModalOpen && !!selectedViewStudent} onOpenChange={(open) => { if (!open) { setViewModalOpen(false); setIsEditingView(false); } }}>
+        <DialogContent className="sm:max-w-[650px] rounded-2xl border border-white/20 dark:border-white/10 admin-glass-modal p-0 overflow-hidden flex flex-col shadow-2xl">
+          {selectedViewStudent && (
+            <>
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <DialogTitle className="text-xl font-bold text-primary">Student Profile</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">Detailed student information view</p>
               </div>
-              <button
-                onClick={() => setViewModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            {/* Modal Content */}
-            <div className="px-6 py-6 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {TABLE_COLUMNS.map((column) => (
-                  <div key={column.key} className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {column.label}
-                    </label>
-                    {isEditingView ? (
-                      <Input
-                        value={String(viewEditData?.[column.key] ?? "")}
-                        onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [column.key]: e.target.value } : prev)}
-                        className="h-9"
-                      />
-                    ) : (
-                      (() => {
-                        const val = selectedViewStudent[column.key];
-                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
-                        const divEl = (
-                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
-                            {String(val ?? "—")}
-                          </div>
-                        );
-                        return hasTooltip ? (
-                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
-                        ) : (
-                          divEl
-                        );
-                      })()
-                    )}
-                  </div>
-                ))}
+              {/* Modal Content */}
+              <div className="px-6 py-6 overflow-y-auto max-h-[60vh] scrollbar-beautiful bg-background">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {TABLE_COLUMNS.map((column) => (
+                    <div key={column.key} className="space-y-1 bg-zinc-50/30 dark:bg-zinc-900/10 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                        {column.label}
+                      </label>
+                      {isEditingView ? (
+                        <Input
+                          value={String(viewEditData?.[column.key] ?? "")}
+                          onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [column.key]: e.target.value } : prev)}
+                          className="h-9 mt-1"
+                        />
+                      ) : (
+                        (() => {
+                          const val = selectedViewStudent[column.key];
+                          const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                          const divEl = (
+                            <div className="text-sm font-semibold text-foreground pt-0.5 truncate">
+                              {String(val ?? "—")}
+                            </div>
+                          );
+                          return hasTooltip ? (
+                            <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                          ) : (
+                            divEl
+                          );
+                        })()
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
-              <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
-              <div className="flex gap-2">
-                {isEditingView ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
-                    <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
-                  </>
-                ) : (
-                  <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
-                )}
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
+                <div className="flex gap-2">
+                  {isEditingView ? (
+                    <>
+                      <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
+                      <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit Student</Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ConfirmModal
         isOpen={deleteTargetId !== null}
         onClose={() => setDeleteTargetId(null)}
