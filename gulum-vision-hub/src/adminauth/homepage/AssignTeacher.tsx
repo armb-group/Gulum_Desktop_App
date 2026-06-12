@@ -395,7 +395,7 @@ const AssignTeacher = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-6">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground bg-gradient-to-r from-rose-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-foreground">
               Teacher Assignment Console
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
@@ -573,7 +573,7 @@ const AssignTeacher = () => {
             <Button
               onClick={handleAssign}
               disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester}
-              className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
+              className="w-full mt-6 rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Add to List
@@ -666,7 +666,7 @@ const AssignTeacher = () => {
                   <Button
                     onClick={handleConfirmAssignment}
                     disabled={confirming}
-                    className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
+                    className="w-full mt-6 rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
                   >
                     <UserCheck className="h-4 w-4" />
                     {confirming ? "Saving assignments..." : "Confirm Assignment"}
