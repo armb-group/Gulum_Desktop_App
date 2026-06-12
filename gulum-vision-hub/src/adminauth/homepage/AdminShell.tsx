@@ -3,8 +3,9 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Upload, LogOut, Building2,
   GraduationCap, Users, Bell, ShieldCheck, UserCheck, Calendar,
-  PanelLeft
+  PanelLeft, ClipboardCheck, BookOpen
 } from "lucide-react";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
@@ -28,21 +29,18 @@ const NAV_GROUPS = [
       { title: "Teachers",           url: "/admin/TeacherCrud",  icon: Users },
       { title: "Students",           url: "/admin/StudentCrud",  icon: GraduationCap },
       { title: "Notice",             url: "/admin/NoticePage",   icon: Bell },
+      { title: "Attendance",         url: "/admin/attendance",   icon: ClipboardCheck },
+      { title: "Lecture Audit",      url: "/admin/lecture-audit", icon: BookOpen },
     ],
   },
+
   {
     label: "Work",
     items: [
       { title: "Assign Teacher",     url: "/admin/assign-teacher", icon: UserCheck },
       { title: "Schedule Routine",    url: "/admin/routine",       icon: Calendar },
     ],
-  },
-  {
-    label: "Links",
-    items: [
-      { title: "Role Chooser",       url: "/",                   icon: ShieldCheck },
-    ],
-  },
+  }
 ];
 
 interface AdminShellProps {
