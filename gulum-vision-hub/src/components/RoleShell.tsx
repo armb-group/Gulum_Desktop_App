@@ -3,7 +3,7 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
-import { Home, FolderClosed, Bell, User, LogOut, Menu, X } from "lucide-react";
+import { Home, FolderClosed, Bell, User, LogOut, Menu, X, BarChart3 } from "lucide-react";
 
 interface RoleShellProps {
   role: "student" | "teacher";
@@ -15,6 +15,9 @@ interface RoleShellProps {
 
 const getMenuItems = (base: string, role: string) => [
   { title: "Home",      url: base,                    icon: Home,           end: true },
+  ...(role === "student"
+    ? [{ title: "Insights", url: `${base}/dashboard`, icon: BarChart3 }]
+    : []),
   ...(role === "teacher"
     ? [{ title: "Assignments", url: `${base}/assignments`, icon: FolderClosed }]
     : []),

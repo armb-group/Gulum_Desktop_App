@@ -6,6 +6,7 @@ import {
   BarChart3,
   Sparkles,
   Calendar,
+  BookOpen,
   User,
   Users,
   Bell,
@@ -18,7 +19,9 @@ import {
 import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
 
 const tiles = [
+  { label: "Today's Schedule", icon: Calendar, to: "/student/dashboard" },
   { label: "My Attendance", icon: BarChart3, to: "/student/attendance" },
+  { label: "Lecture Progress", icon: BookOpen, to: "/student/lecture-audit" },
   { label: "AI Assistant", icon: Sparkles, to: "/student" },
   { label: "Timetable", icon: Calendar, to: "/student/dashboard" },
   { label: "Profile", icon: User, to: "/student/profile" },
@@ -44,20 +47,25 @@ const StudentHome = () => {
   const previewNotifications = notifications.slice(0, 2);
 
   return (
-    <RoleShell role="student" title="Welcome, Student" showDate>
-      <section className="grid grid-cols-2 gap-3">
-        {tiles.map((t) => (
-          <Link
-            key={t.label}
-            to={t.to}
-            className="rounded-2xl bg-brand-soft text-brand-soft-foreground p-5 flex flex-col items-center text-center gap-2 hover:opacity-90 transition"
-          >
-            <div className="h-12 w-12 rounded-2xl bg-background/60 flex items-center justify-center">
-              <t.icon className="h-6 w-6 text-primary" />
-            </div>
-            <p className="font-semibold text-primary">{t.label}</p>
-          </Link>
-        ))}
+    <RoleShell role="student" title="Home" showDate>
+      <section>
+        <div className="flex items-center gap-2 text-primary text-xs font-semibold tracking-widest mb-2">
+          <Sparkles className="h-4 w-4" /> SHORTCUTS
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {tiles.map((t) => (
+            <Link
+              key={t.label}
+              to={t.to}
+              className="rounded-2xl bg-brand-soft text-brand-soft-foreground p-5 flex flex-col items-center text-center gap-2 hover:opacity-90 transition"
+            >
+              <div className="h-12 w-12 rounded-2xl bg-background/60 flex items-center justify-center">
+                <t.icon className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-semibold text-primary">{t.label}</p>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section>
@@ -70,7 +78,7 @@ const StudentHome = () => {
               <Users className="h-6 w-6" />
             </div>
             <div className="flex-1">
-            <p className="text-base font-semibold text-foreground">Parent-Teacher Meeting</p>
+              <p className="text-base font-semibold text-foreground">Parent-Teacher Meeting</p>
               <p className="text-sm text-muted-foreground">28 July 2025 - 10:00 AM</p>
               <p className="text-sm text-muted-foreground">Hall B</p>
             </div>
