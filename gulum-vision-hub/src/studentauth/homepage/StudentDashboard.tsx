@@ -18,19 +18,7 @@ import {
   sortByCreatedAt,
 } from "@/lib/notifications";
 
-// ── Static fallbacks ──────────────────────────────────────────────────────────
 
-const STATIC_SYLLABUS = [
-  { name: "DBMS",             totalCompleted: 28, totalHours: 48 },
-  { name: "Operating System", totalCompleted: 20, totalHours: 40 },
-  { name: "Web Development",  totalCompleted: 20, totalHours: 45 },
-];
-
-const ATTENDANCE = [
-  { subject: "DBMS",             value: 82, low: false },
-  { subject: "Operating System", value: 60, low: true  },
-  { subject: "Web Development",  value: 91, low: false },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,7 +55,7 @@ const StudentDashboard = () => {
 
  const { data: attendance = [], isLoading } = useStudentAttendance();
 
-  const subjects = apiSubjects ?? STATIC_SYLLABUS;
+  const subjects = apiSubjects ;
 
   // ✅ FIX 1: SAFE ATTENDANCE HANDLING
 
@@ -113,15 +101,18 @@ const StudentDashboard = () => {
     (item: any) => item.attendancePercentage < 75
   ).length;
 
-  const overallSyllabus = Math.round(
-    subjects.reduce(
-      (s: number, sub: any) =>
-        s + (sub.totalCompleted / sub.totalHours),
-      0
-    ) /
-      subjects.length *
-      100
-  );
+  const overallSyllabus =
+  subjects?.length > 0
+    ? Math.round(
+        subjects.reduce((sum: number, subject: any) => {
+          const trackingRecord = trackingAll?.find(
+            (item: any) => item.syllabusMasterId === subject.id
+          );
+
+          return sum + (trackingRecord?.progressPercentage || 0);
+        }, 0) / subjects.length
+      )
+    : 0;
 
   // ✅ FIX 3: PROPER UI MAPPING (IMPORTANT)
   const attendanceData = attendance.map((item: any) => ({
