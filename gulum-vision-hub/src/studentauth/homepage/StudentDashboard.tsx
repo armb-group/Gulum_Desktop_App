@@ -1,11 +1,11 @@
-import { useMemo, useEffect, useState } from "react";
+﻿import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  BookOpen, BarChart3, Bell, FolderClosed, User,
+  Bell, FolderClosed, User,
   AlertTriangle, ChevronRight,
   Users,
 } from "lucide-react";
@@ -22,21 +22,6 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const StatCard = ({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string; color: string;
-}) => (
-  <Card className="p-4 bg-surface border-border flex items-center gap-3">
-    <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>
-      <Icon className="h-5 w-5" />
-    </div>
-    <div className="min-w-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-bold text-foreground leading-tight">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  </Card>
-);
-
 const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; linkLabel?: string }) => (
   <div className="flex items-center justify-between mb-3">
     <p className="text-sm font-bold text-foreground uppercase tracking-wider">{title}</p>
@@ -47,6 +32,12 @@ const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; l
     )}
   </div>
 );
+
+const TODAY_SCHEDULE = [
+  { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
+  { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
+  { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
+];
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -86,33 +77,9 @@ const StudentDashboard = () => {
   );
 
   // ✅ FIX 2: SAFE CALCULATIONS
-  const overallAttendance =
-    attendance.length > 0
-      ? Math.round(
-          attendance.reduce(
-            (sum: number, item: any) =>
-              sum + (item.attendancePercentage || 0),
-            0
-          ) / attendance.length
-        )
-      : 0;
-
   const lowCount = attendance.filter(
     (item: any) => item.attendancePercentage < 75
   ).length;
-
-  const overallSyllabus =
-  subjects?.length > 0
-    ? Math.round(
-        subjects.reduce((sum: number, subject: any) => {
-          const trackingRecord = trackingAll?.find(
-            (item: any) => item.syllabusMasterId === subject.id
-          );
-
-          return sum + (trackingRecord?.progressPercentage || 0);
-        }, 0) / subjects.length
-      )
-    : 0;
 
   // ✅ FIX 3: PROPER UI MAPPING (IMPORTANT)
   const attendanceData = attendance.map((item: any) => ({
@@ -128,24 +95,6 @@ const StudentDashboard = () => {
       subtitle="Your academic overview"
       showDate
     >
-      {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={BarChart3}
-          label="Attendance"
-          value={`${overallAttendance}%`}
-          sub={lowCount > 0 ? `${lowCount} low` : "All good"}
-          color="bg-success/15 text-success"
-        />
-        <StatCard
-          icon={BookOpen}
-          label="Syllabus"
-          value={`${overallSyllabus}%`}
-          sub="Overall coverage"
-          color="bg-primary/15 text-primary"
-        />
-      </div>
-
       {/* ── Attendance warning ── */}
       {lowCount > 0 && (
         <div className="flex items-center gap-2 rounded-xl bg-destructive/10 text-destructive px-4 py-3 text-sm font-semibold">
@@ -279,6 +228,46 @@ const StudentDashboard = () => {
           >
             <Link to="/student/attendance">
               View Attendance Details →
+            </Link>
+          </Button>
+        </Card>
+
+        {/* Daily Routine */}
+        <Card className="p-4 bg-surface border-border">
+          <SectionHeader
+            title="Daily Routine"
+            to="/student/dashboard"
+            linkLabel="View timetable"
+          />
+
+          <div className="space-y-3">
+            {TODAY_SCHEDULE.map((item) => (
+              <div
+                key={`${item.subject}-${item.time}`}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-background/60 p-3"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {item.subject}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.details}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {item.time}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            asChild
+            size="sm"
+            className="w-full h-10 rounded-xl mt-4 font-semibold"
+          >
+            <Link to="/student/dashboard">
+              View Full Timetable →
             </Link>
           </Button>
         </Card>
