@@ -22,7 +22,7 @@ import {
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
 interface Teacher {
-  id: number;
+  id: string | number;
   user_id: string | number;
   institution_id: string | number;
   employee_code: string;
@@ -157,7 +157,7 @@ const TeacherCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [professional, setProfessional] = useState<ProfessionalForm>(emptyProfessional);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -267,13 +267,14 @@ const TeacherCrud = () => {
       setTeachers((prev) => prev.map((t) => (t.id === viewEditData.id ? viewEditData : t)));
       setSelectedViewTeacher(viewEditData);
       setIsEditingView(false);
+      setViewModalOpen(false);
       toast.success("Teacher updated successfully!");
     } catch {
       toast.error("Failed to update teacher.");
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     setDeleteTargetId(id);
   };
 
@@ -592,7 +593,7 @@ const TeacherCrud = () => {
                       <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
                         {col.label}
                       </label>
-                      {isEditingView ? (
+                      {isEditingView && col.key !== "id" && col.key !== "user_id" && col.key !== "created_at" && col.key !== "created_by" ? (
                         <Input
                           value={String(viewEditData?.[col.key] ?? "")}
                           onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}

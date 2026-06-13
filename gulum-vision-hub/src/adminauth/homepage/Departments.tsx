@@ -58,7 +58,7 @@ import api from "@/services/api";
 
 const Departments = () => {
   const { user } = useAuth();
-  console.log("user ",user)
+  // console.log("user ",user)  
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -407,8 +407,8 @@ const Departments = () => {
                           setShowDeptDropdown(false);
                         }}
                         className={`w-full text-left px-4 py-3 text-sm transition hover:bg-accent hover:text-accent-foreground ${selectedDeptId === dept.id
-                            ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
-                            : "text-foreground"
+                          ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                          : "text-foreground"
                           }`}
                       >
                         {dept.name}
@@ -612,7 +612,7 @@ const Departments = () => {
 
         {/* Add Department Dialog Modal */}
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent 
+          <DialogContent
             className="sm:max-w-[425px] admin-white-modal"
             onOpenAutoFocus={(e) => e.preventDefault()}
           >

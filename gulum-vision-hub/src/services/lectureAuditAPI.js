@@ -94,3 +94,18 @@ export const getProgress = (trackingId) => {
     staleTime: 0,
   });
 };
+
+export const getCourseModules = async (courseCode) => {
+  const { data } = await api.get(`/api/module/${encodeURIComponent(courseCode)}`);
+  return data?.responseData ?? data;
+};
+
+export const getTrackingAll = async (classId) => {
+  const { data } = await api.get(`/api/tracking/all/${encodeURIComponent(classId)}`);
+  return data?.responseData ?? data;
+};
+
+export const getModuleStatus = async (trackingId) => {
+  const { data } = await api.get(`/api/module/status/${encodeURIComponent(trackingId)}`);
+  return data?.responseData ?? data;
+};

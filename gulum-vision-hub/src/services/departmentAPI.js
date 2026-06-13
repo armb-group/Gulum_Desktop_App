@@ -29,4 +29,10 @@ export const createDepartment = async (departmentData) => {
   return response.data.responseData ?? response.data;
 };
 
+export const getCoursesByClass = async (classId) => {
+  const response = await api.get(`/course-class/class/${encodeURIComponent(classId)}`);
+  return response.data.responseData ?? response.data;
+};
+
+
 

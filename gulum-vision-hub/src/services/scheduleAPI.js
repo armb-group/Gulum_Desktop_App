@@ -70,3 +70,10 @@ export const extendScheduleLayout = async (sourceScheduleId, targetTimeSlotId) =
   return response.data.responseData ?? response.data;
 };
 
+
+// Fetch schedule routine for a specific teacher
+export const getTeacherSchedule = async (teacherId) => {
+  const response = await api.get(`/schedule/teacher/${encodeURIComponent(teacherId)}`);
+  return response.data.responseData ?? response.data;
+};
+

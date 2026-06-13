@@ -21,8 +21,15 @@ export const getStudents = async () => {
     phone_number: s.phoneNumber ?? s.phone_number,
     batch_id: s.batchId ?? s.batch_id,
     user_id: s.userId ?? s.user_id,
-    classess_id: s.classessId ?? s.classess_id,
+    classess_id: s.classesId ?? s.classessId ?? s.classess_id,
     department_id: s.departmentId ?? s.department_id,
+    departmentName: s.departmentName ?? "",
+    batchYear: s.batchYear ?? "",
+    sectionName: s.sectionName ?? "",
+    parentEmail: s.parentEmail ?? "",
+    totalClassesOccurred: s.totalClassesOccurred ?? 0,
+    totalClassesAttended: s.totalClassesAttended ?? 0,
+    attendancePercentage: s.attendancePercentage ?? 0
   }));
 };
 
@@ -54,6 +61,8 @@ export const createUser = async (userData) => {
 
 export const updateStudent = async (id, studentData) => {
   const payload = {
+    studentId: id,
+    id: id,
     admissionNo: studentData.admission_no,
     rollNo: studentData.roll_no,
     fullName: studentData.full_name,
@@ -67,7 +76,7 @@ export const updateStudent = async (id, studentData) => {
     classessId: studentData.classess_id,
     departmentId: studentData.department_id,
   };
-  const response = await api.patch(`/api/students/${id}`, payload);
+  const response = await api.put(`/api/students/${id}`, payload);
   return response.data.responseData ?? response.data;
 };
 
@@ -102,3 +111,14 @@ export const createStudent = async (studentData) => {
     throw error;
   }
 };
+
+export const getStudentDetailedAttendance = async (studentId) => {
+  const response = await api.get(`/attendance/all?studentId=${studentId}`);
+  return response.data.responseData ?? response.data;
+};
+
+export const getStudentsByCourse = async (courseCode) => {
+  const response = await api.get(`api/students/course/${courseCode}`);
+  return response.data.responseData ?? response.data;
+};
+

@@ -33,7 +33,7 @@ import {
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
 interface Student {
-  id: number;
+  id: string | number;
   institution_id: string | number;
   admission_no: string;
   roll_no: string;
@@ -49,6 +49,9 @@ interface Student {
   user_id: string | number;
   classess_id: string | number;
   department_id: string | number;
+  batchYear?: string;
+  sectionName?: string;
+  departmentName?: string;
 }
 
 interface AccountForm {
@@ -122,9 +125,9 @@ const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "created_by", label: "Created By" },
   { key: "email_id", label: "Email ID" },
   { key: "phone_number", label: "Phone No" },
-  { key: "batch_id", label: "Year" },
-  { key: "classess_id", label: "Section" },
-  { key: "department_id", label: "Department" },
+  { key: "batchYear", label: "Year" },
+  { key: "sectionName", label: "Section" },
+  { key: "departmentName", label: "Department" },
 ];
 
 // ─── Stepper Component ─────────────────────────────────────────────────────────
@@ -225,7 +228,7 @@ const StudentCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [academic, setAcademic] = useState<AcademicForm>(emptyAcademic);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -374,7 +377,7 @@ const StudentCrud = () => {
     toast.success("Copied to clipboard");
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     setDeleteTargetId(id);
   };
 
