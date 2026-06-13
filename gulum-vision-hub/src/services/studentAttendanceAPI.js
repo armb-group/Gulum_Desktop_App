@@ -6,13 +6,7 @@ export const useStudentAttendance = () =>
     queryKey: ["student-attendance"],
     queryFn: async () => {
       const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
-
-      console.log("USER =", user);
-
       const studentId = user?.id;
-
-      console.log("STUDENT ID =", studentId);
-
       const response = await api.get(`/attendance/all`, {
         params: { studentId },
         headers: {
