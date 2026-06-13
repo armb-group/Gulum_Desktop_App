@@ -12,6 +12,7 @@ import Welcome from "./pages/Welcome";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
 
+import StudentHome from "./studentauth/homepage/StudentHome";
 import StudentDashboard from "./studentauth/homepage/StudentDashboard";
 import StudentNotifications from "./studentauth/homepage/StudentNotifications";
 import StudentProfile from "./studentauth/homepage/StudentProfile";
@@ -62,7 +63,7 @@ const App = () => (
                   path="/student"
                   element={
                     <ProtectedRoute role="student">
-                      <StudentDashboard />
+                      <StudentHome />
                     </ProtectedRoute>
                   }
                 />
