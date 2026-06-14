@@ -12,6 +12,8 @@ import {
 import { useStudentSyllabus,useStudentTrackingAll ,useStudentMasters} from "@/services/lectureAuditAPI";
 import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
+import { useStudentRoutine } from "@/services/studentRoutineAPI";
+
 import {
   defaultStudentNotifications,
   notificationTypeStyle,
@@ -33,16 +35,35 @@ const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; l
   </div>
 );
 
-const TODAY_SCHEDULE = [
-  { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-  { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-  { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-];
+// const TODAY_SCHEDULE = [
+//   { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
+//   { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
+//   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
+// ];
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const StudentDashboard = () => {
   const { data: apiSubjects } = useStudentMasters();
+
+  // 👉 Add this line here
+console.log("apiSubjects:", apiSubjects);
+
+  const classId = apiSubjects?.[0]?.classId;
+  const institutionId = apiSubjects?.[0]?.institutionId;
+  const departmentId = apiSubjects?.[0]?.departmentId;
+
+console.log("class==", classId, "institution==", institutionId, "department==", departmentId);
+
+  const { data: routine = [], error } = useStudentRoutine(
+  institutionId,
+  departmentId,
+  classId
+);
+
+
+console.log("Routine API response:", routine);
+
 
  const { data: attendance = [], isLoading } = useStudentAttendance();
 
@@ -53,7 +74,7 @@ const StudentDashboard = () => {
 
 
 
-  const classId = apiSubjects?.[0]?.classId;
+ 
 
   const { data: trackingAll } = useStudentTrackingAll(classId);
 
@@ -240,26 +261,28 @@ const StudentDashboard = () => {
             linkLabel="View timetable"
           />
 
-          <div className="space-y-3">
-            {TODAY_SCHEDULE.map((item) => (
-              <div
-                key={`${item.subject}-${item.time}`}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-background/60 p-3"
-              >
+       <div className="space-y-3">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading routine...</p>
+          ) : routine.length > 0 ? (
+            routine.map((r) => (
+              <div key={`${r.subject}-${r.time}-${r.day}`} className="flex ...">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {item.subject}
-                  </p>
+                  <p className="text-sm font-semibold">{r.subject}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.details}
+                    {r.teacher} · {r.code} · {r.day}
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-                  {item.time}
-                </span>
+                <span className="text-xs font-semibold">{r.time}</span>
               </div>
-            ))}
-          </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No classes scheduled today</p>
+          )}
+        </div>
+
+
+
 
           <Button
             asChild
