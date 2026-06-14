@@ -141,7 +141,7 @@ const ExportButton = ({ data, columns, fileName = "export", title }: ExportButto
         variant="outline"
         onClick={() => setOpen(!open)}
         disabled={isExporting || data.length === 0}
-        className="gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 shadow-sm font-medium disabled:cursor-not-allowed"
+        className="gap-2 rounded-xl border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 shadow-sm font-medium disabled:cursor-not-allowed"
       >
         {isExporting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
