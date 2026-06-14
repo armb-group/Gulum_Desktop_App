@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { useGetTeachers, useCreateTeacher, useUpdateTeacher } from "@/services/teacherCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -12,11 +13,18 @@ import {
   Search, Pencil, Save, Trash2, Plus, X,
   ChevronRight, ChevronLeft, Check, Loader2, Copy, Eye
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
 interface Teacher {
-  id: number;
+  id: string | number;
   user_id: string | number;
   institution_id: string | number;
   employee_code: string;
@@ -31,6 +39,7 @@ interface Teacher {
   created_by: string;
   email: string;
   phone: string;
+  department: string;
 }
 
 interface AccountForm { email: string; phone: string; password: string; }
@@ -41,6 +50,7 @@ interface ProfessionalForm {
   experience_year: string;
   joining_date: string;
   metadata: string;
+  department: string;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -51,15 +61,17 @@ const emptyAccount: AccountForm = { email: "", phone: "", password: "" };
 const emptyPersonal: PersonalForm = { full_name: "", qualification: "", specialization: "" };
 const emptyProfessional: ProfessionalForm = {
   institution_id: "", employee_code: "", experience_year: "", joining_date: "", metadata: "",
+  department: "",
 };
 
 const emptyTeacher: Teacher = {
   id: 0, user_id: 0, institution_id: 0, employee_code: "", full_name: "",
   qualification: "", specialization: "", experience_year: 0, joining_date: "",
   metadata: "", is_active: true, created_at: "", created_by: "", email: "", phone: "",
+  department: "",
 };
 
-const HIDDEN_IN_ROW = new Set<keyof Teacher>(["metadata", "joining_date", "experience_year", "specialization", "qualification", "institution_id", "created_at", "created_by"]);
+const HIDDEN_IN_ROW = new Set<keyof Teacher>(["id", "user_id", "metadata", "joining_date", "experience_year", "specialization", "qualification", "institution_id", "created_at", "created_by"]);
 
 const TABLE_COLUMNS: Array<{ key: keyof Teacher; label: string }> = [
   { key: "id", label: "ID" },
@@ -77,6 +89,7 @@ const TABLE_COLUMNS: Array<{ key: keyof Teacher; label: string }> = [
   { key: "created_by", label: "Created By" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
+  { key: "department", label: "Department" },
 ];
 
 // ─── Stepper ───────────────────────────────────────────────────────────────────
@@ -116,17 +129,21 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 
 const TeacherCrud = () => {
   const { user } = useAuth();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [tableLoading, setTableLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    getTeachers()
-      .then((data) => setTeachers(Array.isArray(data) ? data : []))
-      .catch(() => toast.error("Failed to load teachers."))
-      .finally(() => setTableLoading(false));
-  }, []);
+  const { data: teachersData = [], isLoading: tableLoading } = useGetTeachers();
+  const teachers = useMemo(() => Array.isArray(teachersData) ? teachersData : [], [teachersData]);
+
+  const createTeacherMutation = useCreateTeacher();
+  const updateTeacherMutation = useUpdateTeacher();
 
   const [search, setSearch] = useState("");
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState("");
+
+  const uniqueDepartments = useMemo(
+    () => Array.from(new Set(teachers.map((t) => String(t.department || "")).filter(Boolean))),
+    [teachers]
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -140,7 +157,7 @@ const TeacherCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [professional, setProfessional] = useState<ProfessionalForm>(emptyProfessional);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -180,8 +197,8 @@ const TeacherCrud = () => {
       if (!personal.specialization.trim()) { toast.error("Specialization is required."); return false; }
     }
     if (step === 2) {
-      const { institution_id, employee_code, experience_year, joining_date } = professional;
-      if (!institution_id || !employee_code || !experience_year || !joining_date) {
+      const { institution_id, employee_code, experience_year, joining_date, department } = professional;
+      if (!institution_id || !employee_code || !experience_year || !joining_date || !department.trim()) {
         toast.error("All professional fields are required."); return false;
       }
     }
@@ -199,7 +216,7 @@ const TeacherCrud = () => {
     setLoading(true);
     try {
       // Create Teacher (registers user credentials and profile details in one call)
-      await createTeacher({
+      await createTeacherMutation.mutateAsync({
         email: account.email,
         phone: account.phone,
         password: account.password,
@@ -212,13 +229,11 @@ const TeacherCrud = () => {
         joining_date: professional.joining_date,
         metadata: professional.metadata,
         created_by: user?.name ?? "Admin",
+        department: professional.department,
       });
 
       toast.success("Teacher registered successfully!");
       closeModal();
-      getTeachers()
-        .then((data) => setTeachers(Array.isArray(data) ? data : []))
-        .catch(() => {});
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message ??
@@ -234,30 +249,36 @@ const TeacherCrud = () => {
   // ── Table handlers ──────────────────────────────────────────────────────────
 
   const filteredTeachers = useMemo(
-    () => teachers.filter((t) => Object.values(t).join(" ").toLowerCase().includes(search.toLowerCase())),
-    [teachers, search]
+    () => teachers.filter((t) => {
+      const matchesSearch = Object.values(t).join(" ").toLowerCase().includes(search.toLowerCase());
+      const matchesDept = !selectedDeptFilter || String(t.department || "").toLowerCase() === selectedDeptFilter.toLowerCase();
+      return matchesSearch && matchesDept;
+    }),
+    [teachers, search, selectedDeptFilter]
   );
 
   const handleViewSave = async () => {
     if (!viewEditData) return;
     try {
-      await updateTeacher(viewEditData.id, viewEditData);
-      setTeachers((prev) => prev.map((t) => (t.id === viewEditData.id ? viewEditData : t)));
+      await updateTeacherMutation.mutateAsync({ id: viewEditData.id, teacherData: viewEditData });
       setSelectedViewTeacher(viewEditData);
       setIsEditingView(false);
+      setViewModalOpen(false);
       toast.success("Teacher updated successfully!");
     } catch {
       toast.error("Failed to update teacher.");
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     setDeleteTargetId(id);
   };
 
   const confirmDelete = () => {
     if (deleteTargetId !== null) {
-      setTeachers((prev) => prev.filter((t) => t.id !== deleteTargetId));
+      queryClient.setQueryData(["teachers"], (old: any) =>
+        Array.isArray(old) ? old.filter((t: any) => t.id !== deleteTargetId) : []
+      );
       toast.success("Teacher deleted successfully");
     }
   };
@@ -285,18 +306,7 @@ const TeacherCrud = () => {
           </Button>
         </div>
 
-        {/* Search */}
-        <Card className="p-5 rounded-2xl admin-glass">
-          <div className="relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, employee code, email, specialization..."
-              className="pl-10 h-12 rounded-xl"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </Card>
+
         {/* Table */}
         <Card className="overflow-x-auto rounded-2xl admin-glass-strong">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -305,18 +315,46 @@ const TeacherCrud = () => {
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Teacher Directory</p>
                 <h2 className="text-base font-semibold text-foreground">{filteredTeachers.length} teachers found</h2>
               </div>
-              <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+              <ExportButton
+                data={filteredTeachers.map((t, idx) => {
+                  const row: Record<string, any> = { sno: idx + 1 };
+                  TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).forEach((col) => {
+                    row[col.key] = col.key === "is_active" ? (t[col.key] ? "Active" : "Inactive") : String(t[col.key] ?? "—");
+                  });
+                  return row;
+                })}
+                columns={[
+                  { key: "sno", label: "S.No" },
+                  ...TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => ({ key: col.key, label: col.label })),
+                ]}
+                fileName="teachers_list"
+                title="Teacher Directory"
+              />
             </div>
 
-            {/* Search Bar in between */}
-            <div className="relative my-2">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, employee code, email, specialization..."
-                className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            {/* Search Bar & Filter in between */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center my-2">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, employee code, email, specialization..."
+                  className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-72">
+                <select
+                  value={selectedDeptFilter}
+                  onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Departments</option>
+                  {uniqueDepartments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {tableLoading ? (
@@ -328,26 +366,30 @@ const TeacherCrud = () => {
                 <p className="text-sm">No teachers match your search.</p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+              <div className="w-full overflow-x-auto rounded-lg border border-border/60">
                 <table className="w-full border-collapse text-sm">
-                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
+                  <thead className="bg-primary text-primary-foreground text-left text-xs font-bold uppercase tracking-wider">
                     <tr>
+                      <th className="px-3 py-2 border-b border-border/80" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
                       {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => (
-                        <th key={col.key} className="px-3 py-2 border-b border-slate-500">
+                        <th key={col.key} className="px-3 py-2 border-b border-border/80">
                           {col.label}
                         </th>
                       ))}
-                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
+                      <th className="px-3 py-2 border-b border-border/80">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTeachers.map((teacher, index) => {
                       return (
-                        <tr key={teacher.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                        <tr key={teacher.id} className={`border-b border-border/40 transition-colors duration-200 hover:bg-muted/40 ${index % 2 === 0 ? "bg-card" : "bg-muted/20"}`}>
+                          <td className="px-3 py-2 align-middle border-r border-border/45 text-black dark:text-[#FFF19E] text-xs font-medium">
+                            {index + 1}
+                          </td>
                           {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => {
                             const value = teacher[col.key];
                             return (
-                              <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-slate-300 last:border-r-0">
+                              <td key={col.key} className="px-3 py-2 align-middle max-w-[15rem] border-r border-border/45 last:border-r-0">
                                   <div className="flex items-center justify-between gap-2 group/cell">
                                     {(() => {
                                       const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
@@ -355,21 +397,21 @@ const TeacherCrud = () => {
                                       
                                       const getSpan = () => {
                                         if (col.key === "full_name") {
-                                          return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                          return <span className="font-semibold text-black dark:text-[#FFF19E]">{String(value ?? "—")}</span>;
                                         } else if (col.key === "email") {
-                                          return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                         } else if (col.key === "employee_code") {
-                                          return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                          return <span className="bg-amber-100 dark:bg-amber-950/40 text-black dark:text-[#FFF19E] border border-amber-200/50 dark:border-amber-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                         } else if (col.key === "is_active") {
                                           return (
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border text-black dark:text-[#FFF19E] ${value ? "bg-emerald-100 dark:bg-emerald-950/40 border-emerald-200/50 dark:border-emerald-900/30" : "bg-red-100 dark:bg-red-950/40 border-red-200/50 dark:border-red-900/30"}`}>
                                               {value ? "Active" : "Inactive"}
                                             </span>
                                           );
                                         } else if (col.key === "id" || col.key === "user_id") {
-                                          return <span className="text-slate-500 text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs font-mono truncate max-w-[120px]">{String(value ?? "—")}</span>;
                                         } else {
-                                          return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                          return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                         }
                                       };
 
@@ -396,7 +438,7 @@ const TeacherCrud = () => {
                           <td className="px-3 py-2 align-middle">
                             <div className="flex items-center gap-2">
                                <CustomTooltip content="View Details">
-                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                                 <Button size="sm" variant="outline" onClick={() => { setSelectedViewTeacher(teacher); setViewEditData({ ...teacher }); setIsEditingView(false); setViewModalOpen(true); }} className="rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-900/50">
                                    <Eye className="h-4 w-4" />
                                  </Button>
                                </CustomTooltip>
@@ -489,6 +531,9 @@ const TeacherCrud = () => {
                     <Field label="Joining Date *">
                       <Input type="date" value={professional.joining_date} onChange={(e) => setProfessional({ ...professional, joining_date: e.target.value })} />
                     </Field>
+                    <Field label="Department *">
+                      <Input placeholder="e.g. Computer Science" value={professional.department} onChange={(e) => setProfessional({ ...professional, department: e.target.value })} />
+                    </Field>
                     <Field label="Metadata">
                       <Input placeholder="e.g. HOD, Class Coordinator" value={professional.metadata} onChange={(e) => setProfessional({ ...professional, metadata: e.target.value })} />
                     </Field>
@@ -509,6 +554,7 @@ const TeacherCrud = () => {
                       ["Specialization", personal.specialization],
                       ["Institution ID", professional.institution_id],
                       ["Employee Code", professional.employee_code],
+                      ["Department", professional.department],
                       ["Experience (Years)", professional.experience_year],
                       ["Joining Date", professional.joining_date],
                       ["Metadata", professional.metadata],
@@ -541,71 +587,70 @@ const TeacherCrud = () => {
       )}
 
       {/* ── View Details Modal ── */}
-      {viewModalOpen && selectedViewTeacher && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setViewModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col admin-glass-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div>
-                <h2 className="text-xl font-bold text-primary">Teacher Profile</h2>
-                <p className="text-xs text-muted-foreground">Detailed information view</p>
+      <Dialog open={viewModalOpen && !!selectedViewTeacher} onOpenChange={(open) => { if (!open) { setViewModalOpen(false); setIsEditingView(false); } }}>
+        <DialogContent className="sm:max-w-[650px] rounded-2xl border border-white/20 dark:border-white/10 admin-glass-modal p-0 overflow-hidden flex flex-col shadow-2xl">
+          {selectedViewTeacher && (
+            <>
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <DialogTitle className="text-xl font-bold text-primary">Teacher Profile</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">Detailed teacher information view</p>
               </div>
-              <button onClick={() => setViewModalOpen(false)} className="p-2 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-6 py-6 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {TABLE_COLUMNS.map((col) => (
-                  <div key={col.key} className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{col.label}</label>
-                    {isEditingView ? (
-                      <Input
-                        value={String(viewEditData?.[col.key] ?? "")}
-                        onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}
-                        className="h-9"
-                      />
-                    ) : (
-                      (() => {
-                        const val = selectedViewTeacher[col.key];
-                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
-                        const divEl = (
-                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
-                            {String(val ?? "—")}
-                          </div>
-                        );
-                        return hasTooltip ? (
-                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
-                        ) : (
-                          divEl
-                        );
-                      })()
-                    )}
-                  </div>
-                ))}
+
+              {/* Modal Content */}
+              <div className="px-6 py-6 overflow-y-auto max-h-[60vh] scrollbar-beautiful bg-background">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {TABLE_COLUMNS.map((col) => (
+                    <div key={col.key} className="space-y-1 bg-zinc-50/30 dark:bg-zinc-900/10 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                        {col.label}
+                      </label>
+                      {isEditingView && col.key !== "id" && col.key !== "user_id" && col.key !== "created_at" && col.key !== "created_by" ? (
+                        <Input
+                          value={String(viewEditData?.[col.key] ?? "")}
+                          onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}
+                          className="h-9 mt-1"
+                        />
+                      ) : (
+                        (() => {
+                          const val = selectedViewTeacher[col.key];
+                          const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                          const divEl = (
+                            <div className="text-sm font-semibold text-foreground pt-0.5 truncate">
+                              {String(val ?? "—")}
+                            </div>
+                          );
+                          return hasTooltip ? (
+                            <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                          ) : (
+                            divEl
+                          );
+                        })()
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
-              <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
-              <div className="flex gap-2">
-                {isEditingView ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
-                    <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
-                  </>
-                ) : (
-                  <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
-                )}
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
+                <div className="flex gap-2">
+                  {isEditingView ? (
+                    <>
+                      <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
+                      <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit Teacher</Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ConfirmModal
         isOpen={deleteTargetId !== null}
         onClose={() => setDeleteTargetId(null)}

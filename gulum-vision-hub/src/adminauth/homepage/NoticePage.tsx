@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Bell, Search, CalendarDays, User, Plus, X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
-  getNoticesByInstitution, 
-  addNoticeApi, 
-  editNoticeApi, 
-  deleteNoticeApi 
+  useGetNoticesByInstitution, 
+  useAddNotice, 
+  useEditNotice, 
+  useDeleteNotice 
 } from "@/services/noticeAPI";
 import { toast } from "sonner";
+import { CustomTooltip } from "@/components/CustomTooltip";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +51,16 @@ const formatDate = (dateStr?: string) => {
 const NoticePage = () => {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [notices, setNotices] = useState<Notice[]>([]);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const noticesQuery = useGetNoticesByInstitution(user?.institutionId);
+  const notices = noticesQuery.data ?? [];
+  const isLoading = noticesQuery.isLoading;
+  const error = noticesQuery.error ? "Failed to load notices. Please try again later." : null;
+
+  const addNoticeMutation = useAddNotice();
+  const editNoticeMutation = useEditNotice();
+  const deleteNoticeMutation = useDeleteNotice();
 
   // Form states for Add/Edit Modal
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -61,41 +69,11 @@ const NoticePage = () => {
   const [formLevel, setFormLevel] = useState<"ADMIN" | "STUDENT">("ADMIN");
   const [formCourseCode, setFormCourseCode] = useState("");
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
-  const fetchNotices = () => {
-    if (!user?.institutionId) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    getNoticesByInstitution(user.institutionId)
-      .then((data: any) => {
-        const list = data?.responseData ?? data?.data ?? data;
-        if (Array.isArray(list)) {
-          setNotices(list);
-        } else if (Array.isArray(list?.content)) {
-          setNotices(list.content);
-        } else if (Array.isArray(data)) {
-          setNotices(data);
-        } else {
-          setNotices([]);
-        }
-        setError(null);
-      })
-      .catch((err: any) => {
-        console.error("Failed to load notices:", err);
-        setError("Failed to load notices. Please try again later.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    fetchNotices();
-  }, [user?.institutionId]);
+  const isSubmitting = addNoticeMutation.isPending || editNoticeMutation.isPending;
+  const isDeleting = deleteNoticeMutation.isPending;
 
   const handleOpenCreate = () => {
     setEditingNotice(null);
@@ -116,16 +94,17 @@ const NoticePage = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: string | number) => {
-    if (!window.confirm("Are you sure you want to delete this notice?")) {
-      return;
-    }
+  const handleDeleteClick = (id: string | number) => {
+    setDeleteTargetId(id);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      await deleteNoticeApi(id);
+      await deleteNoticeMutation.mutateAsync(deleteTargetId);
       toast.success("Notice deleted successfully");
       setSelectedNotice(null); // Close details modal
-      fetchNotices(); // Refresh list
+      setDeleteTargetId(null);
     } catch (err: any) {
       console.error("Failed to delete notice:", err);
       toast.error(err?.message ?? "Failed to delete notice");
@@ -143,7 +122,6 @@ const NoticePage = () => {
       return;
     }
 
-    setIsSubmitting(true);
     const payload = {
       title: formTitle.trim(),
       description: formDescription.trim(),
@@ -156,19 +134,16 @@ const NoticePage = () => {
 
     try {
       if (editingNotice) {
-        await editNoticeApi({ id: editingNotice.id, notice: payload });
+        await editNoticeMutation.mutateAsync({ id: editingNotice.id, notice: payload });
         toast.success("Notice updated successfully");
       } else {
-        await addNoticeApi(payload);
+        await addNoticeMutation.mutateAsync(payload);
         toast.success("Notice created successfully");
       }
       setIsFormOpen(false);
-      fetchNotices();
     } catch (err: any) {
       console.error("Failed to save notice:", err);
       toast.error(err?.message ?? "Failed to save notice");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -239,11 +214,35 @@ const NoticePage = () => {
                 className="p-6 rounded-2xl admin-glass transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer flex flex-col justify-between h-full border border-white/10"
               >
                 <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4 w-full">
                     <div className="p-3 rounded-2xl bg-primary/10 shrink-0">
                       <Bell className="h-5 w-5 text-primary" />
                     </div>
-                    
+                    <div className="flex items-center gap-1">
+                      <CustomTooltip content="Edit Notice">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(notice);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </CustomTooltip>
+                      <CustomTooltip content="Delete Notice">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(notice.id);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </CustomTooltip>
+
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-base font-bold text-foreground line-clamp-1">{notice.title}</h2>
@@ -268,49 +267,61 @@ const NoticePage = () => {
         )}
 
         {/* Detail Modal */}
-        {selectedNotice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200 admin-glass-modal border border-white/25 dark:border-white/15 shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between px-6 py-5 border-b border-white/20 dark:border-white/10">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <h2 className="text-lg font-bold text-foreground">{selectedNotice.title}</h2>
-                    
+        <Dialog open={!!selectedNotice} onOpenChange={(open) => !open && setSelectedNotice(null)}>
+          <DialogContent className="sm:max-w-[650px] rounded-2xl border border-white/20 dark:border-white/10 admin-glass-modal p-0 overflow-hidden flex flex-col shadow-2xl">
+            {selectedNotice && (
+              <>
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <DialogTitle className="text-xl font-bold tracking-tight text-foreground pr-8 leading-snug">
+                      {selectedNotice.title}
+                    </DialogTitle>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" />
-                      {selectedNotice.createdBy ?? selectedNotice.created_by ?? "Unknown"}
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5 bg-background dark:bg-zinc-900 px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                      <span className="font-medium">{selectedNotice.createdBy ?? selectedNotice.created_by ?? "Unknown"}</span>
                     </span>
-                    <span className="flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {formatDate(selectedNotice.createdAt ?? selectedNotice.created_at)}
+                    <span className="flex items-center gap-1.5 bg-background dark:bg-zinc-900 px-2.5 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                      <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                      <span className="font-medium">{formatDate(selectedNotice.createdAt ?? selectedNotice.created_at)}</span>
                     </span>
                     {(selectedNotice as any).courseCode && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                      <span className="flex items-center bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
                         {(selectedNotice as any).courseCode}
                       </span>
                     )}
                   </div>
                 </div>
-                <button onClick={() => setSelectedNotice(null)} className="p-2 rounded-xl hover:bg-muted/80 transition text-muted-foreground hover:text-foreground">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6 max-h-[50vh] overflow-y-auto">
-                <p className="text-sm leading-7 text-muted-foreground whitespace-pre-line">{selectedNotice.description}</p>
-              </div>
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/20 dark:border-white/10 bg-muted/20">
-                <Button variant="outline" onClick={() => handleOpenEdit(selectedNotice)} className="gap-2 rounded-xl">
-                  <Pencil className="h-4 w-4" /> Edit Notice
-                </Button>
-                <Button variant="destructive" onClick={() => handleDelete(selectedNotice.id)} className="gap-2 rounded-xl">
-                  <Trash2 className="h-4 w-4" /> Delete
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+
+                {/* Content Area */}
+                <div className="p-6 max-h-[50vh] overflow-y-auto scrollbar-beautiful bg-background">
+                  <div className="space-y-2.5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                      Announcement Details
+                    </h4>
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-line bg-zinc-50/50 dark:bg-zinc-900/10 p-5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-inner">
+                      {selectedNotice.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                  <Button variant="outline" onClick={() => handleOpenEdit(selectedNotice)} className="gap-2 rounded-xl">
+                    <Pencil className="h-4 w-4" /> Edit Notice
+                  </Button>
+                  <Button variant="destructive" onClick={() => handleDeleteClick(selectedNotice.id)} className="gap-2 rounded-xl">
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
 
         {/* Add/Edit Notice Dialog Modal */}
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -391,7 +402,17 @@ const NoticePage = () => {
           </DialogContent>
         </Dialog>
 
+        <ConfirmModal
+          isOpen={deleteTargetId !== null}
+          onClose={() => setDeleteTargetId(null)}
+          onConfirm={confirmDelete}
+          title="Delete Notice"
+          description="Are you sure you want to delete this notice? This action cannot be undone."
+          isLoading={isDeleting}
+        />
+
       </section>
+
     </AdminShell>
   );
 };

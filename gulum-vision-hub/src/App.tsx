@@ -38,8 +38,16 @@ import Departments from "./adminauth/homepage/Departments";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
 import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
 import ForgotPassword  from "./pages/ForgotPassword"; 
+import AttendancePage from "./adminauth/homepage/AttendancePage";
+import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -210,6 +218,25 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+
+                <Route
+                  path="/admin/attendance"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <AttendancePage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/lecture-audit"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <LectureAuditPage />
+                    </ProtectedRoute>
+                  }
+                />
+
 
                 <Route
                   path="/admin/NoticePage"

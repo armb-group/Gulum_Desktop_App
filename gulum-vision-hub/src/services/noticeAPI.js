@@ -168,3 +168,10 @@ export const getNoticesByInstitution = async (institutionId) => {
   return response.data.responseData ?? response.data;
 };
 
+export const useGetNoticesByInstitution = (institutionId, options = {}) =>
+  useQuery({
+    queryKey: [...NOTICE_QUERY_KEY, "institution", institutionId ?? ""],
+    queryFn: () => getNoticesByInstitution(institutionId),
+    enabled: !!institutionId && (options.enabled ?? true),
+  });
+

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createStudent, getStudents, updateStudent } from "@/services/studentCrudAPI";
+import { useGetStudents, useCreateStudent, useUpdateStudent } from "@/services/studentCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -23,11 +24,18 @@ import {
   Copy,
   Eye
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
 interface Student {
-  id: number;
+  id: string | number;
   institution_id: string | number;
   admission_no: string;
   roll_no: string;
@@ -43,6 +51,9 @@ interface Student {
   user_id: string | number;
   classess_id: string | number;
   department_id: string | number;
+  batchYear?: string;
+  sectionName?: string;
+  departmentName?: string;
 }
 
 interface AccountForm {
@@ -100,7 +111,7 @@ const emptyStudent: Student = {
   department_id: 0,
 };
 
-const HIDDEN_IN_ROW = new Set<keyof Student>(["classess_id", "batch_id", "created_by", "created_at", "metadata", "dob", "institution_id", "admission_no", "department_id"]);
+const HIDDEN_IN_ROW = new Set<keyof Student>(["id", "user_id", "created_by", "created_at", "metadata", "dob", "institution_id", "admission_no"]);
 
 const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "id", label: "ID" },
@@ -116,9 +127,9 @@ const TABLE_COLUMNS: Array<{ key: keyof Student; label: string }> = [
   { key: "created_by", label: "Created By" },
   { key: "email_id", label: "Email ID" },
   { key: "phone_number", label: "Phone No" },
-  { key: "batch_id", label: "Batch ID" },
-  { key: "classess_id", label: "Classess ID" },
-  { key: "department_id", label: "Department ID" },
+  { key: "batchYear", label: "Year" },
+  { key: "sectionName", label: "Section" },
+  { key: "departmentName", label: "Department" },
 ];
 
 // ─── Stepper Component ─────────────────────────────────────────────────────────
@@ -178,16 +189,31 @@ const Field = ({
 
 const StudentCrud = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState<Student[]>([]);
-  const [tableLoading, setTableLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    getStudents()
-      .then((data) => setStudents(Array.isArray(data) ? data : []))
-      .catch(() => toast.error("Failed to load students."))
-      .finally(() => setTableLoading(false));
-  }, []);
+  const { data: studentsData = [], isLoading: tableLoading } = useGetStudents();
+  const students = useMemo(() => Array.isArray(studentsData) ? studentsData : [], [studentsData]);
+
+  const createStudentMutation = useCreateStudent();
+  const updateStudentMutation = useUpdateStudent();
   const [search, setSearch] = useState("");
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState("");
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState("");
+  const [selectedYearFilter, setSelectedYearFilter] = useState("");
+
+  const uniqueDepartments = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.department_id || "")).filter(Boolean))),
+    [students]
+  );
+  const uniqueSections = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.classess_id || "")).filter(Boolean))),
+    [students]
+  );
+  const uniqueYears = useMemo(
+    () => Array.from(new Set(students.map((s) => String(s.batch_id || "")).filter(Boolean))),
+    [students]
+  );
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -203,7 +229,7 @@ const StudentCrud = () => {
   const [account, setAccount] = useState<AccountForm>(emptyAccount);
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [academic, setAcademic] = useState<AcademicForm>(emptyAcademic);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -235,10 +261,10 @@ const StudentCrud = () => {
   const handleViewSave = async () => {
     if (!viewEditData) return;
     try {
-      await updateStudent(viewEditData.id, viewEditData);
-      setStudents((prev) => prev.map((s) => (s.id === viewEditData.id ? viewEditData : s)));
+      await updateStudentMutation.mutateAsync({ id: viewEditData.id, studentData: viewEditData });
       setSelectedViewStudent(viewEditData);
       setIsEditingView(false);
+      setViewModalOpen(false);
       toast.success("Student updated successfully!");
     } catch {
       toast.error("Failed to update student.");
@@ -298,7 +324,7 @@ const StudentCrud = () => {
 
     try {
       // Create Student (registers user credentials and profile details in one call)
-      await createStudent({
+      await createStudentMutation.mutateAsync({
         institution_id: academic.institution_id,
         admission_no: academic.admission_no,
         roll_no: academic.roll_no,
@@ -317,9 +343,6 @@ const StudentCrud = () => {
 
       toast.success("Student registered successfully!");
       closeModal();
-      getStudents()
-        .then((data) => setStudents(Array.isArray(data) ? data : []))
-        .catch(() => {});
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message ??
@@ -336,10 +359,14 @@ const StudentCrud = () => {
 
   const filteredStudents = useMemo(
     () =>
-      students.filter((s) =>
-        Object.values(s).join(" ").toLowerCase().includes(search.toLowerCase())
-      ),
-    [students, search]
+      students.filter((s) => {
+        const matchesSearch = Object.values(s).join(" ").toLowerCase().includes(search.toLowerCase());
+        const matchesDept = !selectedDeptFilter || String(s.department_id || "") === selectedDeptFilter;
+        const matchesSection = !selectedSectionFilter || String(s.classess_id || "") === selectedSectionFilter;
+        const matchesYear = !selectedYearFilter || String(s.batch_id || "") === selectedYearFilter;
+        return matchesSearch && matchesDept && matchesSection && matchesYear;
+      }),
+    [students, search, selectedDeptFilter, selectedSectionFilter, selectedYearFilter]
   );
 
   const handleCopy = (value: string) => {
@@ -348,13 +375,15 @@ const StudentCrud = () => {
     toast.success("Copied to clipboard");
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     setDeleteTargetId(id);
   };
 
   const confirmDelete = () => {
     if (deleteTargetId !== null) {
-      setStudents((prev) => prev.filter((s) => s.id !== deleteTargetId));
+      queryClient.setQueryData(["students"], (old: any) =>
+        Array.isArray(old) ? old.filter((s: any) => s.id !== deleteTargetId) : []
+      );
       toast.success("Student deleted successfully");
     }
   };
@@ -381,18 +410,7 @@ const StudentCrud = () => {
           </Button>
         </div>
 
-        {/* Search */}
-        <Card className="p-5 rounded-2xl admin-glass">
-          <div className="relative">
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, roll no, admission no, email..."
-              className="pl-10 h-12 rounded-xl"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </Card>
+
         {/* Table */}
         <Card className="overflow-x-auto rounded-2xl admin-glass-strong">
           <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -401,18 +419,66 @@ const StudentCrud = () => {
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Student Directory</p>
                 <h2 className="text-base font-semibold text-foreground">{filteredStudents.length} students found</h2>
               </div>
-              <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+              <ExportButton
+                data={filteredStudents.map((s, idx) => {
+                  const row: Record<string, any> = { sno: idx + 1 };
+                  TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).forEach((col) => {
+                    row[col.key] = String(s[col.key] ?? "—");
+                  });
+                  return row;
+                })}
+                columns={[
+                  { key: "sno", label: "S.No" },
+                  ...TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => ({ key: col.key, label: col.label })),
+                ]}
+                fileName="students_list"
+                title="Student Directory"
+              />
             </div>
 
-            {/* Search Bar in between */}
-            <div className="relative my-2">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, roll no, admission no, email..."
-                className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            {/* Search Bar & Filters in between */}
+            <div className="flex flex-col gap-3 my-2">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, roll no, admission no, email..."
+                  className="pl-10 h-11 rounded-xl bg-card border-border shadow-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <select
+                  value={selectedDeptFilter}
+                  onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Departments</option>
+                  {uniqueDepartments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedSectionFilter}
+                  onChange={(e) => setSelectedSectionFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Sections</option>
+                  {uniqueSections.map((sec) => (
+                    <option key={sec} value={sec}>{sec}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYearFilter}
+                  onChange={(e) => setSelectedYearFilter(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring shadow-sm"
+                >
+                  <option value="">All Years</option>
+                  {uniqueYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {tableLoading ? (
@@ -424,25 +490,29 @@ const StudentCrud = () => {
                 <p className="text-sm">No students match your search.</p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto rounded-lg border border-slate-300">
+              <div className="w-full overflow-x-auto rounded-lg border border-border/60">
                 <table className="w-full border-collapse text-sm">
-                  <thead style={{ background: "#752B2A" }} className="text-left text-xs font-bold uppercase tracking-wider text-white">
+                  <thead className="bg-primary text-primary-foreground text-left text-xs font-bold uppercase tracking-wider">
                     <tr>
+                      <th className="px-3 py-2 border-b border-border/80" style={{ width: "60px", minWidth: "60px" }}>S.No</th>
                       {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => (
-                        <th key={column.key} className="px-3 py-2 border-b border-slate-500" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
+                        <th key={column.key} className="px-3 py-2 border-b border-border/80" style={column.key === "id" || column.key === "user_id" ? { width: "140px", minWidth: "140px" } : {}}>
                           {column.label}
                         </th>
                       ))}
-                      <th className="px-3 py-2 border-b border-slate-500">Actions</th>
+                      <th className="px-3 py-2 border-b border-border/80">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredStudents.map((student, index) => (
-                      <tr key={student.id} className={`border-b border-slate-300 transition-colors duration-200 hover:bg-slate-50 ${index % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}>
+                      <tr key={student.id} className={`border-b border-border/40 transition-colors duration-200 hover:bg-muted/40 ${index % 2 === 0 ? "bg-card" : "bg-muted/20"}`}>
+                        <td className="px-3 py-2 align-middle border-r border-border/45 text-black dark:text-[#FFF19E] text-xs font-medium">
+                          {index + 1}
+                        </td>
                         {TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((column) => {
                           const value = student[column.key];
                           return (
-                            <td key={column.key} className={`px-3 py-2 align-middle border-r border-slate-300 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
+                            <td key={column.key} className={`px-3 py-2 align-middle border-r border-border/45 last:border-r-0 ${column.key === "id" || column.key === "user_id" ? "w-36" : "max-w-[15rem]"}`}>
                               <div className="flex items-center justify-between gap-2 group/cell">
                                 {(() => {
                                   const hasTooltip = value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "—";
@@ -450,23 +520,29 @@ const StudentCrud = () => {
 
                                   const getElement = () => {
                                     if (column.key === "full_name") {
-                                      return <span className="font-semibold text-indigo-700">{String(value ?? "—")}</span>;
+                                      return <span className="font-semibold text-black dark:text-[#FFF19E]">{String(value ?? "—")}</span>;
                                     } else if (column.key === "email_id") {
-                                      return <span className="text-blue-600 text-xs">{String(value ?? "—")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                     } else if (column.key === "admission_no") {
-                                      return <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                      return <span className="bg-amber-100 dark:bg-amber-950/40 text-black dark:text-[#FFF19E] border border-amber-200/50 dark:border-amber-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                     } else if (column.key === "roll_no") {
-                                      return <span className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
+                                      return <span className="bg-emerald-100 dark:bg-emerald-950/40 text-black dark:text-[#FFF19E] border border-emerald-200/50 dark:border-emerald-900/30 text-xs font-medium px-2 py-0.5 rounded-full">{String(value ?? "—")}</span>;
                                     } else if (column.key === "gender") {
                                       return (
-                                        <Badge className={String(value).toLowerCase() === "female" ? "bg-pink-100 text-pink-700 hover:bg-pink-100" : String(value).toLowerCase() === "male" ? "bg-sky-100 text-sky-700 hover:bg-sky-100" : "bg-slate-100 text-slate-600 hover:bg-slate-100"}>
+                                        <Badge className={
+                                          String(value).toLowerCase() === "female"
+                                            ? "bg-pink-100 dark:bg-pink-950/40 text-black dark:text-[#FFF19E] border border-pink-200/50 dark:border-pink-900/30 hover:bg-pink-100 dark:hover:bg-pink-950/50"
+                                            : String(value).toLowerCase() === "male"
+                                            ? "bg-sky-100 dark:bg-sky-950/40 text-black dark:text-[#FFF19E] border border-sky-200/50 dark:border-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-950/50"
+                                            : "bg-slate-100 dark:bg-zinc-800 text-black dark:text-[#FFF19E] border border-slate-200/50 dark:border-zinc-700/50 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                                        }>
                                           {String(value || "—")}
                                         </Badge>
                                       );
                                     } else if (column.key === "id" || column.key === "user_id") {
-                                      return <span className="text-slate-500 text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs font-mono">{String(value ?? "—").slice(0, 8) + (String(value ?? "").length > 8 ? "..." : "")}</span>;
                                     } else {
-                                      return <span className="text-slate-700 text-xs">{String(value ?? "—")}</span>;
+                                      return <span className="text-black dark:text-[#FFF19E] text-xs">{String(value ?? "—")}</span>;
                                     }
                                   };
 
@@ -493,7 +569,7 @@ const StudentCrud = () => {
                         <td className="px-3 py-2 align-middle">
                           <div className="flex items-center gap-2">
                             <CustomTooltip content="View Details">
-                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} className="rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+                              <Button size="sm" variant="outline" onClick={() => handleViewDetails(student)} className="rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-700 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-900/50">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </CustomTooltip>
@@ -720,81 +796,70 @@ const StudentCrud = () => {
       )}
 
       {/* ── View Details Modal ── */}
-      {viewModalOpen && selectedViewStudent && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setViewModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl mx-4 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col admin-glass-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <div>
-                <h2 className="text-xl font-bold text-primary">Student Profile</h2>
-                <p className="text-xs text-muted-foreground">Detailed information view</p>
+      <Dialog open={viewModalOpen && !!selectedViewStudent} onOpenChange={(open) => { if (!open) { setViewModalOpen(false); setIsEditingView(false); } }}>
+        <DialogContent className="sm:max-w-[650px] rounded-2xl border border-white/20 dark:border-white/10 admin-glass-modal p-0 overflow-hidden flex flex-col shadow-2xl">
+          {selectedViewStudent && (
+            <>
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <DialogTitle className="text-xl font-bold text-primary">Student Profile</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">Detailed student information view</p>
               </div>
-              <button
-                onClick={() => setViewModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            {/* Modal Content */}
-            <div className="px-6 py-6 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {TABLE_COLUMNS.map((column) => (
-                  <div key={column.key} className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {column.label}
-                    </label>
-                    {isEditingView ? (
-                      <Input
-                        value={String(viewEditData?.[column.key] ?? "")}
-                        onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [column.key]: e.target.value } : prev)}
-                        className="h-9"
-                      />
-                    ) : (
-                      (() => {
-                        const val = selectedViewStudent[column.key];
-                        const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
-                        const divEl = (
-                          <div className="text-sm font-medium border-b border-muted/30 pb-1.5 truncate">
-                            {String(val ?? "—")}
-                          </div>
-                        );
-                        return hasTooltip ? (
-                          <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
-                        ) : (
-                          divEl
-                        );
-                      })()
-                    )}
-                  </div>
-                ))}
+              {/* Modal Content */}
+              <div className="px-6 py-6 overflow-y-auto max-h-[60vh] scrollbar-beautiful bg-background">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {TABLE_COLUMNS.map((column) => (
+                    <div key={column.key} className="space-y-1 bg-zinc-50/30 dark:bg-zinc-900/10 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                        {column.label}
+                      </label>
+                      {isEditingView ? (
+                        <Input
+                          value={String(viewEditData?.[column.key] ?? "")}
+                          onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [column.key]: e.target.value } : prev)}
+                          className="h-9 mt-1"
+                        />
+                      ) : (
+                        (() => {
+                          const val = selectedViewStudent[column.key];
+                          const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
+                          const divEl = (
+                            <div className="text-sm font-semibold text-foreground pt-0.5 truncate">
+                              {String(val ?? "—")}
+                            </div>
+                          );
+                          return hasTooltip ? (
+                            <CustomTooltip content={String(val)}>{divEl}</CustomTooltip>
+                          ) : (
+                            divEl
+                          );
+                        })()
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
-              <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
-              <div className="flex gap-2">
-                {isEditingView ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
-                    <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
-                  </>
-                ) : (
-                  <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit</Button>
-                )}
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <Button variant="outline" onClick={() => { setViewModalOpen(false); setIsEditingView(false); }}>Close</Button>
+                <div className="flex gap-2">
+                  {isEditingView ? (
+                    <>
+                      <Button variant="outline" onClick={() => setIsEditingView(false)} className="cancel-gray-btn">Cancel</Button>
+                      <Button onClick={handleViewSave} className="gap-2"><Save className="h-4 w-4" /> Save</Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setIsEditingView(true)} className="gap-2"><Pencil className="h-4 w-4" /> Edit Student</Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ConfirmModal
         isOpen={deleteTargetId !== null}
         onClose={() => setDeleteTargetId(null)}

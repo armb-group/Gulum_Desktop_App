@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getTeachers, assignTeachersBulk } from "@/services/teacherCrudAPI";
-import { getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetTeachers, getTeachers, useAssignTeachersBulk } from "@/services/teacherCrudAPI";
+import { useGetDepartments, getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
 import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department } from "./departmentsData";
 import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -64,9 +65,9 @@ const createDefaultYears = (deptName: string, deptId: string) => {
 };
 
 const AssignTeacher = () => {
-  const [teachers, setTeachers] = useState<TeacherData[]>([]);
+  const queryClient = useQueryClient();
+
   const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
-  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(true);
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
@@ -74,12 +75,52 @@ const AssignTeacher = () => {
   const [selectedSectionName, setSelectedSectionName] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [teachersLoading, setTeachersLoading] = useState<boolean>(true);
   const [teacherSearch, setTeacherSearch] = useState<string>("");
   const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
-  const [confirming, setConfirming] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [removeTargetTeacherName, setRemoveTargetTeacherName] = useState<string | null>(null);
+
+  // TanStack Query for Teachers
+  const { data: rawTeachers = [], isLoading: teachersLoading } = useGetTeachers();
+  const teachers = useMemo(() => {
+    const list = Array.isArray(rawTeachers) ? rawTeachers : [];
+    return list.map((t) => ({
+      id: t.id,
+      full_name: t.full_name || `Teacher ${t.id}`,
+      employee_code: t.employee_code || "N/A",
+      specialization: t.specialization || "N/A",
+      qualification: t.qualification || "N/A",
+      email: t.email || ""
+    }));
+  }, [rawTeachers]);
+
+  // TanStack Query for Departments
+  const { data: rawDepts, isLoading: rawDeptsLoading } = useGetDepartments();
+  const departmentsLoading = rawDeptsLoading && departments.length === 0;
+
+  useEffect(() => {
+    if (rawDepts) {
+      const localDepts = getDepartmentsInMemory();
+      const mapped = Array.isArray(rawDepts)
+        ? rawDepts.map((d) => {
+            const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
+            const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
+            const match = localDepts.find(
+              (ld) => String(ld.id) === id || ld.name.toLowerCase() === name.toLowerCase()
+            );
+            return {
+              id,
+              name,
+              years: d.years ?? match?.years ?? createDefaultYears(name, id)
+            };
+          })
+        : [];
+      setDepartments(mapped);
+    }
+  }, [rawDepts]);
+
+  const assignMutation = useAssignTeachersBulk();
+  const confirming = assignMutation.isPending;
 
   const handleConfirmAssignment = () => {
     if (!selectedSection) {
@@ -104,65 +145,20 @@ const AssignTeacher = () => {
       })
       .filter((id): id is number => id !== null);
 
-    setConfirming(true);
-    assignTeachersBulk(batchId, departmentId, classId, teacherIds)
-      .then(() => {
-        toast.success("Teacher assignments confirmed and saved successfully!");
-      })
-      .catch((err: any) => {
-        console.error("Error confirming teacher assignments:", err);
-        const errMsg = err.response?.data?.message ?? err.message ?? "Failed to save teacher assignments.";
-        toast.error(errMsg);
-      })
-      .finally(() => {
-        setConfirming(false);
-      });
+    assignMutation.mutate(
+      { batchId, departmentId, classId, teacherIds },
+      {
+        onSuccess: () => {
+          toast.success("Teacher assignments confirmed and saved successfully!");
+        },
+        onError: (err: any) => {
+          console.error("Error confirming teacher assignments:", err);
+          const errMsg = err.response?.data?.message ?? err.message ?? "Failed to save teacher assignments.";
+          toast.error(errMsg);
+        }
+      }
+    );
   };
-
-  useEffect(() => {
-    getTeachers()
-      .then((list) => {
-        const mapped = Array.isArray(list)
-          ? list.map((t) => ({
-              id: t.id,
-              full_name: t.full_name || `Teacher ${t.id}`,
-              employee_code: t.employee_code || "N/A",
-              specialization: t.specialization || "N/A",
-              qualification: t.qualification || "N/A",
-              email: t.email || ""
-            }))
-          : [];
-        setTeachers(mapped);
-      })
-      .catch(() => toast.error("Unable to load teachers list."))
-      .finally(() => setTeachersLoading(false));
-
-    setDepartmentsLoading(true);
-    getDepartments()
-      .then((list) => {
-        const localDepts = getDepartmentsInMemory();
-        const mapped = Array.isArray(list)
-          ? list.map((d) => {
-              const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
-              const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
-              const match = localDepts.find(
-                (ld) => String(ld.id) === id || ld.name.toLowerCase() === name.toLowerCase()
-              );
-              return {
-                id,
-                name,
-                years: d.years ?? match?.years ?? createDefaultYears(name, id)
-              };
-            })
-          : [];
-        setDepartments(mapped);
-      })
-      .catch((err) => {
-        console.error("Error loading departments API:", err);
-        setDepartments(getDepartmentsInMemory());
-      })
-      .finally(() => setDepartmentsLoading(false));
-  }, []);
 
   // Save departments back to in-memory store whenever state changes
   const saveDepartments = (updated: Department[]) => {
@@ -311,7 +307,10 @@ const AssignTeacher = () => {
     if (!value) return;
 
     setBatchesLoading(true);
-    getAcademicBatchesByDepartment(value)
+    queryClient.fetchQuery({
+      queryKey: ["academic-batches", value],
+      queryFn: () => getAcademicBatchesByDepartment(value),
+    })
       .then((data) => {
         const rawBatches = Array.isArray(data)
           ? data
@@ -395,7 +394,7 @@ const AssignTeacher = () => {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-6">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground bg-gradient-to-r from-rose-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-foreground">
               Teacher Assignment Console
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
@@ -573,7 +572,7 @@ const AssignTeacher = () => {
             <Button
               onClick={handleAssign}
               disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester}
-              className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
+              className="w-full mt-6 rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Add to List
@@ -666,7 +665,7 @@ const AssignTeacher = () => {
                   <Button
                     onClick={handleConfirmAssignment}
                     disabled={confirming}
-                    className="w-full mt-6 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
+                    className="w-full mt-6 rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
                   >
                     <UserCheck className="h-4 w-4" />
                     {confirming ? "Saving assignments..." : "Confirm Assignment"}

@@ -13,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getStudents } from "@/services/studentCrudAPI";
-import { getTeachers } from "@/services/teacherCrudAPI";
-import { createAssignment } from "@/services/assignmentAPI";
+import { useGetStudents } from "@/services/studentCrudAPI";
+import { useGetTeachers } from "@/services/teacherCrudAPI";
+import { useCreateAssignment } from "@/services/assignmentAPI";
 import { ChevronRight } from "lucide-react";
 import { initialData as deptData, getDepartmentsInMemory, type Department } from "./departmentsData";
 
@@ -41,31 +41,31 @@ const emptyForm = {
 };
 
 const AssignWork = () => {
-  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
-  const [students, setStudents] = useState<StudentOption[]>([]);
   const [form, setForm] = useState(() => ({ ...emptyForm }));
-  const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
+  const [departments] = useState<Department[]>(() => getDepartmentsInMemory());
 
-  useEffect(() => {
-    getTeachers()
-      .then((list) => {
-        const options = Array.isArray(list)
-          ? list.map((t) => ({ id: String(t.id), name: t.full_name || t.employee_code || `Teacher ${t.id}` }))
-          : [];
-        setTeachers(options);
-      })
-      .catch(() => toast.error("Unable to load teachers."));
+  // TanStack Query for Teachers
+  const { data: rawTeachers = [] } = useGetTeachers();
+  const teachers = useMemo(() => {
+    const list = Array.isArray(rawTeachers) ? rawTeachers : [];
+    return list.map((t) => ({
+      id: String(t.id),
+      name: t.full_name || t.employee_code || `Teacher ${t.id}`
+    }));
+  }, [rawTeachers]);
 
-    getStudents()
-      .then((list) => {
-        const options = Array.isArray(list)
-          ? list.map((s) => ({ id: String(s.id), name: s.full_name || s.admission_no || `Student ${s.id}` }))
-          : [];
-        setStudents(options);
-      })
-      .catch(() => toast.error("Unable to load students."));
-  }, []);
+  // TanStack Query for Students
+  const { data: rawStudents = [] } = useGetStudents();
+  const students = useMemo(() => {
+    const list = Array.isArray(rawStudents) ? rawStudents : [];
+    return list.map((s) => ({
+      id: String(s.id),
+      name: s.full_name || s.admission_no || `Student ${s.id}`
+    }));
+  }, [rawStudents]);
+
+  const createAssignmentMutation = useCreateAssignment();
+  const loading = createAssignmentMutation.isPending;
 
   const availableYears = useMemo(() => {
     const department = departments.find((d) => d.name === form.department);
@@ -97,9 +97,8 @@ const AssignWork = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      await createAssignment({
+    createAssignmentMutation.mutate(
+      {
         title: form.title,
         description: form.notes,
         department: form.department,
@@ -109,15 +108,18 @@ const AssignWork = () => {
         teacherId: form.teacherId,
         studentIds: form.studentIds,
         createdAt: new Date().toISOString(),
-      });
-      toast.success("Work assigned successfully.");
-      setForm({ ...emptyForm });
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to assign work. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          toast.success("Work assigned successfully.");
+          setForm({ ...emptyForm });
+        },
+        onError: (err) => {
+          console.error(err);
+          toast.error("Failed to assign work. Please try again.");
+        }
+      }
+    );
   };
 
   return (

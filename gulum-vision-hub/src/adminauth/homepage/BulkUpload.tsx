@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Papa from "papaparse";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Upload, FileText, Download, CheckCircle2, GraduationCap, UserCog, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
-import { getRoles } from "@/services/roleAPI";
-import { uploadBulkFile } from "@/services/uploadAPI";
+import { useGetRoles } from "@/services/roleAPI";
+import { useUploadBulkFile } from "@/services/uploadAPI";
 
 type Row = Record<string, string>;
 type UploadRole = "student" | "teacher";
@@ -54,45 +60,42 @@ const getRoleIcon = (name: string) => {
 };
 
 const BulkUpload = () => {
-  const [roles, setRoles] = useState<RoleData[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [completed, setCompleted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // TanStack Query Hooks
+  const { data: rawRoles, isLoading: loading } = useGetRoles();
+  const roles = useMemo(() => {
+    const rawList = Array.isArray(rawRoles) ? rawRoles : [];
+    if (rawList.length === 0 && !loading) {
+      return [
+        { id: "student-fallback", name: "Student" },
+        { id: "teacher-fallback", name: "Teacher" },
+      ];
+    }
+    return rawList
+      .map((r, index) => {
+        if (typeof r === "string") {
+          return { id: r, name: r };
+        }
+        if (r && typeof r === "object") {
+          const id = r.id ?? r.roleId ?? `role-${index}`;
+          const name = r.name ?? r.roleName ?? r.title ?? "";
+          return { id: String(id), name: String(name) };
+        }
+        return { id: `role-${index}`, name: "" };
+      })
+      .filter((r) => r.name.toLowerCase() !== "admin");
+  }, [rawRoles, loading]);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
   const rawRoleName = selectedRole ? (selectedRole.name ?? "") : "";
   const roleName = rawRoleName.toLowerCase() === "user" ? "Student" : rawRoleName;
 
-  useEffect(() => {
-    getRoles()
-      .then((data) => {
-        const rawList = Array.isArray(data) ? data : [];
-        const normalizedList: RoleData[] = rawList.map((r, index) => {
-          if (typeof r === "string") {
-            return { id: r, name: r };
-          }
-          if (r && typeof r === "object") {
-            const id = r.id ?? r.roleId ?? `role-${index}`;
-            const name = r.name ?? r.roleName ?? r.title ?? "";
-            return { id: String(id), name: String(name) };
-          }
-          return { id: `role-${index}`, name: "" };
-        });
-        setRoles(normalizedList);
-      })
-      .catch((err) => {
-        console.error("Error loading roles from API:", err);
-        setRoles([
-          { id: "student-fallback", name: "Student" },
-          { id: "teacher-fallback", name: "Teacher" },
-        ]);
-        toast.error("Failed to load roles from API. Using local fallbacks.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const uploadMutation = useUploadBulkFile();
+  const uploading = uploadMutation.isPending;
 
   const handleFile = (file: File) => {
     if (!roleName) {
@@ -100,23 +103,23 @@ const BulkUpload = () => {
       return;
     }
     setFileName(file.name);
-    setUploading(true);
 
-    const rawRole = selectedRole ? (selectedRole.name ?? selectedRole.roleName ?? "").toLowerCase() : "";
+    const rawRole = selectedRole ? (selectedRole.name ?? "").toLowerCase() : "";
 
-    uploadBulkFile(rawRole, file)
-      .then(() => {
-        toast.success(`Bulk upload for ${roleName} completed successfully!`);
-        setCompleted(true);
-      })
-      .catch((err) => {
-        console.error("Bulk upload error:", err);
-        const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
-        toast.error(`Upload failed: ${errorMsg}`);
-      })
-      .finally(() => {
-        setUploading(false);
-      });
+    uploadMutation.mutate(
+      { role: rawRole, file },
+      {
+        onSuccess: () => {
+          toast.success(`Bulk upload for ${roleName} completed successfully!`);
+          setCompleted(true);
+        },
+        onError: (err: any) => {
+          console.error("Bulk upload error:", err);
+          const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
+          toast.error(`Upload failed: ${errorMsg}`);
+        }
+      }
+    );
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,20 +133,13 @@ const BulkUpload = () => {
     if (f) handleFile(f);
   };
 
-  const downloadSample = () => {
-    if (!roleName) {
-      toast.error("Please select a role first.");
-      return;
-    }
-    const csvContent = getSampleCSV(roleName);
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
+  const downloadSampleForRole = (role: string) => {
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `gulum-${roleName.toLowerCase()}-template.csv`;
+    a.href = `/templates/${role.toLowerCase()}-template.csv`;
+    a.download = `gulum-${role.toLowerCase()}-template.csv`;
     a.click();
-    URL.revokeObjectURL(url);
   };
+
 
   const reset = () => {
     setCompleted(false);
@@ -161,9 +157,21 @@ const BulkUpload = () => {
               Select a role, then upload a CSV to import records.
             </p>
           </div>
-          <Button variant="outline" onClick={downloadSample} disabled={!roleName}>
-            <Download className="h-4 w-4" /> Download template
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" /> Download template
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 admin-glass border border-border/40 backdrop-blur-md">
+              <DropdownMenuItem onClick={() => downloadSampleForRole("student")} className="cursor-pointer flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" /> Student Template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadSampleForRole("teacher")} className="cursor-pointer flex items-center gap-2">
+                <UserCog className="h-4 w-4" /> Teacher Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <Card className="p-5 rounded-2xl admin-glass">
@@ -181,7 +189,7 @@ const BulkUpload = () => {
             </SelectTrigger>
             <SelectContent>
               {roles.map((r) => {
-                const name = r.name ? (r.name.toLowerCase() === "user" ? "Student" : r.name) : "";
+                const name = r.name ? (r.name.toLowerCase() === "user" ? "STUDENT" : r.name) : "";
                 return (
                   <SelectItem key={r.id} value={r.id}>
                     <span className="inline-flex items-center gap-2">
@@ -227,9 +235,8 @@ const BulkUpload = () => {
           <Card
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-            className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${
-              roleName ? "hover:border-primary/50" : "opacity-60"
-            }`}
+            className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${roleName ? "hover:border-primary/50" : "opacity-60"
+              }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">
               <Upload className="h-7 w-7 text-brand-foreground" />

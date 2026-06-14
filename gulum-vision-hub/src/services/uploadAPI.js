@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import api from "./api";
 
 /**
@@ -17,4 +18,10 @@ export const uploadBulkFile = async (role, file) => {
   });
 
   return response.data.responseData ?? response.data;
+};
+
+export const useUploadBulkFile = () => {
+  return useMutation({
+    mutationFn: ({ role, file }) => uploadBulkFile(role, file),
+  });
 };

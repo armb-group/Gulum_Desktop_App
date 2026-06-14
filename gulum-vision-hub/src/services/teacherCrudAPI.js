@@ -1,5 +1,4 @@
-// src/services/teacherCrudAPI.js
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 export const getTeachers = async () => {
@@ -14,14 +13,15 @@ export const getTeachers = async () => {
     full_name: t.fullName ?? t.full_name,
     qualification: t.qualification,
     specialization: t.specialization,
-    experience_year: t.experienceYear ?? t.experience_year ?? t.experience,
+    experience_year: t.experienceYears ?? t.experience_year ?? t.experience,
     joining_date: t.joiningDate ?? t.joining_date,
     metadata: t.metadata ?? "",
     is_active: t.isActive ?? t.is_active ?? true,
     created_at: t.createdAt ?? t.created_at ?? "",
     created_by: t.createdBy ?? t.created_by ?? "",
-    email: t.email,
-    phone: t.phone,
+    email: t.email ?? t.emailId ?? "",
+    phone: t.phone ?? t.phoneNumber ?? "",
+    department: t.departmentName ?? "",
   }));
 };
 
@@ -76,6 +76,7 @@ export const createTeacher = async (teacherData) => {
     email: teacherData.email,
     phone: teacherData.phone,
     password: teacherData.password,
+    department: teacherData.department,
   };
   const response = await api.post("/teachers", payload);
   return response.data.responseData ?? response.data;
@@ -83,17 +84,27 @@ export const createTeacher = async (teacherData) => {
 
 export const updateTeacher = async (id, teacherData) => {
   const payload = {
-    institutionId: teacherData.institution_id,
-    employeeCode: teacherData.employee_code,
-    fullName: teacherData.full_name,
+    id: id,
+    teacherId: id,
+    userId: teacherData.user_id ?? teacherData.userId ?? null,
+    institutionId: teacherData.institution_id ?? teacherData.institutionId,
+    employeeCode: teacherData.employee_code ?? teacherData.employeeCode,
+    fullName: teacherData.full_name ?? teacherData.fullName,
     qualification: teacherData.qualification,
     specialization: teacherData.specialization,
-    experienceYear: teacherData.experience_year,
-    joiningDate: teacherData.joining_date,
+    experienceYear: Number(teacherData.experience_year ?? teacherData.experienceYears ?? 0),
+    experienceYears: Number(teacherData.experience_year ?? teacherData.experienceYears ?? 0),
+    joiningDate: teacherData.joining_date ?? teacherData.joiningDate,
     metadata: teacherData.metadata,
+    isActive: teacherData.is_active ?? teacherData.isActive ?? true,
     email: teacherData.email,
+    emailId: teacherData.email ?? teacherData.emailId,
     phone: teacherData.phone,
+    phoneNumber: teacherData.phone ?? teacherData.phoneNumber,
+    department: teacherData.department ?? teacherData.departmentName ?? "",
+    departmentName: teacherData.department ?? teacherData.departmentName ?? "",
   };
+  // console.log("updateTeacher payload being sent to backend:", JSON.stringify(payload, null, 2));
   const response = await api.put(`/teachers/${id}`, payload);
   return response.data.responseData ?? response.data;
 };
@@ -104,5 +115,44 @@ export const assignTeachersBulk = async (batchId, departmentId, classId, teacher
     teacherIds
   );
   return response.data.responseData ?? response.data;
+};
+
+export const TEACHERS_QUERY_KEY = ["teachers"];
+
+export const useGetTeachers = () =>
+  useQuery({
+    queryKey: TEACHERS_QUERY_KEY,
+    queryFn: getTeachers,
+  });
+
+export const useCreateTeacher = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTeacher,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateTeacher = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, teacherData }) => updateTeacher(id, teacherData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
+};
+
+export const useAssignTeachersBulk = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ batchId, departmentId, classId, teacherIds }) =>
+      assignTeachersBulk(batchId, departmentId, classId, teacherIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
 };
 
