@@ -10,6 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Upload, FileText, Download, CheckCircle2, GraduationCap, UserCog, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
@@ -69,17 +75,19 @@ const BulkUpload = () => {
         { id: "teacher-fallback", name: "Teacher" },
       ];
     }
-    return rawList.map((r, index) => {
-      if (typeof r === "string") {
-        return { id: r, name: r };
-      }
-      if (r && typeof r === "object") {
-        const id = r.id ?? r.roleId ?? `role-${index}`;
-        const name = r.name ?? r.roleName ?? r.title ?? "";
-        return { id: String(id), name: String(name) };
-      }
-      return { id: `role-${index}`, name: "" };
-    });
+    return rawList
+      .map((r, index) => {
+        if (typeof r === "string") {
+          return { id: r, name: r };
+        }
+        if (r && typeof r === "object") {
+          const id = r.id ?? r.roleId ?? `role-${index}`;
+          const name = r.name ?? r.roleName ?? r.title ?? "";
+          return { id: String(id), name: String(name) };
+        }
+        return { id: `role-${index}`, name: "" };
+      })
+      .filter((r) => r.name.toLowerCase() !== "admin");
   }, [rawRoles, loading]);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
@@ -96,7 +104,7 @@ const BulkUpload = () => {
     }
     setFileName(file.name);
 
-    const rawRole = selectedRole ? (selectedRole.name ?? selectedRole.roleName ?? "").toLowerCase() : "";
+    const rawRole = selectedRole ? (selectedRole.name ?? "").toLowerCase() : "";
 
     uploadMutation.mutate(
       { role: rawRole, file },
@@ -125,20 +133,13 @@ const BulkUpload = () => {
     if (f) handleFile(f);
   };
 
-  const downloadSample = () => {
-    if (!roleName) {
-      toast.error("Please select a role first.");
-      return;
-    }
-    const csvContent = getSampleCSV(roleName);
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
+  const downloadSampleForRole = (role: string) => {
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `gulum-${roleName.toLowerCase()}-template.csv`;
+    a.href = `/templates/${role.toLowerCase()}-template.csv`;
+    a.download = `gulum-${role.toLowerCase()}-template.csv`;
     a.click();
-    URL.revokeObjectURL(url);
   };
+
 
   const reset = () => {
     setCompleted(false);
@@ -156,9 +157,21 @@ const BulkUpload = () => {
               Select a role, then upload a CSV to import records.
             </p>
           </div>
-          <Button variant="outline" onClick={downloadSample} disabled={!roleName}>
-            <Download className="h-4 w-4" /> Download template
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" /> Download template
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 admin-glass border border-border/40 backdrop-blur-md">
+              <DropdownMenuItem onClick={() => downloadSampleForRole("student")} className="cursor-pointer flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" /> Student Template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadSampleForRole("teacher")} className="cursor-pointer flex items-center gap-2">
+                <UserCog className="h-4 w-4" /> Teacher Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <Card className="p-5 rounded-2xl admin-glass">
@@ -176,7 +189,7 @@ const BulkUpload = () => {
             </SelectTrigger>
             <SelectContent>
               {roles.map((r) => {
-                const name = r.name ? (r.name.toLowerCase() === "user" ? "Student" : r.name) : "";
+                const name = r.name ? (r.name.toLowerCase() === "user" ? "STUDENT" : r.name) : "";
                 return (
                   <SelectItem key={r.id} value={r.id}>
                     <span className="inline-flex items-center gap-2">
@@ -222,9 +235,8 @@ const BulkUpload = () => {
           <Card
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-            className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${
-              roleName ? "hover:border-primary/50" : "opacity-60"
-            }`}
+            className={`p-10 border-2 border-dashed transition-colors text-center rounded-2xl admin-glass ${roleName ? "hover:border-primary/50" : "opacity-60"
+              }`}
           >
             <div className="mx-auto h-14 w-14 rounded-full brand-gradient flex items-center justify-center mb-4">
               <Upload className="h-7 w-7 text-brand-foreground" />
