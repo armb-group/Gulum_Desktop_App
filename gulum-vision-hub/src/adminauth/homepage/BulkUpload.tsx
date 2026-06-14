@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Papa from "papaparse";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,8 @@ import {
 import { Upload, FileText, Download, CheckCircle2, GraduationCap, UserCog, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell } from "./AdminShell";
-import { getRoles } from "@/services/roleAPI";
-import { uploadBulkFile } from "@/services/uploadAPI";
+import { useGetRoles } from "@/services/roleAPI";
+import { useUploadBulkFile } from "@/services/uploadAPI";
 
 type Row = Record<string, string>;
 type UploadRole = "student" | "teacher";
@@ -54,45 +54,40 @@ const getRoleIcon = (name: string) => {
 };
 
 const BulkUpload = () => {
-  const [roles, setRoles] = useState<RoleData[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [completed, setCompleted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // TanStack Query Hooks
+  const { data: rawRoles, isLoading: loading } = useGetRoles();
+  const roles = useMemo(() => {
+    const rawList = Array.isArray(rawRoles) ? rawRoles : [];
+    if (rawList.length === 0 && !loading) {
+      return [
+        { id: "student-fallback", name: "Student" },
+        { id: "teacher-fallback", name: "Teacher" },
+      ];
+    }
+    return rawList.map((r, index) => {
+      if (typeof r === "string") {
+        return { id: r, name: r };
+      }
+      if (r && typeof r === "object") {
+        const id = r.id ?? r.roleId ?? `role-${index}`;
+        const name = r.name ?? r.roleName ?? r.title ?? "";
+        return { id: String(id), name: String(name) };
+      }
+      return { id: `role-${index}`, name: "" };
+    });
+  }, [rawRoles, loading]);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
   const rawRoleName = selectedRole ? (selectedRole.name ?? "") : "";
   const roleName = rawRoleName.toLowerCase() === "user" ? "Student" : rawRoleName;
 
-  useEffect(() => {
-    getRoles()
-      .then((data) => {
-        const rawList = Array.isArray(data) ? data : [];
-        const normalizedList: RoleData[] = rawList.map((r, index) => {
-          if (typeof r === "string") {
-            return { id: r, name: r };
-          }
-          if (r && typeof r === "object") {
-            const id = r.id ?? r.roleId ?? `role-${index}`;
-            const name = r.name ?? r.roleName ?? r.title ?? "";
-            return { id: String(id), name: String(name) };
-          }
-          return { id: `role-${index}`, name: "" };
-        });
-        setRoles(normalizedList);
-      })
-      .catch((err) => {
-        console.error("Error loading roles from API:", err);
-        setRoles([
-          { id: "student-fallback", name: "Student" },
-          { id: "teacher-fallback", name: "Teacher" },
-        ]);
-        toast.error("Failed to load roles from API. Using local fallbacks.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const uploadMutation = useUploadBulkFile();
+  const uploading = uploadMutation.isPending;
 
   const handleFile = (file: File) => {
     if (!roleName) {
@@ -100,23 +95,23 @@ const BulkUpload = () => {
       return;
     }
     setFileName(file.name);
-    setUploading(true);
 
     const rawRole = selectedRole ? (selectedRole.name ?? selectedRole.roleName ?? "").toLowerCase() : "";
 
-    uploadBulkFile(rawRole, file)
-      .then(() => {
-        toast.success(`Bulk upload for ${roleName} completed successfully!`);
-        setCompleted(true);
-      })
-      .catch((err) => {
-        console.error("Bulk upload error:", err);
-        const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
-        toast.error(`Upload failed: ${errorMsg}`);
-      })
-      .finally(() => {
-        setUploading(false);
-      });
+    uploadMutation.mutate(
+      { role: rawRole, file },
+      {
+        onSuccess: () => {
+          toast.success(`Bulk upload for ${roleName} completed successfully!`);
+          setCompleted(true);
+        },
+        onError: (err: any) => {
+          console.error("Bulk upload error:", err);
+          const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
+          toast.error(`Upload failed: ${errorMsg}`);
+        }
+      }
+    );
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {

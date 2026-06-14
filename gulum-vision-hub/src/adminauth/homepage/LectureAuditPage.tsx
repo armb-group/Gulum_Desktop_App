@@ -5,13 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  getTeachers
-} from "@/services/teacherCrudAPI";
-import {
-  getDepartments
-} from "@/services/departmentAPI";
-import {getTeacherSchedule} from "@/services/scheduleAPI";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetTeachers, getTeachers } from "@/services/teacherCrudAPI";
+import { useGetDepartments, getDepartments } from "@/services/departmentAPI";
+import { getTeacherSchedule } from "@/services/scheduleAPI";
 import { getCourseModules, getTrackingAll, getModuleStatus } from "@/services/lectureAuditAPI";
 import {
   Search,
@@ -46,9 +43,25 @@ interface CourseAudit {
 
 
 export default function LectureAuditPage() {
-  const [teachers, setTeachers] = useState<TeacherData[]>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: rawTeachers = [], isLoading: teachersLoading } = useGetTeachers();
+  const teachers = useMemo(() => Array.isArray(rawTeachers) ? rawTeachers : [], [rawTeachers]);
+
+  const { data: rawDepts } = useGetDepartments();
+  const departments = useMemo(() => {
+    return Array.isArray(rawDepts)
+      ? Array.from(
+          new Set(
+            rawDepts
+              .map((d: any) => d.name ?? d.departmentName ?? d.department_name ?? "")
+              .filter((name: string) => name.trim() !== "")
+          )
+        )
+      : [];
+  }, [rawDepts]);
+
+  const loading = teachersLoading;
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | string | null>(null);
@@ -57,37 +70,6 @@ export default function LectureAuditPage() {
   const [expandedCourseIdx, setExpandedCourseIdx] = useState<number | null>(0);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
-
-  useEffect(() => {
-    getTeachers()
-      .then((data: any) => {
-        setTeachers(data || []);
-      })
-      .catch((err) => {
-        console.error("Failed to load teachers for audit:", err);
-        toast.error("Failed to fetch teacher listings.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-
-    getDepartments()
-      .then((list) => {
-        const names = Array.isArray(list)
-          ? Array.from(
-              new Set(
-                list
-                  .map((d: any) => d.name ?? d.departmentName ?? d.department_name ?? "")
-                  .filter((name: string) => name.trim() !== "")
-              )
-            )
-          : [];
-        setDepartments(names);
-      })
-      .catch((err) => {
-        console.error("Failed to load departments for audit:", err);
-      });
-  }, []);
 
   const uniqueDepts = useMemo(() => {
     const set = new Set<string>();
@@ -127,7 +109,10 @@ export default function LectureAuditPage() {
       setLoadingSchedule(true);
       
       try {
-        const data = await getTeacherSchedule(selectedTeacherId);
+        const data = await queryClient.fetchQuery({
+          queryKey: ["schedule", "teacher", String(selectedTeacherId)],
+          queryFn: () => getTeacherSchedule(selectedTeacherId),
+        });
         const classes = data?.classes || data?.responseData?.classes || [];
         
         // Gather all unique class IDs
@@ -143,7 +128,10 @@ export default function LectureAuditPage() {
         const trackingResults = await Promise.all(
           classIds.map(async (cid: any) => {
             try {
-              const res = await getTrackingAll(cid);
+              const res = await queryClient.fetchQuery({
+                queryKey: ["lecture-audit", "tracking-all", String(cid)],
+                queryFn: () => getTrackingAll(cid),
+              });
               const dataList = Array.isArray(res)
                 ? res
                 : (res?.responseData
@@ -197,8 +185,14 @@ export default function LectureAuditPage() {
 
               try {
                 const [modulesRes, statusRes] = await Promise.all([
-                  getCourseModules(courseCode),
-                  trackingId ? getModuleStatus(trackingId) : Promise.resolve(null)
+                  queryClient.fetchQuery({
+                    queryKey: ["lecture-audit", "modules", String(courseCode)],
+                    queryFn: () => getCourseModules(courseCode),
+                  }),
+                  trackingId ? queryClient.fetchQuery({
+                    queryKey: ["lecture-audit", "module-status", String(trackingId)],
+                    queryFn: () => getModuleStatus(trackingId),
+                  }) : Promise.resolve(null)
                 ]);
 
                 const modulesData = modulesRes?.modules ?? modulesRes ?? [];
@@ -245,7 +239,7 @@ export default function LectureAuditPage() {
     };
 
     loadSchedule();
-  }, [selectedTeacherId]);
+  }, [selectedTeacherId, queryClient]);
 
   const syllabusAudit = useMemo(() => {
     return teacherCourses;

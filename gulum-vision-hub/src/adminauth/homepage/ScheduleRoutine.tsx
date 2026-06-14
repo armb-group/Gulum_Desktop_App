@@ -35,9 +35,18 @@ import {
 } from "lucide-react";
 import { initialData as deptData, type Subject } from "./departmentsData";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
-import { getScheduleRoutine, saveScheduleRoutine, swapScheduleLayout, moveScheduleLayout, extendScheduleLayout } from "@/services/scheduleAPI";
-import { getTeachers } from "@/services/teacherCrudAPI";
+import {
+  useGetDepartments,
+  useGetAcademicBatchesByDepartment
+} from "@/services/departmentAPI";
+import {
+  useGetScheduleRoutine,
+  useSaveScheduleRoutine,
+  useSwapScheduleLayout,
+  useMoveScheduleLayout,
+  useExtendScheduleLayout
+} from "@/services/scheduleAPI";
+import { useGetTeachers } from "@/services/teacherCrudAPI";
 
 // Define TypeScript interfaces
 interface RoutineItem {
@@ -269,26 +278,33 @@ export default function ScheduleRoutine() {
   const { user } = useAuth();
   const institutionId = user?.institutionId || "";
 
-  // API Lists State
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [batchesLoading, setBatchesLoading] = useState(false);
-  const [routineLoading, setRoutineLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-
   // Selectors State
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
 
+  // TanStack Query Hooks
+  const { data: teachersData = [] } = useGetTeachers();
+  const teachers = useMemo(() => Array.isArray(teachersData) ? teachersData : [], [teachersData]);
+
+  const { data: rawDepts, isLoading: departmentsLoading } = useGetDepartments();
+  const departments = useMemo(() => Array.isArray(rawDepts) ? rawDepts : [], [rawDepts]);
+
+  const { data: rawBatches, isLoading: batchesLoading } = useGetAcademicBatchesByDepartment(selectedDeptId, {
+    enabled: !!selectedDeptId
+  });
+  const batches = useMemo(() => {
+    if (!rawBatches) return [];
+    return Array.isArray(rawBatches) ? rawBatches : (rawBatches.responseData ?? rawBatches.data ?? []);
+  }, [rawBatches]);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Routine State
   const [routineState, setRoutineState] = useState<DayRoutine[]>([]);
 
-  // Teachers, raw records, and slot time map state
-  const [teachers, setTeachers] = useState<any[]>([]);
+  // Raw records, and slot time map state
   const [rawRoutineData, setRawRoutineData] = useState<any>(null);
   const [slotTimeMap, setSlotTimeMap] = useState<Record<number, { startTime: string; endTime: string }>>(DEFAULT_SLOT_TIME_MAP);
 
@@ -401,53 +417,6 @@ export default function ScheduleRoutine() {
   const storageKey = useMemo(() => {
     return `routine_v1_${selectedDeptId || "dept"}_${(selectedYear || "year").replace(" ", "-")}_${(selectedSection || "sec").replace(" ", "-")}_${selectedSemester || "sem"}`;
   }, [selectedDeptId, selectedYear, selectedSection, selectedSemester]);
-
-  // Load Teachers
-  useEffect(() => {
-    getTeachers()
-      .then((data) => {
-        setTeachers(data || []);
-      })
-      .catch((err) => {
-        console.error("Error loading teachers list:", err);
-      });
-  }, []);
-
-  // Load Departments
-  useEffect(() => {
-    setDepartmentsLoading(true);
-    getDepartments()
-      .then((list) => {
-        const mapped = Array.isArray(list) ? list : [];
-        setDepartments(mapped);
-      })
-      .catch((err) => {
-        console.error("Error loading departments API:", err);
-        setDepartments(deptData);
-      })
-      .finally(() => setDepartmentsLoading(false));
-  }, []);
-
-  // Load Batches
-  useEffect(() => {
-    if (!selectedDeptId) {
-      setBatches([]);
-      return;
-    }
-    setBatchesLoading(true);
-    getAcademicBatchesByDepartment(selectedDeptId)
-      .then((data) => {
-        const rawBatches = Array.isArray(data)
-          ? data
-          : (data?.responseData ?? data?.data ?? []);
-        setBatches(rawBatches);
-      })
-      .catch((err) => {
-        console.error("Error loading academic batches:", err);
-        setBatches([]);
-      })
-      .finally(() => setBatchesLoading(false));
-  }, [selectedDeptId]);
 
   // Derived selections
   const availableYears = useMemo(() => {
@@ -838,43 +807,37 @@ export default function ScheduleRoutine() {
     setRoutineState(createBlankRoutine());
   };
 
-  const fetchRoutine = () => {
-    if (selectedClassId) {
-      setRoutineLoading(true);
-      getScheduleRoutine(institutionId, selectedDeptId, selectedClassId)
-        .then((data) => {
-          if (data) {
-            setRawRoutineData(data);
-            const parsed = mapBackendToState(data);
-            setRoutineState(parsed);
-            toast.success("Routine loaded successfully!");
-          } else {
-            setRawRoutineData([]);
-            setSlotTimeMap(DEFAULT_SLOT_TIME_MAP);
-            loadLocalFallback();
-          }
-        })
-        .catch((err) => {
-          console.error("Error loading routine from backend:", err);
-          setRawRoutineData([]);
-          setSlotTimeMap(DEFAULT_SLOT_TIME_MAP);
-          loadLocalFallback();
-          toast.error("Routine not found in database. Showing local template.");
-        })
-        .finally(() => {
-          setRoutineLoading(false);
-        });
-    } else {
-      setRawRoutineData([]);
-      setSlotTimeMap(DEFAULT_SLOT_TIME_MAP);
-      loadLocalFallback();
+  // TanStack Query for Routine
+  const { data: routineData, isLoading: routineLoading, refetch: refetchRoutine } = useGetScheduleRoutine(
+    institutionId,
+    selectedDeptId,
+    selectedClassId,
+    {
+      enabled: !!selectedClassId
     }
-  };
+  );
 
-  // Load Routine from Backend or Local Fallback
+  const saveRoutineMutation = useSaveScheduleRoutine();
+  const saving = saveRoutineMutation.isPending;
+
+  const swapScheduleMutation = useSwapScheduleLayout();
+  const moveScheduleMutation = useMoveScheduleLayout();
+  const extendScheduleMutation = useExtendScheduleLayout();
+
+  // Load / Sync Routine state
   useEffect(() => {
-    fetchRoutine();
-  }, [selectedClassId, selectedDeptId, institutionId]);
+    if (routineData) {
+      setRawRoutineData(routineData);
+      const parsed = mapBackendToState(routineData);
+      setRoutineState(parsed);
+    } else if (routineData === null || routineData === undefined) {
+      if (!routineLoading) {
+        setRawRoutineData([]);
+        setSlotTimeMap(DEFAULT_SLOT_TIME_MAP);
+        loadLocalFallback();
+      }
+    }
+  }, [routineData, routineLoading, selectedClassId]);
 
   // Save changes locally
   const saveAllToStorage = (newRoutine: DayRoutine[]) => {
@@ -891,7 +854,6 @@ export default function ScheduleRoutine() {
       toast.error("Please specify a complete class (Department, Year, Section, Semester) before saving.");
       return;
     }
-    setSaving(true);
 
     const payload = serializeStateToBackend(
       routineState,
@@ -903,26 +865,29 @@ export default function ScheduleRoutine() {
       slotTimeMap
     );
 
-    saveScheduleRoutine(institutionId, selectedDeptId, selectedClassId, payload)
-      .then(() => {
-        toast.success("Schedule routine saved to backend database!");
-        setIsEditMode(false);
-        return getScheduleRoutine(institutionId, selectedDeptId, selectedClassId);
-      })
-      .then((data) => {
-        if (data) {
-          setRawRoutineData(data);
-          const parsed = mapBackendToState(data);
-          setRoutineState(parsed);
+    saveRoutineMutation.mutate(
+      {
+        instituteId: institutionId,
+        departmentId: selectedDeptId,
+        classId: selectedClassId,
+        scheduleData: payload
+      },
+      {
+        onSuccess: (data) => {
+          toast.success("Schedule routine saved to backend database!");
+          setIsEditMode(false);
+          if (data) {
+            setRawRoutineData(data);
+            const parsed = mapBackendToState(data);
+            setRoutineState(parsed);
+          }
+        },
+        onError: (err) => {
+          console.error("Error saving routine to backend:", err);
+          toast.error("Failed to save schedule routine to database.");
         }
-      })
-      .catch((err) => {
-        console.error("Error saving routine to backend:", err);
-        toast.error("Failed to save schedule routine to database.");
-      })
-      .finally(() => {
-        setSaving(false);
-      });
+      }
+    );
   };
 
   const handleCancelEdit = () => {
@@ -1158,16 +1123,20 @@ export default function ScheduleRoutine() {
         // SWAP: two occupied class slots
         if (sourceScheduleId && targetScheduleId) {
           const toastId = toast.loading("Swapping scheduling periods on server...");
-          swapScheduleLayout(sourceScheduleId, targetScheduleId)
-            .then(() => {
-              toast.success("Swapped scheduling periods successfully!", { id: toastId });
-              fetchRoutine();
-            })
-            .catch((err) => {
-              console.error("Failed to swap scheduling periods:", err);
-              toast.error("Failed to swap scheduling periods on server. Reverting swap.", { id: toastId });
-              fetchRoutine(); // Revert local state by reloading from backend
-            });
+          swapScheduleMutation.mutate(
+            { sourceScheduleId, targetScheduleId },
+            {
+              onSuccess: () => {
+                toast.success("Swapped scheduling periods successfully!", { id: toastId });
+                refetchRoutine();
+              },
+              onError: (err) => {
+                console.error("Failed to swap scheduling periods:", err);
+                toast.error("Failed to swap scheduling periods on server. Reverting swap.", { id: toastId });
+                refetchRoutine(); // Revert local state by reloading from backend
+              }
+            }
+          );
         } else {
           toast.success("Swapped scheduling periods locally");
         }
@@ -1175,16 +1144,20 @@ export default function ScheduleRoutine() {
         // MOVE: one class moved to an empty slot
         if (sourceScheduleId && targetTimeslotId) {
           const toastId = toast.loading("Moving scheduling period on server...");
-          moveScheduleLayout(sourceScheduleId, targetTimeslotId)
-            .then(() => {
-              toast.success("Moved scheduling period successfully!", { id: toastId });
-              fetchRoutine();
-            })
-            .catch((err) => {
-              console.error("Failed to move scheduling period:", err);
-              toast.error("Failed to move scheduling period on server. Reverting move.", { id: toastId });
-              fetchRoutine();
-            });
+          moveScheduleMutation.mutate(
+            { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
+            {
+              onSuccess: () => {
+                toast.success("Moved scheduling period successfully!", { id: toastId });
+                refetchRoutine();
+              },
+              onError: (err) => {
+                console.error("Failed to move scheduling period:", err);
+                toast.error("Failed to move scheduling period on server. Reverting move.", { id: toastId });
+                refetchRoutine();
+              }
+            }
+          );
         } else {
           toast.success("Moved scheduling period locally");
         }
@@ -1365,16 +1338,20 @@ export default function ScheduleRoutine() {
 
     if (sourceScheduleId && targetTimeslotId) {
       const toastId = toast.loading("Extending scheduling period on server...");
-      extendScheduleLayout(sourceScheduleId, targetTimeslotId)
-        .then(() => {
-          toast.success("Extended scheduling period successfully!", { id: toastId });
-          fetchRoutine();
-        })
-        .catch((err) => {
-          console.error("Failed to extend scheduling period:", err);
-          toast.error("Failed to extend scheduling period on server. Reverting extend.", { id: toastId });
-          fetchRoutine();
-        });
+      extendScheduleMutation.mutate(
+        { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
+        {
+          onSuccess: () => {
+            toast.success("Extended scheduling period successfully!", { id: toastId });
+            refetchRoutine();
+          },
+          onError: (err) => {
+            console.error("Failed to extend scheduling period:", err);
+            toast.error("Failed to extend scheduling period on server. Reverting extend.", { id: toastId });
+            refetchRoutine();
+          }
+        }
+      );
     } else {
       toast.success("Resized schedule period successfully!");
     }

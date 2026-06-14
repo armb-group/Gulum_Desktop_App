@@ -41,7 +41,13 @@ import ForgotPassword  from "./pages/ForgotPassword";
 import AttendancePage from "./adminauth/homepage/AttendancePage";
 import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

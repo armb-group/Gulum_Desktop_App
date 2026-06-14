@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import api from "./api";
 
 /**
@@ -8,3 +9,11 @@ export const getRoles = async () => {
   const response = await api.get("/v1/roles");
   return response.data.responseData ?? response.data;
 };
+
+export const ROLES_QUERY_KEY = ["roles"];
+
+export const useGetRoles = () =>
+  useQuery({
+    queryKey: ROLES_QUERY_KEY,
+    queryFn: getRoles,
+  });

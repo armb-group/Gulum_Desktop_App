@@ -1,3 +1,4 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 /**
@@ -76,4 +77,66 @@ export const getTeacherSchedule = async (teacherId) => {
   const response = await api.get(`/schedule/teacher/${encodeURIComponent(teacherId)}`);
   return response.data.responseData ?? response.data;
 };
+
+export const SCHEDULE_QUERY_KEY = ["schedule"];
+
+export const useGetScheduleRoutine = (instituteId, departmentId, classId, options = {}) =>
+  useQuery({
+    queryKey: [...SCHEDULE_QUERY_KEY, "routine", instituteId ?? "", departmentId ?? "", classId ?? ""],
+    queryFn: () => getScheduleRoutine(instituteId, departmentId, classId),
+    enabled: !!instituteId && !!departmentId && !!classId && (options.enabled ?? true),
+  });
+
+export const useSaveScheduleRoutine = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ instituteId, departmentId, classId, scheduleData }) =>
+      saveScheduleRoutine(instituteId, departmentId, classId, scheduleData),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [...SCHEDULE_QUERY_KEY, "routine", variables.instituteId ?? "", variables.departmentId ?? "", variables.classId ?? ""],
+      });
+    },
+  });
+};
+
+export const useSwapScheduleLayout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceScheduleId, targetScheduleId }) =>
+      swapScheduleLayout(sourceScheduleId, targetScheduleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCHEDULE_QUERY_KEY });
+    },
+  });
+};
+
+export const useMoveScheduleLayout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceScheduleId, targetTimeSlotId }) =>
+      moveScheduleLayout(sourceScheduleId, targetTimeSlotId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCHEDULE_QUERY_KEY });
+    },
+  });
+};
+
+export const useExtendScheduleLayout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceScheduleId, targetTimeSlotId }) =>
+      extendScheduleLayout(sourceScheduleId, targetTimeSlotId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCHEDULE_QUERY_KEY });
+    },
+  });
+};
+
+export const useGetTeacherSchedule = (teacherId, options = {}) =>
+  useQuery({
+    queryKey: [...SCHEDULE_QUERY_KEY, "teacher", teacherId ?? ""],
+    queryFn: () => getTeacherSchedule(teacherId),
+    enabled: !!teacherId && (options.enabled ?? true),
+  });
 

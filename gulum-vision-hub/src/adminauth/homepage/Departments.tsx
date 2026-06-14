@@ -9,7 +9,14 @@ import type { Department } from "./departmentsData";
 import { toast } from "sonner";
 import ExportButton from "@/components/ExportButton";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDepartments, getAcademicBatchesByDepartment, createDepartment } from "@/services/departmentAPI";
+import {
+  useGetDepartments,
+  useGetAcademicBatchesByDepartment,
+  useCreateDepartment,
+  useGetTeachersByClassBatch,
+  useGetStudentsByClassBatch,
+  useGetSubjectsByClassBatch
+} from "@/services/departmentAPI";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import api from "@/services/api";
 
 
 /*const createDefaultYears = (deptName: string, deptId: string) => {
@@ -59,98 +65,60 @@ import api from "@/services/api";
 
 const Departments = () => {
   const { user } = useAuth();
-  // console.log("user ",user)  
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const navigate = useNavigate();
+
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState("");
   const [newDeptCode, setNewDeptCode] = useState("");
   const [newDeptDescription, setNewDeptDescription] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [selectedTab, setSelectedTab] = useState<"teachers" | "students" | "subjects" | null>(null);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
 
-  const [departmentsLoading, setDepartmentsLoading] = useState(true);
-  const [batchesLoading, setBatchesLoading] = useState(false);
-  const [teachersLoading, setTeachersLoading] = useState(false);
-  const [studentsLoading, setStudentsLoading] = useState(false);
-  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  // TanStack Query Hooks
+  const { data: rawDepts, isLoading: departmentsLoading } = useGetDepartments();
+  const departments = useMemo(() => {
+    return Array.isArray(rawDepts)
+      ? rawDepts.map((d: any) => {
+          const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
+          const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
+          return {
+            id,
+            name,
+            years: []
+          };
+        })
+      : [];
+  }, [rawDepts]);
 
-  const tabLoading = useMemo(() => {
-    if (selectedTab === "teachers") return teachersLoading;
-    if (selectedTab === "students") return studentsLoading;
-    if (selectedTab === "subjects") return subjectsLoading;
-    return false;
-  }, [selectedTab, teachersLoading, studentsLoading, subjectsLoading]);
+  const { data: rawBatches, isLoading: batchesLoading } = useGetAcademicBatchesByDepartment(selectedDeptId, {
+    enabled: !!selectedDeptId
+  });
 
-  const [batches, setBatches] = useState<any[]>([]);
+  const batches = useMemo(() => {
+    if (!rawBatches) return [];
+    return Array.isArray(rawBatches)
+      ? rawBatches
+      : (rawBatches.responseData ?? rawBatches.data ?? []);
+  }, [rawBatches]);
 
-  const [activeTeachers, setActiveTeachers] = useState<string[]>([]);
-  const [activeStudents, setActiveStudents] = useState<string[]>([]);
-  const [activeSubjects, setActiveSubjects] = useState<{ name: string; code: string }[]>([]);
-
-  const navigate = useNavigate();
+  const createDeptMutation = useCreateDepartment();
+  const isSubmitting = createDeptMutation.isPending;
 
   const selectedDept = useMemo(() => {
     return departments.find((d) => d.id === selectedDeptId) || null;
   }, [departments, selectedDeptId]);
 
-  // Load departments on mount
-  React.useEffect(() => {
-    setDepartmentsLoading(true);
-    getDepartments()
-      .then((list) => {
-        const mapped: Department[] = Array.isArray(list)
-          ? list.map((d) => {
-            const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
-            const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department";
-            return {
-              id,
-              name,
-              years: []
-            };
-          })
-          : [];
-        setDepartments(mapped);
-      })
-      .catch((err) => {
-        console.error("Error loading departments API:", err);
-        toast.error("Failed to load departments from API.");
-      })
-      .finally(() => setDepartmentsLoading(false));
-  }, []);
-
-  const handleDeptChange = (deptId: string, currentDepartments = departments) => {
+  // Reset helper functions when department changes
+  const handleDeptChange = (deptId: string) => {
     setSelectedDeptId(deptId);
     setSelectedYear("");
     setSelectedClass("");
     setSelectedSemester("");
     setSelectedTab(null);
-    setBatches([]);
-    setActiveTeachers([]);
-    setActiveStudents([]);
-    setActiveSubjects([]);
-
-    if (!deptId) return;
-
-    setBatchesLoading(true);
-    getAcademicBatchesByDepartment(deptId)
-      .then((data) => {
-        const rawBatches = Array.isArray(data)
-          ? data
-          : (data?.responseData ?? data?.data ?? []);
-        setBatches(rawBatches);
-      })
-      .catch((err) => {
-        console.error("Error loading academic batches:", err);
-        toast.error("Failed to load academic batches for this department.");
-      })
-      .finally(() => {
-        setBatchesLoading(false);
-      });
   };
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
@@ -160,25 +128,13 @@ const Departments = () => {
       return;
     }
 
-    setIsSubmitting(true);
     const payload = {
       institutionId: user?.institutionId || "",
       name: newDeptName.trim(),
     };
 
     try {
-      const result = await createDepartment(payload);
-
-      const newId = String(result?.id ?? result?.departmentId ?? result?.department_id ?? Date.now().toString());
-      const newName = result?.name ?? result?.departmentName ?? result?.department_name ?? newDeptName.trim();
-
-      const newDepartmentItem: Department = {
-        id: newId,
-        name: newName,
-        years: []
-      };
-
-      setDepartments((current) => [newDepartmentItem, ...current]);
+      await createDeptMutation.mutateAsync(payload);
       toast.success("Department created successfully!");
       setIsAddModalOpen(false);
 
@@ -188,27 +144,9 @@ const Departments = () => {
       setNewDeptDescription("");
     } catch (err: any) {
       console.error("Failed to create department in backend:", err);
-
-      // Fallback: Add locally
-      const localId = Date.now().toString();
-      const localDept: Department = {
-        id: localId,
-        name: newDeptName.trim(),
-        years: []
-      };
-
-      setDepartments((current) => [localDept, ...current]);
-      toast.warning("Failed to save to database, but added locally for this session.");
-
-      setIsAddModalOpen(false);
-      setNewDeptName("");
-      setNewDeptCode("");
-      setNewDeptDescription("");
-    } finally {
-      setIsSubmitting(false);
+      toast.error("Failed to create department.");
     }
   };
-
 
   // Get available years from batches
   const availableYears = useMemo(() => {
@@ -253,114 +191,86 @@ const Departments = () => {
     setSelectedClass("");
     setSelectedSemester("");
     setSelectedTab(null);
-    setActiveTeachers([]);
-    setActiveStudents([]);
-    setActiveSubjects([]);
   };
 
   const handleClassChange = (className: string) => {
     setSelectedClass(className);
     setSelectedSemester("");
     setSelectedTab(null);
-    setActiveTeachers([]);
-    setActiveStudents([]);
-    setActiveSubjects([]);
   };
 
-  // Fetch active tab data
+  // Auto-select "teachers" tab if none is selected
   React.useEffect(() => {
-    if (!selectedDeptId || !selectedYear || !selectedClass || !selectedSemester) {
-      return;
-    }
-
-    if (!selectedClassId || !selectedBatchId) {
-      return;
-    }
-
-    // Auto-select "teachers" tab if none is selected
-    if (!selectedTab) {
+    if (selectedDeptId && selectedYear && selectedClass && selectedSemester && !selectedTab) {
       setSelectedTab("teachers");
     }
+  }, [selectedDeptId, selectedYear, selectedClass, selectedSemester, selectedTab]);
 
-    setTeachersLoading(true);
-    setStudentsLoading(true);
-    setSubjectsLoading(true);
+  const isTabQueryEnabled = !!selectedDeptId && !!selectedYear && !!selectedClass && !!selectedSemester && !!selectedClassId && !!selectedBatchId;
 
-    // 1. Fetch Teachers
-    api.get(`/teachers/department_class_batch`, {
-      params: {
-        departmentId: selectedDeptId,
-        batchId: selectedBatchId,
-        semester: selectedSemester,
-        classId: selectedClassId
-      }
-    })
-      .then((response) => {
-        const responseData = response.data.responseData ?? response.data ?? [];
-        const list = Array.isArray(responseData) ? responseData : [];
-        const teachers = list.map((t: any) => t.fullName ?? t.full_name ?? t.name ?? String(t));
-        setActiveTeachers(teachers);
-      })
-      .catch((error) => {
-        console.error("Error loading teachers data:", error);
-        toast.error("Failed to load teachers data from backend.");
-        setActiveTeachers([]);
-      })
-      .finally(() => {
-        setTeachersLoading(false);
-      });
+  // 1. Fetch Teachers
+  const teachersParams = useMemo(() => ({
+    departmentId: selectedDeptId,
+    batchId: selectedBatchId,
+    semester: selectedSemester,
+    classId: selectedClassId
+  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
 
-    // 2. Fetch Students
-    api.get(`/api/students/department_class_batch`, {
-      params: {
-        departmentId: selectedDeptId,
-        batchId: selectedBatchId,
-        semester: selectedSemester,
-        classesId: selectedClassId
-      }
-    })
-      .then((response) => {
-        const responseData = response.data.responseData ?? response.data ?? [];
-        const list = Array.isArray(responseData) ? responseData : [];
-        const students = list.map((s: any) => s.fullName ?? s.full_name ?? s.name ?? String(s));
-        setActiveStudents(students);
-      })
-      .catch((error) => {
-        console.error("Error loading students data:", error);
-        toast.error("Failed to load students data from backend.");
-        setActiveStudents([]);
-      })
-      .finally(() => {
-        setStudentsLoading(false);
-      });
+  const { data: rawTeachers, isLoading: teachersLoading } = useGetTeachersByClassBatch(teachersParams, {
+    enabled: isTabQueryEnabled
+  });
 
-    // 3. Fetch Subjects
-    api.get(`/subjects/department_class_batch`, {
-      params: {
-        departmentId: selectedDeptId,
-        batchId: selectedBatchId,
-        semester: selectedSemester,
-        classId: selectedClassId
-      }
-    })
-      .then((response) => {
-        const responseData = response.data.responseData ?? response.data ?? [];
-        const list = Array.isArray(responseData) ? responseData : [];
-        const subjects = list.map((sub: any) => ({
-          name: sub.name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
-          code: sub.code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
-        }));
-        setActiveSubjects(subjects);
-      })
-      .catch((error) => {
-        console.error("Error loading subjects data:", error);
-        toast.error("Failed to load subjects data from backend.");
-        setActiveSubjects([]);
-      })
-      .finally(() => {
-        setSubjectsLoading(false);
-      });
-  }, [selectedDeptId, selectedYear, selectedClass, selectedSemester, selectedClassId, selectedBatchId]);
+  const activeTeachers = useMemo(() => {
+    if (!rawTeachers) return [];
+    const list = Array.isArray(rawTeachers) ? rawTeachers : [];
+    return list.map((t: any) => t.fullName ?? t.full_name ?? t.name ?? String(t));
+  }, [rawTeachers]);
+
+  // 2. Fetch Students
+  const studentsParams = useMemo(() => ({
+    departmentId: selectedDeptId,
+    batchId: selectedBatchId,
+    semester: selectedSemester,
+    classesId: selectedClassId
+  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
+
+  const { data: rawStudents, isLoading: studentsLoading } = useGetStudentsByClassBatch(studentsParams, {
+    enabled: isTabQueryEnabled
+  });
+
+  const activeStudents = useMemo(() => {
+    if (!rawStudents) return [];
+    const list = Array.isArray(rawStudents) ? rawStudents : [];
+    return list.map((s: any) => s.fullName ?? s.full_name ?? s.name ?? String(s));
+  }, [rawStudents]);
+
+  // 3. Fetch Subjects
+  const subjectsParams = useMemo(() => ({
+    departmentId: selectedDeptId,
+    batchId: selectedBatchId,
+    semester: selectedSemester,
+    classId: selectedClassId
+  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
+
+  const { data: rawSubjects, isLoading: subjectsLoading } = useGetSubjectsByClassBatch(subjectsParams, {
+    enabled: isTabQueryEnabled
+  });
+
+  const activeSubjects = useMemo(() => {
+    if (!rawSubjects) return [];
+    const list = Array.isArray(rawSubjects) ? rawSubjects : [];
+    return list.map((sub: any) => ({
+      name: sub.name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
+      code: sub.code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
+    }));
+  }, [rawSubjects]);
+
+  const tabLoading = useMemo(() => {
+    if (selectedTab === "teachers") return teachersLoading;
+    if (selectedTab === "students") return studentsLoading;
+    if (selectedTab === "subjects") return subjectsLoading;
+    return false;
+  }, [selectedTab, teachersLoading, studentsLoading, subjectsLoading]);
 
   return (
     <AdminShell title="Departments">

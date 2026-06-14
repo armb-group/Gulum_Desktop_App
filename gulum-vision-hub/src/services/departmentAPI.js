@@ -1,3 +1,4 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 /**
@@ -33,6 +34,74 @@ export const getCoursesByClass = async (classId) => {
   const response = await api.get(`/course-class/class/${encodeURIComponent(classId)}`);
   return response.data.responseData ?? response.data;
 };
+
+export const DEPARTMENTS_QUERY_KEY = ["departments"];
+
+export const useGetDepartments = () =>
+  useQuery({
+    queryKey: DEPARTMENTS_QUERY_KEY,
+    queryFn: getDepartments,
+  });
+
+export const useGetAcademicBatchesByDepartment = (departmentId, options = {}) =>
+  useQuery({
+    queryKey: ["academic-batches", departmentId],
+    queryFn: () => getAcademicBatchesByDepartment(departmentId),
+    enabled: !!departmentId && (options.enabled ?? true),
+  });
+
+export const useCreateDepartment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createDepartment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DEPARTMENTS_QUERY_KEY });
+    },
+  });
+};
+
+export const useGetCoursesByClass = (classId, options = {}) =>
+  useQuery({
+    queryKey: ["courses-class", classId],
+    queryFn: () => getCoursesByClass(classId),
+    enabled: !!classId && (options.enabled ?? true),
+  });
+
+export const getTeachersByClassBatch = async (params) => {
+  const response = await api.get(`/teachers/department_class_batch`, { params });
+  return response.data.responseData ?? response.data;
+};
+
+export const getStudentsByClassBatch = async (params) => {
+  const response = await api.get(`/api/students/department_class_batch`, { params });
+  return response.data.responseData ?? response.data;
+};
+
+export const getSubjectsByClassBatch = async (params) => {
+  const response = await api.get(`/subjects/department_class_batch`, { params });
+  return response.data.responseData ?? response.data;
+};
+
+export const useGetTeachersByClassBatch = (params, options = {}) =>
+  useQuery({
+    queryKey: ["teachers-class-batch", params],
+    queryFn: () => getTeachersByClassBatch(params),
+    enabled: !!params.departmentId && !!params.batchId && !!params.semester && !!params.classId && (options.enabled ?? true),
+  });
+
+export const useGetStudentsByClassBatch = (params, options = {}) =>
+  useQuery({
+    queryKey: ["students-class-batch", params],
+    queryFn: () => getStudentsByClassBatch(params),
+    enabled: !!params.departmentId && !!params.batchId && !!params.semester && !!params.classesId && (options.enabled ?? true),
+  });
+
+export const useGetSubjectsByClassBatch = (params, options = {}) =>
+  useQuery({
+    queryKey: ["subjects-class-batch", params],
+    queryFn: () => getSubjectsByClassBatch(params),
+    enabled: !!params.departmentId && !!params.batchId && !!params.semester && !!params.classId && (options.enabled ?? true),
+  });
 
 
 

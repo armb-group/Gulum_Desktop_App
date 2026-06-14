@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getTeachers } from "@/services/teacherCrudAPI";
-import { getStudents } from "@/services/studentCrudAPI";
-import { getDepartments } from "@/services/departmentAPI";
-import { getNoticesByInstitution } from "@/services/noticeAPI";
+import { useGetTeachers } from "@/services/teacherCrudAPI";
+import { useGetStudents } from "@/services/studentCrudAPI";
+import { useGetDepartments } from "@/services/departmentAPI";
+import { useGetNoticesByInstitution } from "@/services/noticeAPI";
 
 import {
   Upload,
@@ -29,52 +29,28 @@ import { AdminShell } from "./AdminShell";
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [teacherCount, setTeacherCount] = useState<string | null>(null);
-  const [studentCount, setStudentCount] = useState<string | null>(null);
-  const [deptCount, setDeptCount] = useState<string | null>(null);
-  const [notices, setNotices] = useState<any[]>([]);
-  const [noticesLoading, setNoticesLoading] = useState(true);
 
-  useEffect(() => {
-    getTeachers()
-      .then((list) => {
-        if (Array.isArray(list)) setTeacherCount(String(list.length));
-        else setTeacherCount("0");
-      })
-      .catch(() => setTeacherCount("0"));
+  const teachersQuery = useGetTeachers();
+  const studentsQuery = useGetStudents();
+  const departmentsQuery = useGetDepartments();
+  const noticesQuery = useGetNoticesByInstitution(user.institutionId);
 
-    getStudents()
-      .then((list) => {
-        if (Array.isArray(list)) setStudentCount(String(list.length));
-        else setStudentCount("0");
-      })
-      .catch(() => setStudentCount("0"));
+  const teacherCount = teachersQuery.isLoading ? null : String(teachersQuery.data?.length ?? 0);
+  const studentCount = studentsQuery.isLoading ? null : String(studentsQuery.data?.length ?? 0);
+  const deptCount = departmentsQuery.isLoading ? null : String(departmentsQuery.data?.length ?? 0);
 
-    getDepartments()
-      .then((list) => {
-        if (Array.isArray(list)) setDeptCount(String(list.length));
-        else setDeptCount("0");
+  const notices = useMemo(() => {
+    const items = noticesQuery.data ?? [];
+    return [...items]
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt ?? a.created_at ?? 0).getTime();
+        const dateB = new Date(b.createdAt ?? b.created_at ?? 0).getTime();
+        return dateB - dateA;
       })
-      .catch(() => setDeptCount("0"));
+      .slice(0, 3);
+  }, [noticesQuery.data]);
 
-    // Fetch recent notices
-    setNoticesLoading(true);
-    getNoticesByInstitution(user.institutionId)
-      .then((list) => {
-        const items = Array.isArray(list) ? list : [];
-        // Sort by createdAt descending and take latest 5
-        const sorted = items
-          .sort((a: any, b: any) => {
-            const dateA = new Date(a.createdAt ?? a.created_at ?? 0).getTime();
-            const dateB = new Date(b.createdAt ?? b.created_at ?? 0).getTime();
-            return dateB - dateA;
-          })
-          .slice(0, 3);
-        setNotices(sorted);
-      })
-      .catch(() => setNotices([]))
-      .finally(() => setNoticesLoading(false));
-  }, []);
+  const noticesLoading = noticesQuery.isLoading;
 
   const statsCards = [
     { label: "Total Students", value: studentCount, icon: GraduationCap, route: "/admin/StudentCrud", color: "from-indigo-500/10 to-blue-500/10 border-indigo-200/50 dark:border-indigo-800/40" },

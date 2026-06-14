@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { getTeachers, createTeacher, updateTeacher } from "@/services/teacherCrudAPI";
+import { useGetTeachers, useCreateTeacher, useUpdateTeacher } from "@/services/teacherCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -128,15 +129,13 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 
 const TeacherCrud = () => {
   const { user } = useAuth();
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [tableLoading, setTableLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    getTeachers()
-      .then((data) => setTeachers(Array.isArray(data) ? data : []))
-      .catch(() => toast.error("Failed to load teachers."))
-      .finally(() => setTableLoading(false));
-  }, []);
+  const { data: teachersData = [], isLoading: tableLoading } = useGetTeachers();
+  const teachers = useMemo(() => Array.isArray(teachersData) ? teachersData : [], [teachersData]);
+
+  const createTeacherMutation = useCreateTeacher();
+  const updateTeacherMutation = useUpdateTeacher();
 
   const [search, setSearch] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("");
@@ -217,7 +216,7 @@ const TeacherCrud = () => {
     setLoading(true);
     try {
       // Create Teacher (registers user credentials and profile details in one call)
-      await createTeacher({
+      await createTeacherMutation.mutateAsync({
         email: account.email,
         phone: account.phone,
         password: account.password,
@@ -235,9 +234,6 @@ const TeacherCrud = () => {
 
       toast.success("Teacher registered successfully!");
       closeModal();
-      getTeachers()
-        .then((data) => setTeachers(Array.isArray(data) ? data : []))
-        .catch(() => {});
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message ??
@@ -264,8 +260,7 @@ const TeacherCrud = () => {
   const handleViewSave = async () => {
     if (!viewEditData) return;
     try {
-      await updateTeacher(viewEditData.id, viewEditData);
-      setTeachers((prev) => prev.map((t) => (t.id === viewEditData.id ? viewEditData : t)));
+      await updateTeacherMutation.mutateAsync({ id: viewEditData.id, teacherData: viewEditData });
       setSelectedViewTeacher(viewEditData);
       setIsEditingView(false);
       setViewModalOpen(false);
@@ -281,7 +276,9 @@ const TeacherCrud = () => {
 
   const confirmDelete = () => {
     if (deleteTargetId !== null) {
-      setTeachers((prev) => prev.filter((t) => t.id !== deleteTargetId));
+      queryClient.setQueryData(["teachers"], (old: any) =>
+        Array.isArray(old) ? old.filter((t: any) => t.id !== deleteTargetId) : []
+      );
       toast.success("Teacher deleted successfully");
     }
   };

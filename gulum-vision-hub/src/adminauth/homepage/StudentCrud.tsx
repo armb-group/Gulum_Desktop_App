@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createStudent, getStudents, updateStudent } from "@/services/studentCrudAPI";
+import { useGetStudents, useCreateStudent, useUpdateStudent } from "@/services/studentCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -188,15 +189,13 @@ const Field = ({
 
 const StudentCrud = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState<Student[]>([]);
-  const [tableLoading, setTableLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    getStudents()
-      .then((data) => setStudents(Array.isArray(data) ? data : []))
-      .catch(() => toast.error("Failed to load students."))
-      .finally(() => setTableLoading(false));
-  }, []);
+  const { data: studentsData = [], isLoading: tableLoading } = useGetStudents();
+  const students = useMemo(() => Array.isArray(studentsData) ? studentsData : [], [studentsData]);
+
+  const createStudentMutation = useCreateStudent();
+  const updateStudentMutation = useUpdateStudent();
   const [search, setSearch] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("");
   const [selectedSectionFilter, setSelectedSectionFilter] = useState("");
@@ -214,6 +213,7 @@ const StudentCrud = () => {
     () => Array.from(new Set(students.map((s) => String(s.batch_id || "")).filter(Boolean))),
     [students]
   );
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -261,10 +261,10 @@ const StudentCrud = () => {
   const handleViewSave = async () => {
     if (!viewEditData) return;
     try {
-      await updateStudent(viewEditData.id, viewEditData);
-      setStudents((prev) => prev.map((s) => (s.id === viewEditData.id ? viewEditData : s)));
+      await updateStudentMutation.mutateAsync({ id: viewEditData.id, studentData: viewEditData });
       setSelectedViewStudent(viewEditData);
       setIsEditingView(false);
+      setViewModalOpen(false);
       toast.success("Student updated successfully!");
     } catch {
       toast.error("Failed to update student.");
@@ -324,7 +324,7 @@ const StudentCrud = () => {
 
     try {
       // Create Student (registers user credentials and profile details in one call)
-      await createStudent({
+      await createStudentMutation.mutateAsync({
         institution_id: academic.institution_id,
         admission_no: academic.admission_no,
         roll_no: academic.roll_no,
@@ -343,9 +343,6 @@ const StudentCrud = () => {
 
       toast.success("Student registered successfully!");
       closeModal();
-      getStudents()
-        .then((data) => setStudents(Array.isArray(data) ? data : []))
-        .catch(() => {});
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message ??
@@ -384,7 +381,9 @@ const StudentCrud = () => {
 
   const confirmDelete = () => {
     if (deleteTargetId !== null) {
-      setStudents((prev) => prev.filter((s) => s.id !== deleteTargetId));
+      queryClient.setQueryData(["students"], (old: any) =>
+        Array.isArray(old) ? old.filter((s: any) => s.id !== deleteTargetId) : []
+      );
       toast.success("Student deleted successfully");
     }
   };

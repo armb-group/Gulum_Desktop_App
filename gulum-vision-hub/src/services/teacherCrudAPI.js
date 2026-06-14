@@ -1,5 +1,4 @@
-// src/services/teacherCrudAPI.js
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 export const getTeachers = async () => {
@@ -116,5 +115,44 @@ export const assignTeachersBulk = async (batchId, departmentId, classId, teacher
     teacherIds
   );
   return response.data.responseData ?? response.data;
+};
+
+export const TEACHERS_QUERY_KEY = ["teachers"];
+
+export const useGetTeachers = () =>
+  useQuery({
+    queryKey: TEACHERS_QUERY_KEY,
+    queryFn: getTeachers,
+  });
+
+export const useCreateTeacher = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTeacher,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateTeacher = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, teacherData }) => updateTeacher(id, teacherData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
+};
+
+export const useAssignTeachersBulk = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ batchId, departmentId, classId, teacherIds }) =>
+      assignTeachersBulk(batchId, departmentId, classId, teacherIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
 };
 

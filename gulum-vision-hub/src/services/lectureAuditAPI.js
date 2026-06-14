@@ -109,3 +109,26 @@ export const getModuleStatus = async (trackingId) => {
   const { data } = await api.get(`/api/module/status/${encodeURIComponent(trackingId)}`);
   return data?.responseData ?? data;
 };
+
+export const LECTURE_AUDIT_QUERY_KEY = ["lecture-audit"];
+
+export const useGetCourseModules = (courseCode, options = {}) =>
+  useQuery({
+    queryKey: [...LECTURE_AUDIT_QUERY_KEY, "modules", courseCode ?? ""],
+    queryFn: () => getCourseModules(courseCode),
+    enabled: !!courseCode && (options.enabled ?? true),
+  });
+
+export const useGetTrackingAll = (classId, options = {}) =>
+  useQuery({
+    queryKey: [...LECTURE_AUDIT_QUERY_KEY, "tracking-all", classId ?? ""],
+    queryFn: () => getTrackingAll(classId),
+    enabled: !!classId && (options.enabled ?? true),
+  });
+
+export const useGetModuleStatus = (trackingId, options = {}) =>
+  useQuery({
+    queryKey: [...LECTURE_AUDIT_QUERY_KEY, "module-status", trackingId ?? ""],
+    queryFn: () => getModuleStatus(trackingId),
+    enabled: !!trackingId && (options.enabled ?? true),
+  });

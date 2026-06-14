@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Bell, Search, CalendarDays, User, Plus, X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
-  getNoticesByInstitution, 
-  addNoticeApi, 
-  editNoticeApi, 
-  deleteNoticeApi 
+  useGetNoticesByInstitution, 
+  useAddNotice, 
+  useEditNotice, 
+  useDeleteNotice 
 } from "@/services/noticeAPI";
 import { toast } from "sonner";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -51,10 +51,16 @@ const formatDate = (dateStr?: string) => {
 const NoticePage = () => {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [notices, setNotices] = useState<Notice[]>([]);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const noticesQuery = useGetNoticesByInstitution(user?.institutionId);
+  const notices = noticesQuery.data ?? [];
+  const isLoading = noticesQuery.isLoading;
+  const error = noticesQuery.error ? "Failed to load notices. Please try again later." : null;
+
+  const addNoticeMutation = useAddNotice();
+  const editNoticeMutation = useEditNotice();
+  const deleteNoticeMutation = useDeleteNotice();
 
   // Form states for Add/Edit Modal
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -63,43 +69,11 @@ const NoticePage = () => {
   const [formLevel, setFormLevel] = useState<"ADMIN" | "STUDENT">("ADMIN");
   const [formCourseCode, setFormCourseCode] = useState("");
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchNotices = () => {
-    if (!user?.institutionId) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    getNoticesByInstitution(user.institutionId)
-      .then((data: any) => {
-        const list = data?.responseData ?? data?.data ?? data;
-        if (Array.isArray(list)) {
-          setNotices(list);
-        } else if (Array.isArray(list?.content)) {
-          setNotices(list.content);
-        } else if (Array.isArray(data)) {
-          setNotices(data);
-        } else {
-          setNotices([]);
-        }
-        setError(null);
-      })
-      .catch((err: any) => {
-        console.error("Failed to load notices:", err);
-        setError("Failed to load notices. Please try again later.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    fetchNotices();
-  }, [user?.institutionId]);
+  const isSubmitting = addNoticeMutation.isPending || editNoticeMutation.isPending;
+  const isDeleting = deleteNoticeMutation.isPending;
 
   const handleOpenCreate = () => {
     setEditingNotice(null);
@@ -126,17 +100,14 @@ const NoticePage = () => {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    setIsDeleting(true);
     try {
-      await deleteNoticeApi(deleteTargetId);
+      await deleteNoticeMutation.mutateAsync(deleteTargetId);
       toast.success("Notice deleted successfully");
       setSelectedNotice(null); // Close details modal
-      fetchNotices(); // Refresh list
+      setDeleteTargetId(null);
     } catch (err: any) {
       console.error("Failed to delete notice:", err);
       toast.error(err?.message ?? "Failed to delete notice");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -151,7 +122,6 @@ const NoticePage = () => {
       return;
     }
 
-    setIsSubmitting(true);
     const payload = {
       title: formTitle.trim(),
       description: formDescription.trim(),
@@ -164,19 +134,16 @@ const NoticePage = () => {
 
     try {
       if (editingNotice) {
-        await editNoticeApi({ id: editingNotice.id, notice: payload });
+        await editNoticeMutation.mutateAsync({ id: editingNotice.id, notice: payload });
         toast.success("Notice updated successfully");
       } else {
-        await addNoticeApi(payload);
+        await addNoticeMutation.mutateAsync(payload);
         toast.success("Notice created successfully");
       }
       setIsFormOpen(false);
-      fetchNotices();
     } catch (err: any) {
       console.error("Failed to save notice:", err);
       toast.error(err?.message ?? "Failed to save notice");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

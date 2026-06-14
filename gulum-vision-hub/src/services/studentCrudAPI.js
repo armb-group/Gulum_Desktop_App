@@ -1,5 +1,4 @@
-// src/services/studentCrudAPI.js
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 export const getStudents = async () => {
@@ -121,4 +120,46 @@ export const getStudentsByCourse = async (courseCode) => {
   const response = await api.get(`api/students/course/${courseCode}`);
   return response.data.responseData ?? response.data;
 };
+
+export const STUDENTS_QUERY_KEY = ["students"];
+
+export const useGetStudents = () =>
+  useQuery({
+    queryKey: STUDENTS_QUERY_KEY,
+    queryFn: getStudents,
+  });
+
+export const useCreateStudent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createStudent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STUDENTS_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateStudent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, studentData }) => updateStudent(id, studentData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STUDENTS_QUERY_KEY });
+    },
+  });
+};
+
+export const useGetStudentDetailedAttendance = (studentId, options = {}) =>
+  useQuery({
+    queryKey: ["student-detailed-attendance", studentId],
+    queryFn: () => getStudentDetailedAttendance(studentId),
+    enabled: !!studentId && (options.enabled ?? true),
+  });
+
+export const useGetStudentsByCourse = (courseCode, options = {}) =>
+  useQuery({
+    queryKey: ["students-course", courseCode],
+    queryFn: () => getStudentsByCourse(courseCode),
+    enabled: !!courseCode && (options.enabled ?? true),
+  });
 

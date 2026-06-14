@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { getStudentDetailedAttendance, getStudentsByCourse } from "@/services/studentCrudAPI";
-import { getDepartments, getAcademicBatchesByDepartment, getCoursesByClass } from "@/services/departmentAPI";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetStudentDetailedAttendance,
+  useGetStudentsByCourse,
+  getStudentDetailedAttendance,
+  getStudentsByCourse
+} from "@/services/studentCrudAPI";
+import {
+  useGetDepartments,
+  useGetAcademicBatchesByDepartment,
+  useGetCoursesByClass,
+  getDepartments,
+  getAcademicBatchesByDepartment,
+  getCoursesByClass
+} from "@/services/departmentAPI";
 import { AdminShell } from "./AdminShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,23 +61,19 @@ interface Student {
 }
 
 const AttendancePage = () => {
+  const queryClient = useQueryClient();
+
   // Navigation Flow State
-  const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
-  const [batches, setBatches] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedSection, setSelectedSection] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
-  const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
 
   // Student list & loading states
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingDepts, setLoadingDepts] = useState(false);
-  const [loadingBatches, setLoadingBatches] = useState(false);
-  const [loadingCourses, setLoadingCourses] = useState(false);
-  
+
   // Search & Filter
   const [search, setSearch] = useState("");
   const [attendanceRangeFilter, setAttendanceRangeFilter] = useState(""); // "low" (<75) or "good" (>=75)
@@ -75,54 +84,32 @@ const AttendancePage = () => {
   const [detailedAttendance, setDetailedAttendance] = useState<any[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  // Load departments on mount
-  useEffect(() => {
-    const loadDepts = async () => {
-      setLoadingDepts(true);
-      try {
-        const list = await getDepartments();
-        const mapped = Array.isArray(list) ? list.map((d: any) => ({
-          id: String(d.id ?? d.departmentId ?? d.department_id ?? ""),
-          name: d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department",
-        })) : [];
-        setDepartments(mapped.length > 0 ? mapped : deptData);
-      } catch (err) {
-        console.error("Error loading departments API:", err);
-        setDepartments(deptData);
-      } finally {
-        setLoadingDepts(false);
-      }
-    };
-    loadDepts();
-  }, []);
+  // 1. TanStack Query for departments
+  const { data: rawDepts, isLoading: loadingDepts } = useGetDepartments();
+  const departments = useMemo(() => {
+    const list = Array.isArray(rawDepts) ? rawDepts.map((d: any) => ({
+      id: String(d.id ?? d.departmentId ?? d.department_id ?? ""),
+      name: d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department",
+    })) : [];
+    return list.length > 0 ? list : deptData;
+  }, [rawDepts]);
 
-  // Load batches when department changes
+  // 2. TanStack Query for batches
+  const { data: rawBatches, isLoading: loadingBatches } = useGetAcademicBatchesByDepartment(selectedDeptId, {
+    enabled: !!selectedDeptId
+  });
+  const batches = useMemo(() => {
+    if (!rawBatches) return [];
+    return Array.isArray(rawBatches) ? rawBatches : (rawBatches.responseData ?? rawBatches.data ?? []);
+  }, [rawBatches]);
+
+  // Load batches reset when department changes
   useEffect(() => {
     setSelectedYear("");
     setSelectedSection("");
     setSelectedSemester("");
-    setCourses([]);
     setSelectedCourse(null);
     setStudents([]);
-    setBatches([]);
-
-    if (!selectedDeptId) return;
-
-    const loadBatches = async () => {
-      setLoadingBatches(true);
-      try {
-        const data = await getAcademicBatchesByDepartment(selectedDeptId);
-        const rawBatches = Array.isArray(data)
-          ? data
-          : (data?.responseData ?? data?.data ?? []);
-        setBatches(rawBatches);
-      } catch (err) {
-        console.error("Error loading academic batches:", err);
-      } finally {
-        setLoadingBatches(false);
-      }
-    };
-    loadBatches();
   }, [selectedDeptId]);
 
   // Handle dropdown selection changes
@@ -134,7 +121,6 @@ const AttendancePage = () => {
     setSelectedYear(val);
     setSelectedSection("");
     setSelectedSemester("");
-    setCourses([]);
     setSelectedCourse(null);
     setStudents([]);
   };
@@ -142,7 +128,6 @@ const AttendancePage = () => {
   const handleSectionChange = (val: string) => {
     setSelectedSection(val);
     setSelectedSemester("");
-    setCourses([]);
     setSelectedCourse(null);
     setStudents([]);
   };
@@ -190,7 +175,7 @@ const AttendancePage = () => {
       }
     });
     return Array.from(new Set(semesters));
-  }, [batches, selectedDeptId, selectedYear, selectedSection]);
+  }, [batches, selectedYear, selectedSection]);
 
   // Auto-default semester when availableSemesters changes in API mode
   useEffect(() => {
@@ -214,122 +199,117 @@ const AttendancePage = () => {
     return matchingClass?.id ?? "";
   }, [batches, selectedDeptId, selectedYear, selectedSection, selectedSemester, availableSemesters]);
 
-  // Fetch Courses when class filters are complete
+  // 3. TanStack Query for Courses
+  const { data: rawCourses, isLoading: loadingCourses } = useGetCoursesByClass(classId, {
+    enabled: !!classId
+  });
+  const courses = useMemo(() => {
+    if (!rawCourses) {
+      if (!selectedDeptId || !selectedYear || !selectedSection) return [];
+      // Fallback to mock data
+      const dept = deptData.find(d => d.id === selectedDeptId);
+      const yearObj = dept?.years.find(y => y.year === selectedYear);
+      const sectionObj = yearObj?.sections.find(s => s.name === selectedSection);
+      return sectionObj?.subjects ?? [];
+    }
+    const list = Array.isArray(rawCourses) ? rawCourses : [];
+    return list.map((item: any) => {
+      const c = item.course ?? item.subject ?? item;
+      return {
+        name: c.name ?? c.courseName ?? c.subjectName ?? c.subject_name ?? "Unknown Subject",
+        code: c.code ?? c.courseCode ?? c.subjectCode ?? c.subject_code ?? "N/A"
+      };
+    });
+  }, [rawCourses, selectedDeptId, selectedYear, selectedSection]);
+
+  // Fetch and map student list + detailed attendance
   useEffect(() => {
-    setCourses([]);
-    setSelectedCourse(null);
-    setStudents([]);
+    if (!selectedCourse) {
+      setStudents([]);
+      return;
+    }
 
-    if (!selectedDeptId || !selectedYear || !selectedSection) return;
+    const loadStudentsAttendance = async () => {
+      setLoading(true);
+      setStudents([]);
 
-    // If we have available semesters, but semester is not yet selected, do not trigger API call
-    if (availableSemesters.length > 0 && !selectedSemester) return;
+      const selectedBatch = batches.find((b) => b.year === selectedYear);
+      const batchId = selectedBatch?.batchId ?? selectedBatch?.id ?? "";
+      const matchingClass = selectedBatch?.classes?.find(
+        (c: any) => c.name === selectedSection && (!selectedSemester || String(c.semester) === selectedSemester)
+      );
+      const classId = matchingClass?.id ?? "";
 
-    const loadCourses = async () => {
-      setLoadingCourses(true);
-      
       try {
-        if (classId) {
-          const responseData = await getCoursesByClass(classId);
-          const list = Array.isArray(responseData) ? responseData : [];
-          const mapped = list.map((item: any) => {
-            const c = item.course ?? item.subject ?? item;
-            return {
-              name: c.name ?? c.courseName ?? c.subjectName ?? c.subject_name ?? "Unknown Subject",
-              code: c.code ?? c.courseCode ?? c.subjectCode ?? c.subject_code ?? "N/A"
-            };
-          });
-          setCourses(mapped);
+        const responseData = await queryClient.fetchQuery({
+          queryKey: ["students-course", selectedCourse.code],
+          queryFn: () => getStudentsByCourse(selectedCourse.code),
+        });
+        const studentsList = Array.isArray(responseData) ? responseData : [];
+
+        const promises = studentsList.map(async (s: any) => {
+          const studentId = s.id ?? s.studentId;
+          let total = s.totalClassesOccurred ?? 0;
+          let attended = s.totalClassesAttended ?? 0;
+          let percent = s.attendancePercentage ?? 0;
+
+          try {
+            const detailedRes = await queryClient.fetchQuery({
+              queryKey: ["student-detailed-attendance", studentId],
+              queryFn: () => getStudentDetailedAttendance(studentId),
+            });
+            const rawList = detailedRes?.responseData ?? detailedRes?.data ?? detailedRes;
+            if (Array.isArray(rawList)) {
+              const courseRecord = rawList.find((item: any) => {
+                const code = item.courseCode ?? item.course_code ?? item.code ?? "";
+                return code.toLowerCase() === selectedCourse.code.toLowerCase();
+              });
+              if (courseRecord) {
+                total = courseRecord.totalClasses ?? courseRecord.total ?? 0;
+                attended = courseRecord.presentCount ?? courseRecord.attended ?? courseRecord.classesAttended ?? 0;
+                percent = courseRecord.attendancePercentage ?? courseRecord.percent ?? courseRecord.percentage ?? 0;
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to load course attendance for student ${studentId}:`, err);
+          }
+
+          return {
+            id: studentId,
+            roll_no: s.rollNo ?? s.roll_no ?? "N/A",
+            full_name: s.fullName ?? s.full_name ?? "Unknown",
+            email_id: s.emailId ?? s.email ?? s.email_id ?? "N/A",
+            batch_id: batchId || selectedYear,
+            classess_id: classId || selectedSection,
+            department_id: selectedDeptId,
+            departmentName: selectedDeptId.toUpperCase(),
+            sectionName: selectedSection,
+            batchYear: selectedYear,
+            totalClassesOccurred: total,
+            totalClassesAttended: attended,
+            attendancePercentage: percent
+          };
+        });
+
+        const resolvedStudents = await Promise.all(promises);
+        if (resolvedStudents.length > 0) {
+          setStudents(resolvedStudents);
         } else {
-          // Fallback to mock data
-          const dept = deptData.find(d => d.id === selectedDeptId);
-          const yearObj = dept?.years.find(y => y.year === selectedYear);
-          const sectionObj = yearObj?.sections.find(s => s.name === selectedSection);
-          setCourses(sectionObj?.subjects ?? []);
+          loadMockStudents(selectedCourse, batchId, classId);
         }
       } catch (err) {
-        console.error("Failed to load courses from API, falling back to mock:", err);
-        const dept = deptData.find(d => d.id === selectedDeptId);
-        const yearObj = dept?.years.find(y => y.year === selectedYear);
-        const sectionObj = yearObj?.sections.find(s => s.name === selectedSection);
-        setCourses(sectionObj?.subjects ?? []);
+        console.error("Failed to load students/attendance from API, falling back to mock:", err);
+        loadMockStudents(selectedCourse, batchId, classId);
       } finally {
-        setLoadingCourses(false);
+        setLoading(false);
       }
     };
-    loadCourses();
-  }, [selectedDeptId, selectedYear, selectedSection, selectedSemester, batches, classId, availableSemesters]);
 
-  // Handle clicking a course - loads student attendances for it
-  const handleCourseClick = async (course: any) => {
+    loadStudentsAttendance();
+  }, [selectedCourse, selectedDeptId, selectedYear, selectedSection, selectedSemester, batches, queryClient]);
+
+  const handleCourseClick = (course: any) => {
     setSelectedCourse(course);
-    setLoading(true);
-    setStudents([]);
-
-    const selectedBatch = batches.find((b) => b.year === selectedYear);
-    const batchId = selectedBatch?.batchId ?? selectedBatch?.id ?? "";
-    const matchingClass = selectedBatch?.classes?.find(
-      (c: any) => c.name === selectedSection && (!selectedSemester || String(c.semester) === selectedSemester)
-    );
-    const classId = matchingClass?.id ?? "";
-
-    try {
-      const responseData = await getStudentsByCourse(course.code);
-      const studentsList = Array.isArray(responseData) ? responseData : [];
-
-      const promises = studentsList.map(async (s: any) => {
-        const studentId = s.id ?? s.studentId;
-        let total = s.totalClassesOccurred ?? 0;
-        let attended = s.totalClassesAttended ?? 0;
-        let percent = s.attendancePercentage ?? 0;
-
-        try {
-          const detailedRes = await getStudentDetailedAttendance(studentId);
-          const rawList = detailedRes?.responseData ?? detailedRes?.data ?? detailedRes;
-          if (Array.isArray(rawList)) {
-            const courseRecord = rawList.find((item: any) => {
-              const code = item.courseCode ?? item.course_code ?? item.code ?? "";
-              return code.toLowerCase() === course.code.toLowerCase();
-            });
-            if (courseRecord) {
-              total = courseRecord.totalClasses ?? courseRecord.total ?? 0;
-              attended = courseRecord.presentCount ?? courseRecord.attended ?? courseRecord.classesAttended ?? 0;
-              percent = courseRecord.attendancePercentage ?? courseRecord.percent ?? courseRecord.percentage ?? 0;
-            }
-          }
-        } catch (err) {
-          console.error(`Failed to load course attendance for student ${studentId}:`, err);
-        }
-
-        return {
-          id: studentId,
-          roll_no: s.rollNo ?? s.roll_no ?? "N/A",
-          full_name: s.fullName ?? s.full_name ?? "Unknown",
-          email_id: s.emailId ?? s.email ?? s.email_id ?? "N/A",
-          batch_id: batchId || selectedYear,
-          classess_id: classId || selectedSection,
-          department_id: selectedDeptId,
-          departmentName: selectedDeptId.toUpperCase(),
-          sectionName: selectedSection,
-          batchYear: selectedYear,
-          totalClassesOccurred: total,
-          totalClassesAttended: attended,
-          attendancePercentage: percent
-        };
-      });
-
-      const resolvedStudents = await Promise.all(promises);
-      if (resolvedStudents.length > 0) {
-        setStudents(resolvedStudents);
-      } else {
-        loadMockStudents(course, batchId, classId);
-      }
-    } catch (err) {
-      console.error("Failed to load students/attendance from API, falling back to mock:", err);
-      loadMockStudents(course, batchId, classId);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const loadMockStudents = (course: any, batchId: string, classId: string) => {
@@ -397,7 +377,10 @@ const AttendancePage = () => {
     setDetailsModalOpen(true);
     setLoadingDetails(true);
     try {
-      const response = await getStudentDetailedAttendance(student.id);
+      const response = await queryClient.fetchQuery({
+        queryKey: ["student-detailed-attendance", student.id],
+        queryFn: () => getStudentDetailedAttendance(student.id),
+      });
       const rawList = response?.responseData ?? response?.data ?? response;
       if (Array.isArray(rawList) && rawList.length > 0) {
         const mapped = rawList.map((item: any) => ({
