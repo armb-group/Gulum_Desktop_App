@@ -23,6 +23,7 @@ import {
   Copy,
   Eye
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 import {
   Dialog,
   DialogContent,
@@ -419,7 +420,21 @@ const StudentCrud = () => {
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Student Directory</p>
                 <h2 className="text-base font-semibold text-foreground">{filteredStudents.length} students found</h2>
               </div>
-              <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+              <ExportButton
+                data={filteredStudents.map((s, idx) => {
+                  const row: Record<string, any> = { sno: idx + 1 };
+                  TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).forEach((col) => {
+                    row[col.key] = String(s[col.key] ?? "—");
+                  });
+                  return row;
+                })}
+                columns={[
+                  { key: "sno", label: "S.No" },
+                  ...TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => ({ key: col.key, label: col.label })),
+                ]}
+                fileName="students_list"
+                title="Student Directory"
+              />
             </div>
 
             {/* Search Bar & Filters in between */}

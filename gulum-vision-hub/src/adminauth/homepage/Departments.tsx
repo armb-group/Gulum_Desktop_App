@@ -7,6 +7,7 @@ import { Plus, ChevronDown, Loader2 } from "lucide-react";
 import { AdminShell } from "./AdminShell";
 import type { Department } from "./departmentsData";
 import { toast } from "sonner";
+import ExportButton from "@/components/ExportButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDepartments, getAcademicBatchesByDepartment, createDepartment } from "@/services/departmentAPI";
 import {
@@ -431,7 +432,8 @@ const Departments = () => {
                 <select
                   value={selectedYear}
                   onChange={(e) => handleYearChange(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring shadow-sm [&>option]:bg-card [&>option]:text-foreground"
+                  disabled={!selectedDeptId}
+                  className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring shadow-sm disabled:opacity-50 disabled:cursor-not-allowed [&>option]:bg-card [&>option]:text-foreground"
                 >
                   <option value="">Select year</option>
                   {availableYears.map((year) => (
@@ -520,15 +522,31 @@ const Departments = () => {
                 Subjects ({activeSubjects.length})
               </Button>
 
-              {selectedTab === "teachers" && (
-                <Button
-                  onClick={() => navigate("/admin/TeacherCrud")}
-                  variant="outline"
-                  className="ml-auto border-primary/50 text-primary hover:bg-primary/10 transition"
-                >
-                  Manage Teachers
-                </Button>
-              )}
+              <div className="ml-auto">
+                <ExportButton
+                  data={
+                    selectedTab === "teachers"
+                      ? activeTeachers.map((name, idx) => ({ no: idx + 1, name }))
+                      : selectedTab === "students"
+                      ? activeStudents.map((name, idx) => ({ no: idx + 1, name }))
+                      : activeSubjects.map((sub, idx) => ({ no: idx + 1, name: sub.name, code: sub.code }))
+                  }
+                  columns={
+                    selectedTab === "subjects"
+                      ? [
+                          { key: "no", label: "No" },
+                          { key: "name", label: "Subject Name" },
+                          { key: "code", label: "Subject Code" },
+                        ]
+                      : [
+                          { key: "no", label: "No" },
+                          { key: "name", label: selectedTab === "teachers" ? "Teacher Name" : "Student Name" },
+                        ]
+                  }
+                  fileName={`${selectedDept?.name || "department"}_${selectedTab || "data"}`}
+                  title={`${selectedDept?.name} - ${selectedTab === "teachers" ? "Teachers" : selectedTab === "students" ? "Students" : "Subjects"} List`}
+                />
+              </div>
             </div>
           </Card>
         )}

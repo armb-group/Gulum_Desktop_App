@@ -12,6 +12,7 @@ import {
   Search, Pencil, Save, Trash2, Plus, X,
   ChevronRight, ChevronLeft, Check, Loader2, Copy, Eye
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 import {
   Dialog,
   DialogContent,
@@ -317,7 +318,21 @@ const TeacherCrud = () => {
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Teacher Directory</p>
                 <h2 className="text-base font-semibold text-foreground">{filteredTeachers.length} teachers found</h2>
               </div>
-              <div className="text-sm text-muted-foreground">Latest updates appear automatically.</div>
+              <ExportButton
+                data={filteredTeachers.map((t, idx) => {
+                  const row: Record<string, any> = { sno: idx + 1 };
+                  TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).forEach((col) => {
+                    row[col.key] = col.key === "is_active" ? (t[col.key] ? "Active" : "Inactive") : String(t[col.key] ?? "—");
+                  });
+                  return row;
+                })}
+                columns={[
+                  { key: "sno", label: "S.No" },
+                  ...TABLE_COLUMNS.filter((col) => !HIDDEN_IN_ROW.has(col.key)).map((col) => ({ key: col.key, label: col.label })),
+                ]}
+                fileName="teachers_list"
+                title="Teacher Directory"
+              />
             </div>
 
             {/* Search Bar & Filter in between */}

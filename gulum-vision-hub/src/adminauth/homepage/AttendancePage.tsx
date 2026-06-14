@@ -15,8 +15,6 @@ import {
   Users,
   Percent,
   AlertTriangle,
-  Download,
-  Filter,
   BookOpen,
   ArrowLeft,
   GraduationCap,
@@ -24,6 +22,7 @@ import {
   Layers,
   BookMarked
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 import {
   Dialog,
   DialogContent,
@@ -490,13 +489,6 @@ const AttendancePage = () => {
               Select department, year, and section parameters to view courses and student logs.
             </p>
           </div>
-          {selectedCourse && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleExport} className="gap-2">
-                <Download className="h-4 w-4" /> Export Report
-              </Button>
-            </div>
-          )}
         </div>
 
         {!selectedCourse && (
@@ -692,9 +684,28 @@ const AttendancePage = () => {
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">List of students and their logs for this course</p>
                   </div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Filter className="h-3.5 w-3.5" /> Refine view results
-                  </div>
+                  <ExportButton
+                    data={filteredStudents.map((s, idx) => ({
+                      sno: idx + 1,
+                      name: s.full_name,
+                      email: s.email_id,
+                      roll_no: s.roll_no,
+                      attended: s.attended,
+                      total: s.total,
+                      percentage: `${s.percent}%`,
+                    }))}
+                    columns={[
+                      { key: "sno", label: "S.No" },
+                      { key: "name", label: "Student Name" },
+                      { key: "email", label: "Email" },
+                      { key: "roll_no", label: "Roll No" },
+                      { key: "attended", label: "Attended" },
+                      { key: "total", label: "Total" },
+                      { key: "percentage", label: "Percentage" },
+                    ]}
+                    fileName={`attendance_${selectedCourse?.name || "report"}`}
+                    title={`Attendance Report - ${selectedCourse?.name || "Course"}`}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-2">

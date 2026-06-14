@@ -17,13 +17,13 @@ import {
   Search,
   Filter,
   Loader2,
-  FileSpreadsheet,
   AlertCircle,
   ChevronUp,
   ChevronDown,
   CheckCircle2,
   Circle
 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 
 interface TeacherData {
   id: number;
@@ -284,9 +284,37 @@ export default function LectureAuditPage() {
               Audit lecture progress, syllabus coverage, and module completion rates for teaching faculty.
             </p>
           </div>
-          <Button onClick={handleExport} className="gap-2 rounded-xl shadow-md bg-emerald-600 hover:bg-emerald-700 text-white border-0">
-            <FileSpreadsheet className="h-4 w-4" /> Export Report
-          </Button>
+          <ExportButton
+            data={syllabusAudit.flatMap((course) =>
+              course.modules.length > 0
+                ? course.modules.map((mod: any, mIdx: number) => ({
+                    courseName: course.courseName,
+                    courseCode: course.courseCode,
+                    semester: course.semester,
+                    module: mod.moduleTitle || mod.title || `Module ${mIdx + 1}`,
+                    status: mod.status === "COMPLETED" || mod.completed ? "Completed" : "Pending",
+                    hours: mod.expectedHours ?? mod.totalHours ?? 0,
+                  }))
+                : [{
+                    courseName: course.courseName,
+                    courseCode: course.courseCode,
+                    semester: course.semester,
+                    module: "No modules",
+                    status: "—",
+                    hours: "—",
+                  }]
+            )}
+            columns={[
+              { key: "courseName", label: "Course Name" },
+              { key: "courseCode", label: "Course Code" },
+              { key: "semester", label: "Semester" },
+              { key: "module", label: "Module" },
+              { key: "status", label: "Status" },
+              { key: "hours", label: "Hours" },
+            ]}
+            fileName={`lecture_audit_${selectedTeacher?.full_name || "report"}`}
+            title={`Lecture Audit Report${selectedTeacher ? ` - ${selectedTeacher.full_name}` : ""}`}
+          />
         </div>
 
         {loading ? (
