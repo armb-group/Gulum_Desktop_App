@@ -82,6 +82,7 @@ const StudentDashboard = () => {
   const institutionId = user?.institutionId;
   const departmentId = user?.departmentId;
 
+  //console log
   console.log(
     "class==",
     classId,
@@ -97,6 +98,7 @@ const StudentDashboard = () => {
     classId,
   );
 
+  //console log
   console.log("Routine API response:", routine);
 
   const { data: attendance = [], isLoading } = useStudentAttendance();
@@ -306,7 +308,7 @@ const StudentDashboard = () => {
             size="sm"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/dashboard">View Full Timetable →</Link>
+            <Link to="/student/timetable">View Full Timetable →</Link>
           </Button>
         </Card>
 

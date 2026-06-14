@@ -93,6 +93,13 @@ const StudentHome = () => {
 
   const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
+
+  //console log
+console.log("USER:", user);
+console.log("institutionId:", user?.institutionId);
+console.log("departmentId:", user?.departmentId);
+console.log("classId:", user?.classId);
+
   const { data: routine = [] } = useStudentRoutine(
     user?.institutionId,
     user?.departmentId,
@@ -302,11 +309,11 @@ const todayRoutine = routine
                 )}
               </div>
               <Link
-                to="/student/dashboard"
-                className="block text-sm text-primary font-semibold mt-3"
-              >
-                View Full Timetable →
-              </Link>
+              to="/student/timetable"
+              className="block text-sm text-primary font-semibold mt-3"
+            >
+              View Full Timetable →
+            </Link>
             </Card>
           </div>
         </section>

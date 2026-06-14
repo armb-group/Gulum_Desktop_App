@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
+
 import Welcome from "./pages/Welcome";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
@@ -18,6 +19,8 @@ import StudentNotifications from "./studentauth/homepage/StudentNotifications";
 import StudentProfile from "./studentauth/homepage/StudentProfile";
 import StudentAttendance from "./studentauth/homepage/StudentAttendance";
 import StudentLectureAudit from "./studentauth/homepage/StudentLectureAudit";
+import StudentTimetable from "./studentauth/homepage/StudentTimetable";
+
 
 import TeacherHome from "./teacherauth/homepage/TeacherHome";
 import TeacherDashboard from "./teacherauth/homepage/TeacherDashboard";
@@ -110,6 +113,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="student">
                       <StudentLectureAudit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/student/timetable"
+                  element={
+                    <ProtectedRoute role="student">
+                      <StudentTimetable />
                     </ProtectedRoute>
                   }
                 />
