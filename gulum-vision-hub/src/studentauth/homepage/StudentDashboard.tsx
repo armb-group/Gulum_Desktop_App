@@ -132,7 +132,7 @@ const StudentDashboard = () => {
   return (
     <RoleShell
       role="student"
-      title="Home"
+      title="Insights Dashboard"
       subtitle="Your academic overview"
       showDate
     >
