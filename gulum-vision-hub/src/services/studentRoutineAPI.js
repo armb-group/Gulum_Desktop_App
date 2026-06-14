@@ -19,10 +19,10 @@ export function useStudentRoutine(institutionId, departmentId, classesId) {
       
       // ✅ Flatten timetable into array of objects
       return timetable.map((item) => ({
-        subject: item.courseName ?? "Unknown Subject",
+        subject: item.courseName ?? "Free Period",
         teacher: item.teacherName ?? "",
         code: item.courseCode ?? "",
-        time: `${item.startTime ?? ""}–${item.endTime ?? ""}`,
+        time: `${item.startTime ?? "_"}–${item.endTime ?? ""}`,
         day: item.day,
         slot: item.slotNumber,
         occupied: item.occupied,
