@@ -23,9 +23,12 @@ import {
   noticeToNotification,
   useGetNoticesByLevel,
 } from "@/services/noticeAPI";
-import { useStudentSyllabus, useStudentTrackingAll } from "@/services/lectureAuditAPI";
+import {
+  useStudentMasters,
+  useStudentTrackingAll,
+} from "@/services/lectureAuditAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
-
+import { useStudentRoutine } from "@/services/studentRoutineAPI";
 const tiles = [
   {
     label: "AI Assistant",
@@ -50,9 +53,9 @@ const StudentHome = () => {
   const apiStudentNotifications = useMemo(
     () =>
       (studentNoticeQuery.data ?? []).map((notice) =>
-        noticeToNotification(notice, "student")
+        noticeToNotification(notice, "student"),
       ),
-    [studentNoticeQuery.data]
+    [studentNoticeQuery.data],
   );
 
   const notifications = useMemo(
@@ -61,20 +64,22 @@ const StudentHome = () => {
         ...defaultStudentNotifications,
         ...apiStudentNotifications,
       ]),
-    [apiStudentNotifications]
+    [apiStudentNotifications],
   );
 
   const previewNotifications = notifications.slice(0, 3);
 
   // data hooks
   const { data: attendanceData = [] } = useStudentAttendance();
-  const { data: syllabusData } = useStudentSyllabus();
+  const { data: syllabusData } = useStudentMasters();
 
   // derived metrics
   const attendancePercent = attendanceData.length
     ? Math.round(
-        attendanceData.reduce((s, it) => s + (it.attendancePercentage || 0), 0) /
-          attendanceData.length
+        attendanceData.reduce(
+          (s, it) => s + (it.attendancePercentage || 0),
+          0,
+        ) / attendanceData.length,
       )
     : 0;
 
@@ -82,22 +87,45 @@ const StudentHome = () => {
     ? syllabusData.reduce((s, it) => s + (it.totalCompleted ?? 0), 0)
     : 0;
 
-  const tasksCount = notifications.filter((n) => /assign|task/i.test(n.title)).length;
+  const tasksCount = notifications.filter((n) =>
+    /assign|task/i.test(n.title),
+  ).length;
 
-  const syllabusCoverage = Array.isArray(syllabusData) && syllabusData.length
-    ? Math.round(
-        (syllabusData.reduce((sum, s) => sum + ((s.totalCompleted ?? 0) / (s.totalHours ?? 1)), 0) / syllabusData.length) * 100
-      )
-    : 0;
+  const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
-  const lowCount = attendanceData.filter((a) => (a.attendancePercentage ?? 0) < 75).length;
+  const { data: routine = [] } = useStudentRoutine(
+    user?.institutionId,
+    user?.departmentId,
+    user?.classId,
+  );
 
-  const TODAY_SCHEDULE = [
-    { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-    { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-    { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-  ];
+  const { data: trackingAll = [] } = useStudentTrackingAll(user?.classId);
+  const syllabusCoverage =
+    trackingAll.length > 0
+      ? Math.round(
+          trackingAll.reduce(
+            (sum, item) => sum + (item.progressPercentage || 0),
+            0,
+          ) / trackingAll.length,
+        )
+      : 0;
 
+  const lowCount = attendanceData.filter(
+    (a) => (a.attendancePercentage ?? 0) < 75,
+  ).length;
+
+  // const TODAY_SCHEDULE = [
+  //   { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
+  //   { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
+  //   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
+  // ];
+const today = new Date().toLocaleDateString("en-US", {
+  weekday: "long",
+});
+
+const todayRoutine = routine
+  .filter((r: any) => r.day === today)
+  .slice(0, 4);
   return (
     <RoleShell role="student" title="Student Dashboard" showDate>
       <div className="space-y-6">
@@ -114,8 +142,8 @@ const StudentHome = () => {
             </h1>
 
             <p className="mt-2 text-foreground/80 max-w-lg">
-              Stay updated with your classes, attendance, notices, and
-              upcoming activities.
+              Stay updated with your classes, attendance, notices, and upcoming
+              activities.
             </p>
           </div>
         </Card>
@@ -125,16 +153,24 @@ const StudentHome = () => {
           <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
             <div className="flex flex-col items-center">
               <BarChart3 className="h-6 w-6 text-primary mb-2" />
-              <p className="text-2xl font-bold text-foreground">{attendancePercent}%</p>
-              <p className="text-xs text-muted-foreground text-center">Attendance</p>
+              <p className="text-2xl font-bold text-foreground">
+                {attendancePercent}%
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Attendance
+              </p>
             </div>
           </Card>
 
           <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
             <div className="flex flex-col items-center">
               <BookOpen className="h-6 w-6 text-primary mb-2" />
-              <p className="text-2xl font-bold text-foreground">{lecturesCount}</p>
-              <p className="text-xs text-muted-foreground text-center">Lectures</p>
+              <p className="text-2xl font-bold text-foreground">
+                {lecturesCount}
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Lectures
+              </p>
             </div>
           </Card>
 
@@ -154,7 +190,7 @@ const StudentHome = () => {
             <h2 className="font-bold text-lg">Quick Access</h2>
           </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {tiles.map((t) => (
               <Link
                 key={t.label}
@@ -179,24 +215,46 @@ const StudentHome = () => {
         <section>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Syllabus Coverage</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Syllabus Coverage
+              </p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{syllabusCoverage}%</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {syllabusCoverage}%
+                </p>
                 <p className="text-xs text-muted-foreground">Overall</p>
               </div>
-              <Progress value={syllabusCoverage} className="h-2 mt-3 [&>div]:bg-primary" />
-              <Link to="/student/lecture-audit" className="block text-sm text-primary font-semibold mt-3">View Full Progress →</Link>
+              <Progress
+                value={syllabusCoverage}
+                className="h-2 mt-3 [&>div]:bg-primary"
+              />
+              <Link
+                to="/student/lecture-audit"
+                className="block text-sm text-primary font-semibold mt-3"
+              >
+                View Full Progress →
+              </Link>
             </Card>
 
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">My Attendance</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                My Attendance
+              </p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{attendancePercent}%</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {attendancePercent}%
+                </p>
                 <p className="text-xs text-muted-foreground">Today</p>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-md bg-success-soft p-2 text-center">
-                  <p className="font-bold text-success">{attendanceData.filter(a => (a.attendancePercentage ?? 0) >= 75).length}</p>
+                  <p className="font-bold text-success">
+                    {
+                      attendanceData.filter(
+                        (a) => (a.attendancePercentage ?? 0) >= 75,
+                      ).length
+                    }
+                  </p>
                   <p className="text-xs text-muted-foreground">OK</p>
                 </div>
                 <div className="rounded-md bg-destructive/10 p-2 text-center">
@@ -204,23 +262,51 @@ const StudentHome = () => {
                   <p className="text-xs text-muted-foreground">Low</p>
                 </div>
               </div>
-              <Link to="/student/attendance" className="block text-sm text-primary font-semibold mt-3">View Attendance →</Link>
+              <Link
+                to="/student/attendance"
+                className="block text-sm text-primary font-semibold mt-3"
+              >
+                View Attendance →
+              </Link>
             </Card>
 
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Daily Routine</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Daily Routine
+              </p>
               <div className="space-y-2">
-                {TODAY_SCHEDULE.map((c) => (
-                  <div key={c.subject} className="flex items-center justify-between p-2 rounded-lg bg-background/50">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{c.subject}</p>
-                      <p className="text-xs text-muted-foreground">{c.details}</p>
+                {todayRoutine.length > 0 ? (
+  todayRoutine.map((r: any) => (
+                    <div
+                      key={`${r.subject}-${r.time}`}
+                      className="flex items-center justify-between p-2 rounded-lg bg-background/50"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {r.subject}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.teacher} · {r.code}
+                        </p>
+                      </div>
+
+                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                        {r.time}
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">{c.time}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No classes scheduled today
+                  </p>
+                )}
               </div>
-              <Link to="/student/dashboard" className="block text-sm text-primary font-semibold mt-3">View Full Timetable →</Link>
+              <Link
+                to="/student/dashboard"
+                className="block text-sm text-primary font-semibold mt-3"
+              >
+                View Full Timetable →
+              </Link>
             </Card>
           </div>
         </section>

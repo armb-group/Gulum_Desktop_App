@@ -79,6 +79,8 @@ const SignIn = ({ role }: SignInProps) => {
         institution: data.institution ?? data.collegeName,
         institutionId: data.institutionId ?? data.institution_id,
         batchId: data.batchId ?? data.batch_id,
+        classId: data.classesId ?? data.classId,
+        departmentId: data.departmentId ?? data.department_id,
         token: data.token,
       });
       toast.success("Welcome back!");
