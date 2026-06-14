@@ -94,11 +94,7 @@ const StudentHome = () => {
   const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
 
-  //console log
-console.log("USER:", user);
-console.log("institutionId:", user?.institutionId);
-console.log("departmentId:", user?.departmentId);
-console.log("classId:", user?.classId);
+  
 
   const { data: routine = [] } = useStudentRoutine(
     user?.institutionId,
@@ -121,11 +117,7 @@ console.log("classId:", user?.classId);
     (a) => (a.attendancePercentage ?? 0) < 75,
   ).length;
 
-  // const TODAY_SCHEDULE = [
-  //   { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-  //   { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-  //   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-  // ];
+  
 const today = new Date().toLocaleDateString("en-US", {
   weekday: "long",
 });

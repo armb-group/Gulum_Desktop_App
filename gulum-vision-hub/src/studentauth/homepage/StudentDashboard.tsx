@@ -55,11 +55,7 @@ const SectionHeader = ({
   </div>
 );
 
-// const TODAY_SCHEDULE = [
-//   { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-//   { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-//   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-// ];
+
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -73,24 +69,14 @@ const StudentDashboard = () => {
   }, []);
   const { data: apiSubjects } = useStudentMasters();
 
-  // 👉 Add this line here
-  console.log("apiSubjects:", apiSubjects);
-
+  
   const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
   const classId = user?.classId;
   const institutionId = user?.institutionId;
   const departmentId = user?.departmentId;
 
-  //console log
-  console.log(
-    "class==",
-    classId,
-    "institution==",
-    institutionId,
-    "department==",
-    departmentId,
-  );
+  
 
   const { data: routine = [], error } = useStudentRoutine(
     institutionId,
@@ -98,8 +84,7 @@ const StudentDashboard = () => {
     classId,
   );
 
-  //console log
-  console.log("Routine API response:", routine);
+  
 
   const { data: attendance = [], isLoading } = useStudentAttendance();
 

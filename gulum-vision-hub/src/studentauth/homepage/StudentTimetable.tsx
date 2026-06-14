@@ -7,19 +7,14 @@ const StudentTimetable = () => {
   );
 
   
-//console log
-console.log("USER:", user);
-console.log("institutionId:", user?.institutionId);
-console.log("departmentId:", user?.departmentId);
-console.log("classId:", user?.classId);
+
 
   const { data: routine = [] } = useStudentRoutine(
     user?.institutionId,
     user?.departmentId,
     user?.classId
   );
-// Add this here console log
-  console.log("ROUTINE DATA:", routine);
+
   
 
   return (
@@ -29,28 +24,44 @@ console.log("classId:", user?.classId);
           Weekly Timetable
         </h1>
 
-        {routine.map((r: any, index: number) => (
-          <div
-            key={index}
-            className="border rounded-xl p-4"
-          >
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold">
-                  {r.subject}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {r.teacher}
-                </p>
-              </div>
+        {Object.entries(
+  routine.reduce((acc: any, item: any) => {
+    if (!acc[item.day]) {
+      acc[item.day] = [];
+    }
+    acc[item.day].push(item);
+    return acc;
+  }, {})
+).map(([day, classes]: any) => (
+  <div
+    key={day}
+    className="border rounded-xl p-4"
+  >
+    <h2 className="text-lg font-semibold mb-4">
+      {day}
+    </h2>
 
-              <div className="text-right">
-                <p>{r.day}</p>
-                <p>{r.time}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+    {classes.map((r: any, index: number) => (
+      <div
+        key={index}
+        className="flex justify-between py-2 border-b last:border-b-0"
+      >
+        <div>
+          <p className="font-semibold">
+            {r.subject}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {r.teacher}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p>{r.time}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+))}
       </div>
     </RoleShell>
   );
