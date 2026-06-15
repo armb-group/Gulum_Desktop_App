@@ -52,12 +52,12 @@ export default function LectureAuditPage() {
   const departments = useMemo(() => {
     return Array.isArray(rawDepts)
       ? Array.from(
-          new Set(
-            rawDepts
-              .map((d: any) => d.name ?? d.departmentName ?? d.department_name ?? "")
-              .filter((name: string) => name.trim() !== "")
-          )
+        new Set(
+          rawDepts
+            .map((d: any) => d.name ?? d.departmentName ?? d.department_name ?? "")
+            .filter((name: string) => name.trim() !== "")
         )
+      )
       : [];
   }, [rawDepts]);
 
@@ -100,21 +100,36 @@ export default function LectureAuditPage() {
   }, [teachers, selectedTeacherId]);
 
   useEffect(() => {
+    setExpandedCourseIdx(0);
+    setTeacherCourses([]);
+
     if (!selectedTeacherId) {
-      setTeacherCourses([]);
+      setLoadingSchedule(false);
       return;
     }
 
+    setLoadingSchedule(true);
+
+    let active = true;
+
     const loadSchedule = async () => {
-      setLoadingSchedule(true);
-      
       try {
+        await queryClient.invalidateQueries({
+          queryKey: ["schedule", "teacher", String(selectedTeacherId)],
+        });
+
         const data = await queryClient.fetchQuery({
           queryKey: ["schedule", "teacher", String(selectedTeacherId)],
           queryFn: () => getTeacherSchedule(selectedTeacherId),
+          staleTime: 5 * 60 * 1000, // 5 minutes
+
         });
+        if (!active) return;
+
+        // The API /schedule/teacher/{id} already returns only this teacher's data.
+        // Each class record contains only the selected teacher's timeslots.
         const classes = data?.classes || data?.responseData?.classes || [];
-        
+
         // Gather all unique class IDs
         const classIds = Array.from(
           new Set(
@@ -135,8 +150,8 @@ export default function LectureAuditPage() {
               const dataList = Array.isArray(res)
                 ? res
                 : (res?.responseData
-                    ? (Array.isArray(res.responseData) ? res.responseData : [res.responseData])
-                    : (res ? [res] : []));
+                  ? (Array.isArray(res.responseData) ? res.responseData : [res.responseData])
+                  : (res ? [res] : []));
               return { classId: cid, list: dataList };
             } catch (e) {
               console.warn(`Failed to fetch tracking for class ${cid}:`, e);
@@ -144,6 +159,8 @@ export default function LectureAuditPage() {
             }
           })
         );
+
+        if (!active) return;
 
         const trackingMap = new Map();
         trackingResults.forEach(({ classId, list }) => {
@@ -157,6 +174,7 @@ export default function LectureAuditPage() {
           const semesterNum = cls.semester ?? "N/A";
           const classId = cls.classesId || cls.classId;
 
+          // Collect unique courses from timeslots
           const uniqueSubjectsMap = new Map();
           cls.timeslot?.forEach((slot: any) => {
             if (slot.courseCode) {
@@ -166,7 +184,6 @@ export default function LectureAuditPage() {
 
           uniqueSubjectsMap.forEach((courseName, courseCode) => {
             fetchPromises.push((async () => {
-              // Retrieve tracking record for this class and courseCode/subjectName immediately
               const trackingList = classId ? (trackingMap.get(classId) || []) : [];
               const trackingRecord = trackingList.find(
                 (item: any) =>
@@ -179,7 +196,6 @@ export default function LectureAuditPage() {
 
               const trackingId = trackingRecord?.id || trackingRecord?.trackingId;
 
-              // Fetch course modules and module status in parallel
               let modules: any[] = [];
               let moduleStatuses: any[] = [];
 
@@ -206,7 +222,6 @@ export default function LectureAuditPage() {
                 console.warn(`Failed parallel fetch for course ${courseCode}:`, e);
               }
 
-              // Merge statuses into modules
               const enrichedModules = modules.map((mod: any) => {
                 const statusItem = moduleStatuses.find(
                   (s: any) => s.moduleId === mod.id || s.moduleId === mod.moduleId
@@ -229,42 +244,30 @@ export default function LectureAuditPage() {
         });
 
         const courseAudits = await Promise.all(fetchPromises);
+        if (!active) return;
         setTeacherCourses(courseAudits);
       } catch (err) {
         console.error("Failed to load teacher schedule for audit:", err);
-        setTeacherCourses([]);
+        if (active) {
+          setTeacherCourses([]);
+        }
       } finally {
-        setLoadingSchedule(false);
+        if (active) {
+          setLoadingSchedule(false);
+        }
       }
     };
 
     loadSchedule();
+
+    return () => {
+      active = false;
+    };
   }, [selectedTeacherId, queryClient]);
 
   const syllabusAudit = useMemo(() => {
     return teacherCourses;
   }, [teacherCourses]);
-
-
-  const handleVerify = () => {
-    setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
-      toast.success(`Lecture audit progress verified for Prof. ${selectedTeacher?.full_name}`);
-    }, 1000);
-  };
-
-  const handleNotify = () => {
-    setIsNotifying(true);
-    setTimeout(() => {
-      setIsNotifying(false);
-      toast.success(`Syllabus coverage alert sent to ${selectedTeacher?.email}`);
-    }, 1000);
-  };
-
-  const handleExport = () => {
-    toast.success("Audit report exported as CSV spreadsheet.");
-  };
 
   return (
     <AdminShell title="Lecture Auditing">
@@ -282,21 +285,21 @@ export default function LectureAuditPage() {
             data={syllabusAudit.flatMap((course) =>
               course.modules.length > 0
                 ? course.modules.map((mod: any, mIdx: number) => ({
-                    courseName: course.courseName,
-                    courseCode: course.courseCode,
-                    semester: course.semester,
-                    module: mod.moduleTitle || mod.title || `Module ${mIdx + 1}`,
-                    status: mod.status === "COMPLETED" || mod.completed ? "Completed" : "Pending",
-                    hours: mod.expectedHours ?? mod.totalHours ?? 0,
-                  }))
+                  courseName: course.courseName,
+                  courseCode: course.courseCode,
+                  semester: course.semester,
+                  module: mod.moduleTitle || mod.title || `Module ${mIdx + 1}`,
+                  status: mod.status === "COMPLETED" || mod.completed ? "Completed" : "Pending",
+                  hours: mod.expectedHours ?? mod.totalHours ?? 0,
+                }))
                 : [{
-                    courseName: course.courseName,
-                    courseCode: course.courseCode,
-                    semester: course.semester,
-                    module: "No modules",
-                    status: "—",
-                    hours: "—",
-                  }]
+                  courseName: course.courseName,
+                  courseCode: course.courseCode,
+                  semester: course.semester,
+                  module: "No modules",
+                  status: "—",
+                  hours: "—",
+                }]
             )}
             columns={[
               { key: "courseName", label: "Course Name" },
@@ -372,7 +375,12 @@ export default function LectureAuditPage() {
                       <Card
                         key={t.id}
                         onClick={() => {
-                          setSelectedTeacherId(t.id);
+                          if (t.id !== selectedTeacherId) {
+                            setSelectedTeacherId(t.id);
+                            setTeacherCourses([]);
+                            setLoadingSchedule(true);
+                            setExpandedCourseIdx(0);
+                          }
                         }}
                         className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between ${isSelected
                           ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-sm"
@@ -390,7 +398,7 @@ export default function LectureAuditPage() {
                           <p className="text-xs text-muted-foreground line-clamp-1">{t.department}</p>
                         </div>
 
-                        
+
                       </Card>
                     );
                   })
@@ -404,12 +412,12 @@ export default function LectureAuditPage() {
                 <>
                   {/* Course auditing list */}
                   <h3 className="text-base font-bold text-foreground">Courses Taught by {selectedTeacher.full_name}</h3>
-                  
+
                   {loadingSchedule ? (
-                     <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                       <span className="text-sm font-medium">Loading courses schedule...</span>
-                     </div>
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="text-sm font-medium">Loading courses schedule...</span>
+                    </div>
                   ) : syllabusAudit.length === 0 ? (
                     <div className="p-8 text-center border border-dashed rounded-xl text-muted-foreground bg-muted/20">
                       No courses schedule found for this faculty member.
@@ -417,13 +425,14 @@ export default function LectureAuditPage() {
                   ) : (
                     <div className="space-y-4 max-h-[72vh] overflow-y-auto pr-1 scrollbar-hidden">
                       {syllabusAudit.map((course, idx) => {
+                        console.log("\naudit = ", syllabusAudit)
                         const isExpanded = expandedCourseIdx === idx;
                         const completedModulesCount = course.modules?.filter((m: any) => m.status === "COMPLETED" || m.completed === true).length ?? 0;
                         const totalModulesCount = course.modules?.length ?? 0;
                         const progressPct = totalModulesCount > 0 ? Math.round((completedModulesCount / totalModulesCount) * 100) : 0;
 
                         return (
-                          <Card key={course.courseCode} className="p-5 bg-surface border-border overflow-hidden">
+                          <Card key={course.semester} className="p-5 bg-surface border-border overflow-hidden">
                             <button
                               className="w-full flex items-center justify-between gap-3 text-left focus:outline-none"
                               onClick={() => setExpandedCourseIdx(isExpanded ? null : idx)}
@@ -457,8 +466,8 @@ export default function LectureAuditPage() {
                                     <span>{progressPct}%</span>
                                   </div>
                                   <div className="w-full bg-muted rounded-full h-1.5 dark:bg-zinc-800 overflow-hidden">
-                                    <div 
-                                      className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                                    <div
+                                      className="bg-primary h-1.5 rounded-full transition-all duration-300"
                                       style={{ width: `${progressPct}%` }}
                                     ></div>
                                   </div>
