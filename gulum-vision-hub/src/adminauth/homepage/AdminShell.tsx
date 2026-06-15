@@ -31,6 +31,7 @@ const NAV_GROUPS = [
       { title: "Notice",             url: "/admin/NoticePage",   icon: Bell },
       { title: "Attendance",         url: "/admin/attendance",   icon: ClipboardCheck },
       { title: "Lecture Audit",      url: "/admin/lecture-audit", icon: BookOpen },
+      { title: "Calendar",           url: "/admin/calendar",      icon: Calendar },
     ],
   },
 
@@ -208,7 +209,7 @@ export const AdminShell = ({ title, children }: AdminShellProps) => {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto flex flex-col">{children}</main>
         </SidebarInset>
       </div>
     </SidebarProvider>

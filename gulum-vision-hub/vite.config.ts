@@ -10,8 +10,8 @@ export default defineConfig(({ mode }) => ({
     // port: 8080,
     port: 8082,
     proxy: {
-      "^/(auth|notice|teachers|assignments|syllabus|v1|api|departments|academic-batches|subjects|upload|schedule|attendance|course-class|attendance)": {
-        target: "http://localhost:3000",
+      "^/(gulum)": {
+        target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
       },
