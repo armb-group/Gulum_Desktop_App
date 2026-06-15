@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
+
 import Welcome from "./pages/Welcome";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
@@ -121,6 +122,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="student">
                       <StudentLectureAudit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/student/timetable"
+                  element={
+                    <ProtectedRoute role="student">
+                      <StudentTimetable />
                     </ProtectedRoute>
                   }
                 />

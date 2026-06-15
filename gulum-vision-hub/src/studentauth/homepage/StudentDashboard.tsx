@@ -5,12 +5,21 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  Bell, FolderClosed, User,
-  AlertTriangle, ChevronRight,
+  Bell,
+  FolderClosed,
+  User,
+  AlertTriangle,
+  ChevronRight,
   Users,
 } from "lucide-react";
-import { useStudentSyllabus,useStudentTrackingAll ,useStudentMasters} from "@/services/lectureAuditAPI";
-import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
+import {
+  useStudentTrackingAll,
+  useStudentMasters,
+} from "@/services/lectureAuditAPI";
+import {
+  noticeToNotification,
+  useGetNoticesByLevel,
+} from "@/services/noticeAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
 import { useStudentRoutine } from "@/services/studentRoutineAPI";
 
@@ -20,61 +29,86 @@ import {
   sortByCreatedAt,
 } from "@/lib/notifications";
 
-
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const SectionHeader = ({ title, to, linkLabel }: { title: string; to?: string; linkLabel?: string }) => (
+// ── Local Types ───────────────────────────────────────────────────────────────
+type Subject = {
+  id?: string | number;
+  name?: string;
+  syllabusName?: string;
+  courseName?: string;
+};
+
+type TrackingRecord = {
+  syllabusMasterId?: string | number;
+  progressPercentage?: number;
+};
+
+type AttendanceItem = {
+  attendancePercentage: number;
+  courseName?: string;
+};
+
+const SectionHeader = ({
+  title,
+  to,
+  linkLabel,
+}: {
+  title: string;
+  to?: string;
+  linkLabel?: string;
+}) => (
   <div className="flex items-center justify-between mb-3">
-    <p className="text-sm font-bold text-foreground uppercase tracking-wider">{title}</p>
+    <p className="text-sm font-bold text-foreground uppercase tracking-wider">
+      {title}
+    </p>
     {to && (
-      <Link to={to} className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
+      <Link
+        to={to}
+        className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline"
+      >
         {linkLabel ?? "View all"} <ChevronRight className="h-3 w-3" />
       </Link>
     )}
   </div>
 );
 
-// const TODAY_SCHEDULE = [
-//   { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-//   { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-//   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-// ];
+
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const StudentDashboard = () => {
+  useEffect(() => {
+    console.log("All Local Storage:");
+    console.log(localStorage);
+
+    console.log("gulum-user:");
+    console.log(JSON.parse(localStorage.getItem("gulum-user") || "null"));
+  }, []);
   const { data: apiSubjects } = useStudentMasters();
 
-  // 👉 Add this line here
-console.log("apiSubjects:", apiSubjects);
+  
+  const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
-  const classId = apiSubjects?.[0]?.classId;
-  const institutionId = apiSubjects?.[0]?.institutionId;
-  const departmentId = apiSubjects?.[0]?.departmentId;
+  const classId = user?.classId;
+  const institutionId = user?.institutionId;
+  const departmentId = user?.departmentId;
 
-console.log("class==", classId, "institution==", institutionId, "department==", departmentId);
+  
 
   const { data: routine = [], error } = useStudentRoutine(
-  institutionId,
-  departmentId,
-  classId
-);
+    institutionId,
+    departmentId,
+    classId,
+  );
 
+  
 
-console.log("Routine API response:", routine);
+  const { data: attendance = [], isLoading } = useStudentAttendance();
 
-
- const { data: attendance = [], isLoading } = useStudentAttendance();
-
-  const subjects = apiSubjects??[] ;
+  const subjects = apiSubjects ?? [];
 
   // ✅ FIX 1: SAFE ATTENDANCE HANDLING
-
-
-
-
- 
 
   const { data: trackingAll } = useStudentTrackingAll(classId);
 
@@ -82,10 +116,10 @@ console.log("Routine API response:", routine);
 
   const apiNotifications = useMemo(
     () =>
-      (studentNoticeQuery.data ?? []).map((n: any) =>
-        noticeToNotification(n, "student")
+      (studentNoticeQuery.data ?? []).map((n) =>
+        noticeToNotification(n, "student"),
       ),
-    [studentNoticeQuery.data]
+    [studentNoticeQuery.data],
   );
 
   const notifications = useMemo(
@@ -94,25 +128,31 @@ console.log("Routine API response:", routine);
         ...defaultStudentNotifications,
         ...apiNotifications,
       ]).slice(0, 3),
-    [apiNotifications]
+    [apiNotifications],
   );
 
   // ✅ FIX 2: SAFE CALCULATIONS
-  const lowCount = attendance.filter(
-    (item: any) => item.attendancePercentage < 75
+  const studentAttendance = attendance as AttendanceItem[];
+
+  const lowCount = studentAttendance.filter(
+    (item) => item.attendancePercentage < 75,
   ).length;
 
   // ✅ FIX 3: PROPER UI MAPPING (IMPORTANT)
-  const attendanceData = attendance.map((item: any) => ({
+  const attendanceData = studentAttendance.map((item) => ({
     subject: item.courseName,
     value: item.attendancePercentage,
     low: item.attendancePercentage < 75,
   }));
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+  });
 
+  const todayRoutine = routine.filter((r) => r.day === today).slice(0, 4);
   return (
     <RoleShell
       role="student"
-      title="Home"
+      title="Insights Dashboard"
       subtitle="Your academic overview"
       showDate
     >
@@ -120,11 +160,12 @@ console.log("Routine API response:", routine);
       {lowCount > 0 && (
         <div className="flex items-center gap-2 rounded-xl bg-destructive/10 text-destructive px-4 py-3 text-sm font-semibold">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          {lowCount} subject{lowCount > 1 ? "s" : ""} below 75% — risk of detention!
+          {lowCount} subject{lowCount > 1 ? "s" : ""} below 75% — risk of
+          detention!
         </div>
       )}
 
-      {/* ── PTM Banner ── */}
+      {/* ── PTM Banner ──
       <Card className="p-4 bg-surface border-border">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-2xl bg-purple/15 text-purple flex items-center justify-center shrink-0">
@@ -142,44 +183,34 @@ console.log("Routine API response:", routine);
             SOON
           </span>
         </div>
-      </Card>
+      </Card> */}
 
       {/* ── Two-column grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
         {/* Syllabus */}
         <Card className="p-4 bg-surface border-border">
           <SectionHeader
-            title="Syllabus Coverage"
+            title="Lecture Progress"
             to="/student/lecture-audit"
             linkLabel="Full progress"
           />
           <div className="space-y-3">
-            {subjects.map((s: any) => {
+            {subjects.map((s: Subject) => {
               const trackingRecord = trackingAll?.find(
-                (item: any) =>
-                  item.syllabusMasterId === s.id
+                (item: TrackingRecord) => item.syllabusMasterId === s.id,
               );
 
-              const pct =
-                trackingRecord?.progressPercentage ?? 0;
+              const pct = trackingRecord?.progressPercentage ?? 0;
 
               return (
                 <div key={s.id ?? s.name}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-semibold text-foreground">
-                      {s.name ??
-                        s.syllabusName ??
-                        s.courseName}
+                      {s.name ?? s.syllabusName ?? s.courseName}
                     </span>
-                    <span className="text-primary font-semibold">
-                      {pct}%
-                    </span>
+                    <span className="text-primary font-semibold">{pct}%</span>
                   </div>
-                  <Progress
-                    value={pct}
-                    className="h-2 [&>div]:bg-primary"
-                  />
+                  <Progress value={pct} className="h-2 [&>div]:bg-primary" />
                 </div>
               );
             })}
@@ -190,9 +221,7 @@ console.log("Routine API response:", routine);
             size="sm"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/lecture-audit">
-              View Full Progress →
-            </Link>
+            <Link to="/student/lecture-audit">View Full Progress →</Link>
           </Button>
         </Card>
 
@@ -205,20 +234,15 @@ console.log("Routine API response:", routine);
           />
 
           <div className="space-y-3">
-            {attendanceData.map((a: any) => (
-              <div
-                key={a.subject}
-                className="flex items-center gap-3"
-              >
+            {attendanceData.map((a) => (
+              <div key={a.subject} className="flex items-center gap-3">
                 <span className="w-36 text-sm text-foreground truncate">
                   {a.subject}
                 </span>
 
                 <span
                   className={`text-sm font-bold w-10 shrink-0 ${
-                    a.low
-                      ? "text-destructive"
-                      : "text-success"
+                    a.low ? "text-destructive" : "text-success"
                   }`}
                 >
                   {a.value}%
@@ -227,9 +251,7 @@ console.log("Routine API response:", routine);
                 <Progress
                   value={a.value}
                   className={`h-2 flex-1 ${
-                    a.low
-                      ? "[&>div]:bg-destructive"
-                      : "[&>div]:bg-success"
+                    a.low ? "[&>div]:bg-destructive" : "[&>div]:bg-success"
                   }`}
                 />
 
@@ -247,9 +269,7 @@ console.log("Routine API response:", routine);
             size="sm"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/attendance">
-              View Attendance Details →
-            </Link>
+            <Link to="/student/attendance">View Attendance Details →</Link>
           </Button>
         </Card>
 
@@ -257,41 +277,43 @@ console.log("Routine API response:", routine);
         <Card className="p-4 bg-surface border-border">
           <SectionHeader
             title="Daily Routine"
-            to="/student/dashboard"
+            to="/student/timetable"
             linkLabel="View timetable"
           />
 
-       <div className="space-y-3">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading routine...</p>
-          ) : routine.length > 0 ? (
-            routine.map((r) => (
-              <div key={`${r.subject}-${r.time}-${r.day}`} className="flex ...">
-                <div>
-                  <p className="text-sm font-semibold">{r.subject}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.teacher} · {r.code} · {r.day}
-                  </p>
+          <div className="space-y-3">
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Loading routine...
+              </p>
+            ) : todayRoutine.length > 0 ? (
+              todayRoutine.map((r) => (
+                <div
+                  key={`${r.subject}-${r.time}-${r.day}`}
+                  className="flex ..."
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{r.subject}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.teacher} · {r.code} · {r.day}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold">{r.time}</span>
                 </div>
-                <span className="text-xs font-semibold">{r.time}</span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No classes scheduled today</p>
-          )}
-        </div>
-
-
-
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No classes scheduled today
+              </p>
+            )}
+          </div>
 
           <Button
             asChild
             size="sm"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/dashboard">
-              View Full Timetable →
-            </Link>
+            <Link to="/student/timetable">View Full Timetable →</Link>
           </Button>
         </Card>
 
@@ -326,9 +348,7 @@ console.log("Routine API response:", routine);
                     <p className="text-sm font-semibold text-foreground truncate">
                       {n.title}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {n.time}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{n.time}</p>
                   </div>
                 </div>
               );
@@ -341,15 +361,12 @@ console.log("Routine API response:", routine);
             variant="outline"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/notifications">
-              All Notifications →
-            </Link>
+            <Link to="/student/notifications">All Notifications →</Link>
           </Button>
         </Card>
       </div>
     </RoleShell>
   );
 };
-
 
 export default StudentDashboard;

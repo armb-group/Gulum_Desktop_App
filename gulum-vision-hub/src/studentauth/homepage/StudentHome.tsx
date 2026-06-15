@@ -23,9 +23,12 @@ import {
   noticeToNotification,
   useGetNoticesByLevel,
 } from "@/services/noticeAPI";
-import { useStudentSyllabus, useStudentTrackingAll } from "@/services/lectureAuditAPI";
+import {
+  useStudentMasters,
+  useStudentTrackingAll,
+} from "@/services/lectureAuditAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
-
+import { useStudentRoutine } from "@/services/studentRoutineAPI";
 const tiles = [
   {
     label: "AI Assistant",
@@ -50,9 +53,9 @@ const StudentHome = () => {
   const apiStudentNotifications = useMemo(
     () =>
       (studentNoticeQuery.data ?? []).map((notice) =>
-        noticeToNotification(notice, "student")
+        noticeToNotification(notice, "student"),
       ),
-    [studentNoticeQuery.data]
+    [studentNoticeQuery.data],
   );
 
   const notifications = useMemo(
@@ -61,20 +64,22 @@ const StudentHome = () => {
         ...defaultStudentNotifications,
         ...apiStudentNotifications,
       ]),
-    [apiStudentNotifications]
+    [apiStudentNotifications],
   );
 
   const previewNotifications = notifications.slice(0, 3);
 
   // data hooks
   const { data: attendanceData = [] } = useStudentAttendance();
-  const { data: syllabusData } = useStudentSyllabus();
+  const { data: syllabusData } = useStudentMasters();
 
   // derived metrics
   const attendancePercent = attendanceData.length
     ? Math.round(
-        attendanceData.reduce((s, it) => s + (it.attendancePercentage || 0), 0) /
-          attendanceData.length
+        attendanceData.reduce(
+          (s, it) => s + (it.attendancePercentage || 0),
+          0,
+        ) / attendanceData.length,
       )
     : 0;
 
@@ -82,41 +87,74 @@ const StudentHome = () => {
     ? syllabusData.reduce((s, it) => s + (it.totalCompleted ?? 0), 0)
     : 0;
 
-  const tasksCount = notifications.filter((n) => /assign|task/i.test(n.title)).length;
+  const tasksCount = notifications.filter((n) =>
+    /assign|task/i.test(n.title),
+  ).length;
 
-  const syllabusCoverage = Array.isArray(syllabusData) && syllabusData.length
-    ? Math.round(
-        (syllabusData.reduce((sum, s) => sum + ((s.totalCompleted ?? 0) / (s.totalHours ?? 1)), 0) / syllabusData.length) * 100
-      )
-    : 0;
+  const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
-  const lowCount = attendanceData.filter((a) => (a.attendancePercentage ?? 0) < 75).length;
 
-  const TODAY_SCHEDULE = [
-    { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204" },
-    { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101" },
-    { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305" },
-  ];
+  
 
+  const { data: routine = [] } = useStudentRoutine(
+    user?.institutionId,
+    user?.departmentId,
+    user?.classId,
+  );
+
+  const { data: trackingAll = [] } = useStudentTrackingAll(user?.classId);
+  const syllabusCoverage =
+    trackingAll.length > 0
+      ? Math.round(
+          trackingAll.reduce(
+            (sum, item) => sum + (item.progressPercentage || 0),
+            0,
+          ) / trackingAll.length,
+        )
+      : 0;
+
+  const lowCount = attendanceData.filter(
+    (a) => (a.attendancePercentage ?? 0) < 75,
+  ).length;
+
+  
+const today = new Date().toLocaleDateString("en-US", {
+  weekday: "long",
+});
+
+const todayRoutine = routine
+  .filter((r: { day?: string }) => r.day === today)
+  .slice(0, 4);
   return (
     <RoleShell role="student" title="Student Dashboard" showDate>
       <div className="space-y-6">
         {/* Hero Section */}
-        <Card className="overflow-hidden border-0 rounded-3xl bg-brand-soft text-brand-soft-foreground shadow-xl">
-          <div className="p-6 md:p-8">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-medium">Student Portal</span>
+        <Card
+          className="relative rounded-2xl overflow-hidden p-6 md:p-8 shrink-0 shadow-md"
+          style={{
+            backgroundColor: 'var(--admin-hero)',
+            color: 'var(--admin-hero-foreground)',
+            boxShadow: '0 8px 40px 0 rgba(102,20,20,0.28), 0 1.5px 0 0 rgba(255,255,255,0.08) inset',
+          }}
+        >
+          <div className="flex items-start justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-sm opacity-80">Welcome back,</p>
+              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                Student Console
+              </h1>
+              <p className="mt-2 text-sm opacity-90">
+                {user?.institution
+                  ? `${user.institution} · Academic Year 2024-25`
+                  : "Gulum University · Academic Year 2024-25"}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">↑ {lowCount}% low attendance risk</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{attendanceData.length} subjects tracked</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{lowCount} below threshold</span>
+              </div>
             </div>
-
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Welcome Back 👋
-            </h1>
-
-            <p className="mt-2 text-foreground/80 max-w-lg">
-              Stay updated with your classes, attendance, notices, and
-              upcoming activities.
-            </p>
           </div>
         </Card>
 
@@ -125,16 +163,24 @@ const StudentHome = () => {
           <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
             <div className="flex flex-col items-center">
               <BarChart3 className="h-6 w-6 text-primary mb-2" />
-              <p className="text-2xl font-bold text-foreground">{attendancePercent}%</p>
-              <p className="text-xs text-muted-foreground text-center">Attendance</p>
+              <p className={`text-2xl font-bold ${attendancePercent < 75 ? "text-destructive" : "text-success"}`}>
+                {attendancePercent}%
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Attendance
+              </p>
             </div>
           </Card>
 
           <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
             <div className="flex flex-col items-center">
               <BookOpen className="h-6 w-6 text-primary mb-2" />
-              <p className="text-2xl font-bold text-foreground">{lecturesCount}</p>
-              <p className="text-xs text-muted-foreground text-center">Lectures</p>
+              <p className="text-2xl font-bold text-foreground">
+                {lecturesCount}
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Lectures
+              </p>
             </div>
           </Card>
 
@@ -150,23 +196,27 @@ const StudentHome = () => {
         {/* Quick Access */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="font-bold text-lg">Quick Access</h2>
+            <Sparkles className="h-4 w-4 text-[var(--admin-hero)]" />
+            <h2 className="font-bold text-lg text-[var(--admin-hero)]">Quick Access</h2>
           </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {tiles.map((t) => (
               <Link
                 key={t.label}
                 to={t.to}
-                className="group bg-brand-soft text-brand-soft-foreground rounded-3xl p-5 border-0 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                className="group rounded-3xl p-5 border border-white/20 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                style={{ backgroundColor: 'var(--admin-hero)', color: 'var(--admin-hero-foreground)' }}
               >
                 <div className="flex flex-col items-center text-center">
-                  <div className="h-14 w-14 rounded-2xl bg-background/60 flex items-center justify-center mb-3 group-hover:bg-primary/10 transition">
-                    <t.icon className="h-7 w-7 text-primary" />
+                  <div
+                    className="h-14 w-14 rounded-2xl flex items-center justify-center mb-3 transition"
+                    style={{ backgroundColor: 'rgba(255, 241, 158, 0.35)' }}
+                  >
+                    <t.icon className="h-7 w-7 text-[var(--admin-hero-foreground)]" />
                   </div>
 
-                  <p className="font-semibold text-sm text-foreground">
+                  <p className="font-semibold text-sm text-[var(--admin-hero-foreground)]">
                     {t.label}
                   </p>
                 </div>
@@ -179,24 +229,50 @@ const StudentHome = () => {
         <section>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Syllabus Coverage</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Lecture Progress
+              </p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{syllabusCoverage}%</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {syllabusCoverage}%
+                </p>
                 <p className="text-xs text-muted-foreground">Overall</p>
               </div>
-              <Progress value={syllabusCoverage} className="h-2 mt-3 [&>div]:bg-primary" />
-              <Link to="/student/lecture-audit" className="block text-sm text-primary font-semibold mt-3">View Full Progress →</Link>
+              <Progress
+                value={syllabusCoverage}
+                className="h-2 mt-3 [&>div]:bg-primary"
+              />
+              <Link
+                to="/student/lecture-audit"
+                className="block text-sm text-primary font-semibold mt-3"
+              >
+                View Full Progress →
+              </Link>
             </Card>
 
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">My Attendance</p>
+              <p className={`text-sm font-semibold uppercase tracking-wider mb-2 ${attendancePercent < 75 ? "text-destructive" : "text-foreground"}`}>
+                My Attendance
+              </p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{attendancePercent}%</p>
+                <p className={`text-2xl font-bold ${attendancePercent < 75 ? "text-destructive" : "text-success"}`}>
+                  {attendancePercent}%
+                </p>
                 <p className="text-xs text-muted-foreground">Today</p>
               </div>
+              <Progress
+                value={attendancePercent}
+                className={`h-2 mt-3 [&>div]:${attendancePercent < 75 ? "bg-destructive" : "bg-success"}`}
+              />
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-md bg-success-soft p-2 text-center">
-                  <p className="font-bold text-success">{attendanceData.filter(a => (a.attendancePercentage ?? 0) >= 75).length}</p>
+                  <p className="font-bold text-success">
+                    {
+                      attendanceData.filter(
+                        (a) => (a.attendancePercentage ?? 0) >= 75,
+                      ).length
+                    }
+                  </p>
                   <p className="text-xs text-muted-foreground">OK</p>
                 </div>
                 <div className="rounded-md bg-destructive/10 p-2 text-center">
@@ -204,23 +280,51 @@ const StudentHome = () => {
                   <p className="text-xs text-muted-foreground">Low</p>
                 </div>
               </div>
-              <Link to="/student/attendance" className="block text-sm text-primary font-semibold mt-3">View Attendance →</Link>
+              <Link
+                to="/student/attendance"
+                className="block text-sm text-primary font-semibold mt-3"
+              >
+                View Attendance →
+              </Link>
             </Card>
 
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Daily Routine</p>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Daily Routine
+              </p>
               <div className="space-y-2">
-                {TODAY_SCHEDULE.map((c) => (
-                  <div key={c.subject} className="flex items-center justify-between p-2 rounded-lg bg-background/50">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{c.subject}</p>
-                      <p className="text-xs text-muted-foreground">{c.details}</p>
+                {todayRoutine.length > 0 ? (
+  todayRoutine.map((r: any) => (
+                    <div
+                      key={`${r.subject}-${r.time}`}
+                      className="flex items-center justify-between p-2 rounded-lg bg-background/50"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {r.subject}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.teacher} · {r.code}
+                        </p>
+                      </div>
+
+                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                        {r.time}
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">{c.time}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No classes scheduled today
+                  </p>
+                )}
               </div>
-              <Link to="/student/dashboard" className="block text-sm text-primary font-semibold mt-3">View Full Timetable →</Link>
+              <Link
+              to="/student/timetable"
+              className="block text-sm text-primary font-semibold mt-3"
+            >
+              View Full Timetable →
+            </Link>
             </Card>
           </div>
         </section>

@@ -52,9 +52,12 @@ const lowSubjects =
       <Card className="p-4 bg-surface border-border">
         <div className="flex justify-between items-center">
         <p className="text-lg font-semibold text-foreground">Overall Attendance</p>
-          <p className="text-2xl text-success font-bold">{overallAttendance}%</p>
+          <p className={`text-2xl font-bold ${overallAttendance < 75 ? "text-destructive" : "text-success"}`}>{overallAttendance}%</p>
         </div>
-        <Progress value={overallAttendance} className="h-2 mt-2 [&>div]:bg-success" />
+        <Progress
+          value={overallAttendance}
+          className={`h-2 mt-2 [&>div]:${overallAttendance < 75 ? "bg-destructive" : "bg-success"}`}
+        />
         <div className="grid grid-cols-3 gap-3 mt-4 text-center">
           <div>
             <p className="text-xl text-success font-bold">{totalAttended}</p>
@@ -96,7 +99,10 @@ const lowSubjects =
               </div>
             </div>
             <div className="bg-surface p-3">
-              <Progress value={s.attendancePercentage} className="h-2 [&>div]:bg-success" />
+              <Progress
+                value={s.attendancePercentage}
+                className={`h-2 [&>div]:${s.attendancePercentage < 75 ? "bg-destructive" : "bg-success"}`}
+              />
               <p className="text-xs text-muted-foreground mt-2">
                 {s.presentCount}/{s.totalClasses} classes attended
               </p>

@@ -32,23 +32,33 @@ export const useTracking = ({ classId, courseCode }) =>
     },
   });
 
-export const useStudentSyllabus = () =>
-  useQuery({
-    queryKey: ["student-syllabus"],
-    queryFn: async () => {
-      const { data } = await api.get("/syllabus/student");
-      return data;
-    },
-  });
+// export const useStudentSyllabus = () =>
+//   useQuery({
+//     queryKey: ["student-syllabus"],
+//     queryFn: async () => {
+//       const { data } = await api.get("/syllabus/student");
+//       return data;
+//     },
+//   });
 
-export const useStudentMasters = () =>
-  useQuery({
-    queryKey: ["student-masters"],
+export const useStudentMasters = () => {
+  const user = JSON.parse(
+    localStorage.getItem("gulum-user") || "null"
+  );
+
+  const classId = user?.classId;
+
+  return useQuery({
+    queryKey: ["student-masters", classId],
+    enabled: !!classId,
     queryFn: async () => {
-      const { data } = await api.get("/api/master");
+      const { data } = await api.get(
+        `/api/master/class/${classId}`
+      );
       return data;
     },
   });
+};
 
 export const useStudentModules = (courseCode) =>
   useQuery({
@@ -79,7 +89,7 @@ export const useStudentTrackingAll = (classId) =>
       return data;
     },
   });
-  
+
 export const progressApi = async (trackingId) => {
   const res = await api.get(`/api/progress/${trackingId}`);
 

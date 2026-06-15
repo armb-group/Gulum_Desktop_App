@@ -3,7 +3,7 @@ import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
-import { useStudentSyllabus } from "@/services/lectureAuditAPI";
+import { useStudentMasters } from "@/services/lectureAuditAPI";
 import {
   notificationTypeStyle,
   defaultAdminNotifications,
@@ -54,7 +54,7 @@ const StudentNotifications = () => {
   const [subjectFilter, setSubjectFilter] = useState("All");
 
   // ── Live subject list from enrolled courses ──
-  const { data: syllabusData } = useStudentSyllabus();
+  const { data: syllabusData } = useStudentMasters();
 
   const subjectList = useMemo<string[]>(() => {
     if (!syllabusData?.length) return [];
