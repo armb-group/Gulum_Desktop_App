@@ -3,13 +3,14 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
-import { Home, FolderClosed, Bell, User, LogOut, Menu, X, BarChart3 } from "lucide-react";
+import { Home, FolderClosed, Bell, User, LogOut, Menu, X, BarChart3, Calendar } from "lucide-react";
 
 interface RoleShellProps {
   role: "student" | "teacher";
   title: string;
   subtitle?: string;
   showDate?: boolean;
+  wide?: boolean;
   children: ReactNode;
 }
 
@@ -22,6 +23,7 @@ const getMenuItems = (base: string, role: string) => [
     ? [{ title: "Assignments", url: `${base}/assignments`, icon: FolderClosed }]
     : []),
   { title: "Alerts",    url: `${base}/notifications`, icon: Bell },
+  { title: "Calendar", url: `${base}/calendar`, icon: Calendar },
   { title: "Profile",   url: `${base}/profile`,       icon: User },
 ];
 
@@ -30,7 +32,7 @@ const formatDate = () =>
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-export const RoleShell = ({ role, title, subtitle, showDate, children }: RoleShellProps) => {
+export const RoleShell = ({ role, title, subtitle, showDate, wide, children }: RoleShellProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
@@ -162,7 +164,7 @@ export const RoleShell = ({ role, title, subtitle, showDate, children }: RoleShe
             </div>
           </div>
         )}
-        <main className="flex-1 px-4 md:px-8 lg:px-12 py-6 w-full max-w-6xl md:mx-auto overflow-auto">
+        <main className={wide ? "flex-1 overflow-hidden flex flex-col" : "flex-1 px-4 md:px-8 lg:px-12 py-6 w-full max-w-6xl md:mx-auto overflow-auto"}>
           {children}
         </main>
       </div>

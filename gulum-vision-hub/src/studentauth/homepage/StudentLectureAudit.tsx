@@ -40,6 +40,23 @@ type StudentSubject = {
   }>;
 };
 
+type TrackingRecord = {
+  id?: string;
+  syllabusMasterId?: string;
+  progressPercentage?: number;
+  trackingStatus?: string;
+};
+
+type ModuleTrackingStatus = {
+  moduleId?: string;
+  status?: string;
+};
+
+type ProgressRecord = {
+  moduleId?: string;
+  hoursCompleted?: number;
+};
+
 const STATIC_SUBJECTS = [
   {
     name: "DBMS", semester: "BCA Sem 4", totalCompleted: 28, totalHours: 48,
@@ -109,7 +126,7 @@ export default function StudentLectureAudit() {
       <div className="flex gap-3 mb-6">
         {(subjects ?? []).map((t: StudentSubject, i: number) => {
           const trackingRecord = trackingAll?.find(
-            (item) => item.syllabusMasterId === t.id
+            (item: TrackingRecord) => item.syllabusMasterId === t.id
           );
 
 
@@ -129,7 +146,7 @@ export default function StudentLectureAudit() {
           const isOpen = expandedIdx === si;
 
           const trackingRecord = trackingAll?.find(
-            (item: any) => item.syllabusMasterId === subject.id
+            (item: TrackingRecord) => item.syllabusMasterId === subject.id
           );
 
           const pct = trackingRecord?.progressPercentage ?? 0;
@@ -152,7 +169,7 @@ export default function StudentLectureAudit() {
 
                   if (opening) {
                     const trackingRecord = trackingAll?.find(
-                      (item: any) => item.syllabusMasterId === subject.id
+                      (item: TrackingRecord) => item.syllabusMasterId === subject.id
                     );
                     setSelectedCourseCode(subject.courseCode ?? "");
                     setSelectedTrackingId(trackingRecord?.id ?? "");
@@ -179,7 +196,7 @@ export default function StudentLectureAudit() {
                   {(subjectModules ?? []).map((mod, mi) => {
                   
 const progressRecord = progressData?.progress?.find(
-  (p: any) => p.moduleId === mod.id
+  (p: ProgressRecord) => p.moduleId === mod.id
 );
 
 const modCompleted = progressRecord?.hoursCompleted ?? 0;
@@ -189,7 +206,7 @@ console.log("mod.id", mod.id);
 console.log("progressData", progressData);
 const done =
   trackingStatus?.find(
-    (s: any) => s.moduleId === mod.id
+    (s: ModuleTrackingStatus) => s.moduleId === mod.id
   )?.status === "COMPLETED";
 const modPct =
   modTotal > 0

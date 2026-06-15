@@ -19,8 +19,8 @@ import StudentNotifications from "./studentauth/homepage/StudentNotifications";
 import StudentProfile from "./studentauth/homepage/StudentProfile";
 import StudentAttendance from "./studentauth/homepage/StudentAttendance";
 import StudentLectureAudit from "./studentauth/homepage/StudentLectureAudit";
+import StudentCalendar from "./studentauth/homepage/StudentCalendar";
 import StudentTimetable from "./studentauth/homepage/StudentTimetable";
-
 
 import TeacherHome from "./teacherauth/homepage/TeacherHome";
 import TeacherDashboard from "./teacherauth/homepage/TeacherDashboard";
@@ -29,10 +29,12 @@ import TeacherNotifications from "./teacherauth/homepage/TeacherNotifications";
 import TeacherProfile from "./teacherauth/homepage/TeacherProfile";
 import TeacherAttendance from "./teacherauth/homepage/TeacherAttendance";
 import TeacherLectureAudit from "./teacherauth/homepage/TeacherLectureAudit";
+import TeacherCalendar from "./teacherauth/homepage/TeacherCalendar";
 
 import AdminLogin from "./adminauth/homepage/AdminLogin";
 import AdminDashboard from "./adminauth/homepage/AdminDashboard";
 import BulkUpload from "./adminauth/homepage/BulkUpload";
+import AdminCalendar from "./adminauth/homepage/AdminCalendar";
 import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
 import NoticePage from "./adminauth/homepage/NoticePage";
@@ -81,6 +83,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="student">
                       <StudentDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/student/calendar"
+                  element={
+                    <ProtectedRoute role="student">
+                      <StudentCalendar />
                     </ProtectedRoute>
                   }
                 />
@@ -144,6 +154,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/teacher/calendar"
+                  element={
+                    <ProtectedRoute role="teacher">
+                      <TeacherCalendar />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/teacher/assignments"
                   element={
                     <ProtectedRoute role="teacher">
@@ -199,6 +217,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="admin">
                       <BulkUpload />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/calendar"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <AdminCalendar />
                     </ProtectedRoute>
                   }
                 />

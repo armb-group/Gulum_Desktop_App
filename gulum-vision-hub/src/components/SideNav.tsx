@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, LayoutGrid, FolderClosed, Bell, User, LogOut } from "lucide-react";
+import { Home, LayoutGrid, FolderClosed, Bell, User, LogOut, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ const items = [
   { to: "", icon: Home, label: "Home", end: true },
   { to: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
   { to: "/notifications", icon: Bell, label: "Alerts" },
+  { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/profile", icon: User, label: "Profile" },
 ];
 
