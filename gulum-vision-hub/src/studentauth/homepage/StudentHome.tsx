@@ -123,27 +123,38 @@ const today = new Date().toLocaleDateString("en-US", {
 });
 
 const todayRoutine = routine
-  .filter((r: any) => r.day === today)
+  .filter((r: { day?: string }) => r.day === today)
   .slice(0, 4);
   return (
     <RoleShell role="student" title="Student Dashboard" showDate>
       <div className="space-y-6">
         {/* Hero Section */}
-        <Card className="overflow-hidden border-0 rounded-3xl bg-brand-soft text-brand-soft-foreground shadow-xl">
-          <div className="p-6 md:p-8">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-medium">Student Portal</span>
+        <Card
+          className="relative rounded-2xl overflow-hidden p-6 md:p-8 shrink-0 shadow-md"
+          style={{
+            backgroundColor: 'var(--admin-hero)',
+            color: 'var(--admin-hero-foreground)',
+            boxShadow: '0 8px 40px 0 rgba(102,20,20,0.28), 0 1.5px 0 0 rgba(255,255,255,0.08) inset',
+          }}
+        >
+          <div className="flex items-start justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-sm opacity-80">Welcome back,</p>
+              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                Student Console
+              </h1>
+              <p className="mt-2 text-sm opacity-90">
+                {user?.institution
+                  ? `${user.institution} · Academic Year 2024-25`
+                  : "Gulum University · Academic Year 2024-25"}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">↑ {lowCount}% low attendance risk</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{attendanceData.length} subjects tracked</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{lowCount} below threshold</span>
+              </div>
             </div>
-
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Welcome Back 👋
-            </h1>
-
-            <p className="mt-2 text-foreground/80 max-w-lg">
-              Stay updated with your classes, attendance, notices, and upcoming
-              activities.
-            </p>
           </div>
         </Card>
 
@@ -152,7 +163,7 @@ const todayRoutine = routine
           <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
             <div className="flex flex-col items-center">
               <BarChart3 className="h-6 w-6 text-primary mb-2" />
-              <p className="text-2xl font-bold text-foreground">
+              <p className={`text-2xl font-bold ${attendancePercent < 75 ? "text-destructive" : "text-success"}`}>
                 {attendancePercent}%
               </p>
               <p className="text-xs text-muted-foreground text-center">
@@ -185,8 +196,8 @@ const todayRoutine = routine
         {/* Quick Access */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="font-bold text-lg">Quick Access</h2>
+            <Sparkles className="h-4 w-4 text-[var(--admin-hero)]" />
+            <h2 className="font-bold text-lg text-[var(--admin-hero)]">Quick Access</h2>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -194,14 +205,18 @@ const todayRoutine = routine
               <Link
                 key={t.label}
                 to={t.to}
-                className="group bg-brand-soft text-brand-soft-foreground rounded-3xl p-5 border-0 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                className="group rounded-3xl p-5 border border-white/20 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                style={{ backgroundColor: 'var(--admin-hero)', color: 'var(--admin-hero-foreground)' }}
               >
                 <div className="flex flex-col items-center text-center">
-                  <div className="h-14 w-14 rounded-2xl bg-background/60 flex items-center justify-center mb-3 group-hover:bg-primary/10 transition">
-                    <t.icon className="h-7 w-7 text-primary" />
+                  <div
+                    className="h-14 w-14 rounded-2xl flex items-center justify-center mb-3 transition"
+                    style={{ backgroundColor: 'rgba(255, 241, 158, 0.35)' }}
+                  >
+                    <t.icon className="h-7 w-7 text-[var(--admin-hero-foreground)]" />
                   </div>
 
-                  <p className="font-semibold text-sm text-foreground">
+                  <p className="font-semibold text-sm text-[var(--admin-hero-foreground)]">
                     {t.label}
                   </p>
                 </div>
@@ -215,7 +230,7 @@ const todayRoutine = routine
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-3xl bg-surface">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Syllabus Coverage
+                Lecture Progress
               </p>
               <div className="flex items-center justify-between">
                 <p className="text-2xl font-bold text-foreground">
@@ -236,15 +251,19 @@ const todayRoutine = routine
             </Card>
 
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              <p className={`text-sm font-semibold uppercase tracking-wider mb-2 ${attendancePercent < 75 ? "text-destructive" : "text-foreground"}`}>
                 My Attendance
               </p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">
+                <p className={`text-2xl font-bold ${attendancePercent < 75 ? "text-destructive" : "text-success"}`}>
                   {attendancePercent}%
                 </p>
                 <p className="text-xs text-muted-foreground">Today</p>
               </div>
+              <Progress
+                value={attendancePercent}
+                className={`h-2 mt-3 [&>div]:${attendancePercent < 75 ? "bg-destructive" : "bg-success"}`}
+              />
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-md bg-success-soft p-2 text-center">
                   <p className="font-bold text-success">

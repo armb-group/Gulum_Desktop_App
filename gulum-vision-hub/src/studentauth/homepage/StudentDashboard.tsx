@@ -31,6 +31,24 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// ── Local Types ───────────────────────────────────────────────────────────────
+type Subject = {
+  id?: string | number;
+  name?: string;
+  syllabusName?: string;
+  courseName?: string;
+};
+
+type TrackingRecord = {
+  syllabusMasterId?: string | number;
+  progressPercentage?: number;
+};
+
+type AttendanceItem = {
+  attendancePercentage: number;
+  courseName?: string;
+};
+
 const SectionHeader = ({
   title,
   to,
@@ -98,7 +116,7 @@ const StudentDashboard = () => {
 
   const apiNotifications = useMemo(
     () =>
-      (studentNoticeQuery.data ?? []).map((n: any) =>
+      (studentNoticeQuery.data ?? []).map((n) =>
         noticeToNotification(n, "student"),
       ),
     [studentNoticeQuery.data],
@@ -114,12 +132,14 @@ const StudentDashboard = () => {
   );
 
   // ✅ FIX 2: SAFE CALCULATIONS
-  const lowCount = attendance.filter(
-    (item: any) => item.attendancePercentage < 75,
+  const studentAttendance = attendance as AttendanceItem[];
+
+  const lowCount = studentAttendance.filter(
+    (item) => item.attendancePercentage < 75,
   ).length;
 
   // ✅ FIX 3: PROPER UI MAPPING (IMPORTANT)
-  const attendanceData = attendance.map((item: any) => ({
+  const attendanceData = studentAttendance.map((item) => ({
     subject: item.courseName,
     value: item.attendancePercentage,
     low: item.attendancePercentage < 75,
@@ -145,7 +165,7 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {/* ── PTM Banner ── */}
+      {/* ── PTM Banner ──
       <Card className="p-4 bg-surface border-border">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-2xl bg-purple/15 text-purple flex items-center justify-center shrink-0">
@@ -163,21 +183,21 @@ const StudentDashboard = () => {
             SOON
           </span>
         </div>
-      </Card>
+      </Card> */}
 
       {/* ── Two-column grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Syllabus */}
         <Card className="p-4 bg-surface border-border">
           <SectionHeader
-            title="Syllabus Coverage"
+            title="Lecture Progress"
             to="/student/lecture-audit"
             linkLabel="Full progress"
           />
           <div className="space-y-3">
-            {subjects.map((s: any) => {
+            {subjects.map((s: Subject) => {
               const trackingRecord = trackingAll?.find(
-                (item: any) => item.syllabusMasterId === s.id,
+                (item: TrackingRecord) => item.syllabusMasterId === s.id,
               );
 
               const pct = trackingRecord?.progressPercentage ?? 0;
@@ -214,7 +234,7 @@ const StudentDashboard = () => {
           />
 
           <div className="space-y-3">
-            {attendanceData.map((a: any) => (
+            {attendanceData.map((a) => (
               <div key={a.subject} className="flex items-center gap-3">
                 <span className="w-36 text-sm text-foreground truncate">
                   {a.subject}
@@ -257,7 +277,7 @@ const StudentDashboard = () => {
         <Card className="p-4 bg-surface border-border">
           <SectionHeader
             title="Daily Routine"
-            to="/student/dashboard"
+            to="/student/timetable"
             linkLabel="View timetable"
           />
 
