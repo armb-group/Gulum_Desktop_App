@@ -20,6 +20,7 @@ import StudentProfile from "./studentauth/homepage/StudentProfile";
 import StudentAttendance from "./studentauth/homepage/StudentAttendance";
 import StudentLectureAudit from "./studentauth/homepage/StudentLectureAudit";
 import StudentCalendar from "./studentauth/homepage/StudentCalendar";
+import StudentTimetable from "./studentauth/homepage/StudentTimetable";
 
 import TeacherHome from "./teacherauth/homepage/TeacherHome";
 import TeacherDashboard from "./teacherauth/homepage/TeacherDashboard";
