@@ -123,7 +123,7 @@ const today = new Date().toLocaleDateString("en-US", {
 });
 
 const todayRoutine = routine
-  .filter((r: any) => r.day === today)
+  .filter((r: { day?: string }) => r.day === today)
   .slice(0, 4);
   return (
     <RoleShell role="student" title="Student Dashboard" showDate>
@@ -132,18 +132,18 @@ const todayRoutine = routine
         <Card className="overflow-hidden border-0 rounded-3xl bg-brand-soft text-brand-soft-foreground shadow-xl">
           <div className="p-6 md:p-8">
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-medium">Student Portal</span>
+              <span className="text-sm opacity-80">Welcome Back,</span>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Welcome Back 👋
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+              Student Console
             </h1>
 
-            <p className="mt-2 text-foreground/80 max-w-lg">
-              Stay updated with your classes, attendance, notices, and upcoming
-              activities.
-            </p>
+           <p className="mt-2 text-sm opacity-90">
+                {user?.institution
+                  ? `${user.institution} · Academic Year 2024-25`
+                  : "Gulum University · Academic Year 2024-25"}
+              </p>
           </div>
         </Card>
 
@@ -215,7 +215,7 @@ const todayRoutine = routine
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-3xl bg-surface">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Syllabus Coverage
+                Lecture Progress
               </p>
               <div className="flex items-center justify-between">
                 <p className="text-2xl font-bold text-foreground">
