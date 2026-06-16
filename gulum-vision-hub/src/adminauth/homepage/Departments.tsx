@@ -9,6 +9,7 @@ import type { Department } from "./departmentsData";
 import { toast } from "sonner";
 import ExportButton from "@/components/ExportButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { departmentSchema } from "@/lib/validations";
 import {
   useGetDepartments,
   useGetAcademicBatchesByDepartment,
@@ -123,8 +124,9 @@ const Departments = () => {
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeptName.trim()) {
-      toast.error("Department name is required.");
+    const result = departmentSchema.safeParse({ name: newDeptName.trim() });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 

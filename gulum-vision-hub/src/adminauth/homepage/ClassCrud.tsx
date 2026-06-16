@@ -26,6 +26,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { classFormSchema } from "@/lib/validations";
 
 interface ClassItem {
   id: string;
@@ -128,8 +129,16 @@ const ClassCrud = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!className.trim() || !semester.trim()) {
-      toast.error("Class Name and Semester are required.");
+    const result = classFormSchema.safeParse({
+      name: className,
+      semester,
+      isNewBatch,
+      batchId: selectedBatchId,
+      batchYear: newBatchYear
+    });
+
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
@@ -141,16 +150,8 @@ const ClassCrud = () => {
     };
 
     if (isNewBatch) {
-      if (!newBatchYear.trim()) {
-        toast.error("Please specify a batch year.");
-        return;
-      }
       payload.batchYear = newBatchYear.trim();
     } else {
-      if (!selectedBatchId) {
-        toast.error("Please select a batch.");
-        return;
-      }
       payload.batchId = selectedBatchId;
     }
 
@@ -165,8 +166,18 @@ const ClassCrud = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClass || !className.trim() || !semester.trim()) {
-      toast.error("Class Name and Semester are required.");
+    if (!selectedClass) return;
+
+    const result = classFormSchema.safeParse({
+      name: className,
+      semester,
+      isNewBatch: false,
+      batchId: selectedBatchId,
+      batchYear: ""
+    });
+
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
@@ -404,12 +415,9 @@ const ClassCrud = () => {
               <Label htmlFor="semester">Semester <span className="text-destructive">*</span></Label>
               <Input
                 id="semester"
-                type="number"
                 placeholder="e.g. 1"
-                min="1"
-                max="12"
                 value={semester}
-                onChange={(e) => setSemester(e.target.value)}
+                onChange={(e) => setSemester(e.target.value.replace(/\D/g, ""))}
                 required
               />
             </div>
@@ -491,11 +499,8 @@ const ClassCrud = () => {
               <Label htmlFor="edit-semester">Semester <span className="text-destructive">*</span></Label>
               <Input
                 id="edit-semester"
-                type="number"
-                min="1"
-                max="12"
                 value={semester}
-                onChange={(e) => setSemester(e.target.value)}
+                onChange={(e) => setSemester(e.target.value.replace(/\D/g, ""))}
                 required
               />
             </div>

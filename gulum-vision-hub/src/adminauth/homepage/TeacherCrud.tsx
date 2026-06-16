@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useGetTeachers, useCreateTeacher, useUpdateTeacher } from "@/services/teacherCrudAPI";
+import { useGetDepartments } from "@/services/departmentAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  teacherAccountSchema,
+  teacherPersonalSchema,
+  teacherProfessionalSchema,
+  teacherEditSchema
+} from "@/lib/validations";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -11,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search, Pencil, Save, Trash2, Plus, X,
-  ChevronRight, ChevronLeft, Check, Loader2, Copy, Eye
+  ChevronRight, ChevronLeft, Check, Loader2, Copy, Eye, EyeOff
 } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import {
@@ -134,6 +141,16 @@ const TeacherCrud = () => {
   const { data: teachersData = [], isLoading: tableLoading } = useGetTeachers();
   const teachers = useMemo(() => Array.isArray(teachersData) ? teachersData : [], [teachersData]);
 
+  const { data: rawDepts, isLoading: deptsLoading } = useGetDepartments();
+  const departmentsList = useMemo(() => {
+    return Array.isArray(rawDepts)
+      ? rawDepts.map((d: any) => ({
+          id: String(d.id ?? d.departmentId ?? d.department_id ?? ""),
+          name: d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department",
+        }))
+      : [];
+  }, [rawDepts]);
+
   const createTeacherMutation = useCreateTeacher();
   const updateTeacherMutation = useUpdateTeacher();
 
@@ -158,6 +175,7 @@ const TeacherCrud = () => {
   const [personal, setPersonal] = useState<PersonalForm>(emptyPersonal);
   const [professional, setProfessional] = useState<ProfessionalForm>(emptyProfessional);
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
@@ -175,31 +193,31 @@ const TeacherCrud = () => {
     setAccount(emptyAccount);
     setPersonal(emptyPersonal);
     setProfessional(emptyProfessional);
+    setShowPassword(false);
   };
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validateStep = (): boolean => {
     if (step === 0) {
-      if (!account.email || !/\S+@\S+\.\S+/.test(account.email)) {
-        toast.error("Enter a valid email address."); return false;
-      }
-      if (!account.phone || account.phone.length < 7) {
-        toast.error("Enter a valid phone number."); return false;
-      }
-      if (!account.password || account.password.length < 6) {
-        toast.error("Password must be at least 6 characters."); return false;
+      const result = teacherAccountSchema.safeParse(account);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
+        return false;
       }
     }
     if (step === 1) {
-      if (!personal.full_name.trim()) { toast.error("Full name is required."); return false; }
-      if (!personal.qualification.trim()) { toast.error("Qualification is required."); return false; }
-      if (!personal.specialization.trim()) { toast.error("Specialization is required."); return false; }
+      const result = teacherPersonalSchema.safeParse(personal);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
+        return false;
+      }
     }
     if (step === 2) {
-      const { institution_id, employee_code, experience_year, joining_date, department } = professional;
-      if (!institution_id || !employee_code || !experience_year || !joining_date || !department.trim()) {
-        toast.error("All professional fields are required."); return false;
+      const result = teacherProfessionalSchema.safeParse(professional);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
+        return false;
       }
     }
     return true;
@@ -259,6 +277,11 @@ const TeacherCrud = () => {
 
   const handleViewSave = async () => {
     if (!viewEditData) return;
+    const result = teacherEditSchema.safeParse(viewEditData);
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
+      return;
+    }
     try {
       await updateTeacherMutation.mutateAsync({ id: viewEditData.id, teacherData: viewEditData });
       setSelectedViewTeacher(viewEditData);
@@ -301,7 +324,13 @@ const TeacherCrud = () => {
             <h1 className="text-2xl font-bold text-foreground">Teacher Management</h1>
             <p className="text-sm text-muted-foreground mt-1">Manage all teachers with advanced CRUD operations.</p>
           </div>
-          <Button onClick={() => setModalOpen(true)} className="shadow-md hover:scale-105 transition-transform gap-2">
+          <Button onClick={() => {
+            setProfessional((prev) => ({
+              ...prev,
+              institution_id: String(user?.institutionId ?? ""),
+            }));
+            setModalOpen(true);
+          }} className="shadow-md hover:scale-105 transition-transform gap-2">
             <Plus className="h-4 w-4" /> Add Teacher
           </Button>
         </div>
@@ -490,10 +519,29 @@ const TeacherCrud = () => {
                     <Input type="email" placeholder="teacher@example.com" value={account.email} onChange={(e) => setAccount({ ...account, email: e.target.value })} />
                   </Field>
                   <Field label="Phone *">
-                    <Input placeholder="e.g. 9876543210" value={account.phone} onChange={(e) => setAccount({ ...account, phone: e.target.value })} />
+                    <Input 
+                      placeholder="e.g. 9876543210" 
+                      value={account.phone} 
+                      onChange={(e) => setAccount({ ...account, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} 
+                    />
                   </Field>
                   <Field label="Password *">
-                    <Input type="password" placeholder="Min. 6 characters" value={account.password} onChange={(e) => setAccount({ ...account, password: e.target.value })} />
+                    <div className="relative">
+                      <Input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="Min. 6 characters" 
+                        value={account.password} 
+                        onChange={(e) => setAccount({ ...account, password: e.target.value })} 
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </Field>
                 </div>
               )}
@@ -503,7 +551,11 @@ const TeacherCrud = () => {
                 <div className="space-y-4">
                   <h3 className="text-base font-semibold mb-4">Personal Information</h3>
                   <Field label="Full Name *">
-                    <Input placeholder="e.g. Rahul Sharma" value={personal.full_name} onChange={(e) => setPersonal({ ...personal, full_name: e.target.value })} />
+                    <Input 
+                      placeholder="e.g. Rahul Sharma" 
+                      value={personal.full_name} 
+                      onChange={(e) => setPersonal({ ...personal, full_name: e.target.value.replace(/[^A-Za-z\s]/g, "") })} 
+                    />
                   </Field>
                   <Field label="Qualification *">
                     <Input placeholder="e.g. M.Tech, PhD" value={personal.qualification} onChange={(e) => setPersonal({ ...personal, qualification: e.target.value })} />
@@ -519,20 +571,46 @@ const TeacherCrud = () => {
                 <div className="space-y-4">
                   <h3 className="text-base font-semibold mb-4">Professional Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Institution ID *">
-                      <Input placeholder="e.g. 1" value={professional.institution_id} onChange={(e) => setProfessional({ ...professional, institution_id: e.target.value })} />
+                    <Field label="Institution Name *">
+                      <Input 
+                        value={user?.institution ?? ""} 
+                        readOnly 
+                        className="bg-muted cursor-not-allowed"
+                      />
                     </Field>
                     <Field label="Employee Code *">
                       <Input placeholder="e.g. EMP-1001" value={professional.employee_code} onChange={(e) => setProfessional({ ...professional, employee_code: e.target.value })} />
                     </Field>
                     <Field label="Experience (Years) *">
-                      <Input type="number" placeholder="e.g. 5" value={professional.experience_year} onChange={(e) => setProfessional({ ...professional, experience_year: e.target.value })} />
+                      <Input 
+                        placeholder="e.g. 5" 
+                        value={professional.experience_year} 
+                        onChange={(e) => setProfessional({ ...professional, experience_year: e.target.value.replace(/\D/g, "") })} 
+                      />
                     </Field>
                     <Field label="Joining Date *">
                       <Input type="date" value={professional.joining_date} onChange={(e) => setProfessional({ ...professional, joining_date: e.target.value })} />
                     </Field>
                     <Field label="Department *">
-                      <Input placeholder="e.g. Computer Science" value={professional.department} onChange={(e) => setProfessional({ ...professional, department: e.target.value })} />
+                      {deptsLoading ? (
+                        <div className="flex items-center gap-2 h-10 px-3 text-sm text-muted-foreground border border-input rounded-md bg-muted">
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          Loading departments...
+                        </div>
+                      ) : (
+                        <select
+                          value={professional.department}
+                          onChange={(e) => setProfessional({ ...professional, department: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <option value="">Select department</option>
+                          {departmentsList.map((dept: any) => (
+                            <option key={dept.id} value={dept.name}>
+                              {dept.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </Field>
                     <Field label="Metadata">
                       <Input placeholder="e.g. HOD, Class Coordinator" value={professional.metadata} onChange={(e) => setProfessional({ ...professional, metadata: e.target.value })} />
@@ -552,7 +630,7 @@ const TeacherCrud = () => {
                       ["Full Name", personal.full_name],
                       ["Qualification", personal.qualification],
                       ["Specialization", personal.specialization],
-                      ["Institution ID", professional.institution_id],
+                      ["Institution Name", user?.institution || "—"],
                       ["Employee Code", professional.employee_code],
                       ["Department", professional.department],
                       ["Experience (Years)", professional.experience_year],
@@ -606,11 +684,43 @@ const TeacherCrud = () => {
                         {col.label}
                       </label>
                       {isEditingView && col.key !== "id" && col.key !== "user_id" && col.key !== "created_at" && col.key !== "created_by" ? (
-                        <Input
-                          value={String(viewEditData?.[col.key] ?? "")}
-                          onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}
-                          className="h-9 mt-1"
-                        />
+                        col.key === "department" ? (
+                          deptsLoading ? (
+                            <div className="flex items-center gap-2 h-9 mt-1 px-3 text-xs text-muted-foreground border border-input rounded-md bg-muted">
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                              Loading...
+                            </div>
+                          ) : (
+                            <select
+                              value={String(viewEditData?.[col.key] ?? "")}
+                              onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [col.key]: e.target.value } : prev)}
+                              className="flex h-9 w-full mt-1 rounded-md border border-input bg-card px-3 py-1 text-sm ring-offset-background focus-visible:outline-none"
+                            >
+                              <option value="">Select department</option>
+                              {departmentsList.map((dept: any) => (
+                                <option key={dept.id} value={dept.name}>
+                                  {dept.name}
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        ) : (
+                          <Input
+                            value={String(viewEditData?.[col.key] ?? "")}
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (col.key === "phone") {
+                                val = val.replace(/\D/g, "").slice(0, 10);
+                              } else if (col.key === "full_name") {
+                                val = val.replace(/[^A-Za-z\s]/g, "");
+                              } else if (col.key === "experience_year" || col.key === "institution_id") {
+                                val = val.replace(/\D/g, "");
+                              }
+                              setViewEditData((prev) => prev ? { ...prev, [col.key]: val } : prev);
+                            }}
+                            className="h-9 mt-1"
+                          />
+                        )
                       ) : (
                         (() => {
                           const val = selectedViewTeacher[col.key];

@@ -27,6 +27,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { subjectFormSchema } from "@/lib/validations";
 
 interface SubjectItem {
   id: string;
@@ -143,8 +144,9 @@ const SubjectCrud = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subjectName.trim() || !subjectCode.trim()) {
-      toast.error("Subject Name and Subject Code are required.");
+    const result = subjectFormSchema.safeParse({ name: subjectName, code: subjectCode });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
@@ -169,8 +171,11 @@ const SubjectCrud = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSubject || !subjectName.trim() || !subjectCode.trim()) {
-      toast.error("Subject Name and Subject Code are required.");
+    if (!selectedSubject) return;
+
+    const result = subjectFormSchema.safeParse({ name: subjectName, code: subjectCode });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
@@ -468,7 +473,7 @@ const SubjectCrud = () => {
                 id="subject-code"
                 placeholder="e.g. CSE302"
                 value={subjectCode}
-                onChange={(e) => setSubjectCode(e.target.value)}
+                onChange={(e) => setSubjectCode(e.target.value.toUpperCase())}
                 required
               />
             </div>
@@ -506,7 +511,7 @@ const SubjectCrud = () => {
               <Input
                 id="edit-subject-code"
                 value={subjectCode}
-                onChange={(e) => setSubjectCode(e.target.value)}
+                onChange={(e) => setSubjectCode(e.target.value.toUpperCase())}
                 required
               />
             </div>

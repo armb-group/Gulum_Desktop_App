@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { noticeSchema } from "@/lib/validations";
 
 interface Notice {
   id: string | number;
@@ -113,12 +114,15 @@ const NoticePage = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-    if (!formDescription.trim()) {
-      toast.error("Description is required");
+    const result = noticeSchema.safeParse({
+      title: formTitle,
+      description: formDescription,
+      level: formLevel,
+      courseCode: formCourseCode.trim() || undefined,
+    });
+
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 

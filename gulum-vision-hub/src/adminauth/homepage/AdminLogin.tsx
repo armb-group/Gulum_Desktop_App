@@ -16,6 +16,7 @@ import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginApi } from "@/services/authApi";
 import { toast } from "sonner";
+import { loginSchema } from "@/lib/validations";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -34,8 +35,9 @@ const AdminLogin = () => {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter email and password.");
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
