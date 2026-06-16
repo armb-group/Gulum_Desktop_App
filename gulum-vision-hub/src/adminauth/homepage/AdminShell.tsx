@@ -3,7 +3,7 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Upload, LogOut, Building2,
   GraduationCap, Users, Bell, ShieldCheck, UserCheck, Calendar,
-  PanelLeft, ClipboardCheck, BookOpen
+  PanelLeft, ClipboardCheck, BookOpen, Layers, BookMarked
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,8 @@ const NAV_GROUPS = [
       { title: "Dashboard",          url: "/admin/dashboard",    icon: LayoutDashboard },
       { title: "Bulk Upload",        url: "/admin/bulk-upload",  icon: Upload },
       { title: "Department",        url: "/admin/department",  icon: Building2 },
+      { title: "Classes",           url: "/admin/ClassCrud",   icon: Layers },
+      { title: "Subjects",          url: "/admin/SubjectCrud",  icon: BookMarked },
       { title: "Teachers",           url: "/admin/TeacherCrud",  icon: Users },
       { title: "Students",           url: "/admin/StudentCrud",  icon: GraduationCap },
       { title: "Notice",             url: "/admin/NoticePage",   icon: Bell },
@@ -95,7 +97,7 @@ const AdminSidebarContent = () => {
   const expanded = state === "expanded";
 
   return (
-    <SidebarContent className={`px-2 py-3 ${expanded ? "overflow-y-auto" : "!overflow-visible"}`}>
+    <SidebarContent className={`px-2 py-3 scrollbar-beautiful ${expanded ? "overflow-y-auto" : "!overflow-visible"}`}>
       {NAV_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-0.5 mb-4">
           {expanded && (
@@ -209,7 +211,7 @@ export const AdminShell = ({ title, children }: AdminShellProps) => {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto flex flex-col">{children}</main>
+          <main className="flex-1 overflow-auto scrollbar-beautiful flex flex-col">{children}</main>
         </SidebarInset>
       </div>
     </SidebarProvider>

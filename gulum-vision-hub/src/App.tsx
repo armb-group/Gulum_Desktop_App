@@ -39,6 +39,8 @@ import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
 import NoticePage from "./adminauth/homepage/NoticePage";
 import Departments from "./adminauth/homepage/Departments";
+import ClassCrud from "./adminauth/homepage/ClassCrud";
+import SubjectCrud from "./adminauth/homepage/SubjectCrud";
 // import AssignWork from "./adminauth/homepage/AssignWork";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
 import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
@@ -234,6 +236,24 @@ const App = () => (
                   element={
                     <ProtectedRoute role="admin">
                       <Departments />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/ClassCrud"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <ClassCrud />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/SubjectCrud"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <SubjectCrud />
                     </ProtectedRoute>
                   }
                 />
