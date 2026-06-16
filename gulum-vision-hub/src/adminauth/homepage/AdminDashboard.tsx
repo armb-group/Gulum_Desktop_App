@@ -4,9 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useGetTeachers } from "@/services/teacherCrudAPI";
-import { useGetStudents } from "@/services/studentCrudAPI";
-import { useGetDepartments } from "@/services/departmentAPI";
+import { useGetTeachersCount } from "@/services/teacherCrudAPI";
+import { useGetStudentsCount } from "@/services/studentCrudAPI";
+import { useGetDepartmentsCount } from "@/services/departmentAPI";
 import { useGetNoticesByInstitution } from "@/services/noticeAPI";
 
 import {
@@ -30,14 +30,23 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const teachersQuery = useGetTeachers();
-  const studentsQuery = useGetStudents();
-  const departmentsQuery = useGetDepartments();
+  const teacherCountQuery = useGetTeachersCount();
+  const studentCountQuery = useGetStudentsCount();
+  const deptCountQuery = useGetDepartmentsCount();
   const noticesQuery = useGetNoticesByInstitution(user.institutionId);
 
-  const teacherCount = teachersQuery.isLoading ? null : String(teachersQuery.data?.length ?? 0);
-  const studentCount = studentsQuery.isLoading ? null : String(studentsQuery.data?.length ?? 0);
-  const deptCount = departmentsQuery.isLoading ? null : String(departmentsQuery.data?.length ?? 0);
+  const extractCount = (data: any) => {
+    if (data === null || data === undefined) return 0;
+    if (typeof data === "number" || typeof data === "string") return data;
+    if (typeof data === "object") {
+      return data.count ?? data.total ?? data.totalCount ?? data.responseData ?? 0;
+    }
+    return 0;
+  };
+
+  const teacherCount = teacherCountQuery.isLoading ? null : String(extractCount(teacherCountQuery.data));
+  const studentCount = studentCountQuery.isLoading ? null : String(extractCount(studentCountQuery.data));
+  const deptCount = deptCountQuery.isLoading ? null : String(extractCount(deptCountQuery.data));
 
   const notices = useMemo(() => {
     const items = noticesQuery.data ?? [];

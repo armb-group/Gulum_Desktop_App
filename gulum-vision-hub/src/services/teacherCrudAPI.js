@@ -117,12 +117,23 @@ export const assignTeachersBulk = async (batchId, departmentId, classId, teacher
   return response.data.responseData ?? response.data;
 };
 
+export const getTeachersCount = async () => {
+  const response = await api.get("/teachers/count");
+  return response.data.responseData ?? response.data;
+};
+
 export const TEACHERS_QUERY_KEY = ["teachers"];
 
 export const useGetTeachers = () =>
   useQuery({
     queryKey: TEACHERS_QUERY_KEY,
     queryFn: getTeachers,
+  });
+
+export const useGetTeachersCount = () =>
+  useQuery({
+    queryKey: [...TEACHERS_QUERY_KEY, "count"],
+    queryFn: getTeachersCount,
   });
 
 export const useCreateTeacher = () => {
