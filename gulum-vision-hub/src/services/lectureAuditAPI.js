@@ -96,6 +96,21 @@ export const progressApi = async (trackingId) => {
   return res.data;
 };
 
+export const createProgressApi = async (data) => {
+  const res = await api.post("/api/progress", data);
+  return res.data;
+};
+
+export const deleteProgressApi = async (trackingId, moduleId) => {
+  const res = await api.delete(`/api/progress/${trackingId}/${moduleId}`);
+  return res.data;
+};
+
+export const createTrackingApi = async (data) => {
+  const res = await api.post("/api/tracking", data);
+  return res.data;
+};
+
 export const getProgress = (trackingId) => {
   return useQuery({
     queryKey: ["progress", trackingId],
