@@ -35,8 +35,8 @@ export const getCoursesByClass = async (classId) => {
   return response.data.responseData ?? response.data;
 };
 
-export const getDepartmentsCount = async () => {
-  const response = await api.get("/departments/count");
+export const getDepartmentsCount = async (institutionId) => {
+  const response = await api.get(`/departments/count/institution/${encodeURIComponent(institutionId)}`);
   return response.data.responseData ?? response.data;
 };
 
@@ -48,10 +48,11 @@ export const useGetDepartments = () =>
     queryFn: getDepartments,
   });
 
-export const useGetDepartmentsCount = () =>
+export const useGetDepartmentsCount = (institutionId) =>
   useQuery({
-    queryKey: [...DEPARTMENTS_QUERY_KEY, "count"],
-    queryFn: getDepartmentsCount,
+    queryKey: [...DEPARTMENTS_QUERY_KEY, "count", institutionId],
+    queryFn: () => getDepartmentsCount(institutionId),
+    enabled: !!institutionId,
   });
 
 export const useGetAcademicBatchesByDepartment = (departmentId, options = {}) =>

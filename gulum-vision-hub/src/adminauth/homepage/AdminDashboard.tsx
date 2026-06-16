@@ -30,16 +30,23 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const teacherCountQuery = useGetTeachersCount();
-  const studentCountQuery = useGetStudentsCount();
-  const deptCountQuery = useGetDepartmentsCount();
-  const noticesQuery = useGetNoticesByInstitution(user.institutionId);
+  const teacherCountQuery = useGetTeachersCount(user?.institutionId);
+  const studentCountQuery = useGetStudentsCount(user?.institutionId);
+  const deptCountQuery = useGetDepartmentsCount(user?.institutionId);
+  const noticesQuery = useGetNoticesByInstitution(user?.institutionId);
 
   const extractCount = (data: any) => {
     if (data === null || data === undefined) return 0;
     if (typeof data === "number" || typeof data === "string") return data;
     if (typeof data === "object") {
-      return data.count ?? data.total ?? data.totalCount ?? data.responseData ?? 0;
+      return data.totalteachers ?? 
+             data.totalstudents ?? 
+             data.departmentscount ?? 
+             data.count ?? 
+             data.total ?? 
+             data.totalCount ?? 
+             data.responseData ?? 
+             0;
     }
     return 0;
   };
