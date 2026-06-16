@@ -13,7 +13,8 @@ export const departmentSchema = z.object({
 
 // Classes
 export const classFormSchema = z.object({
-  name: z.string().min(1, "Class/Section Name is required").max(50, "Class name is too long"),
+  name: z.string().min(1, "Class Name is required").max(50, "Class name is too long"),
+  section: z.string().max(20, "Section name is too long").optional(),
   semester: z.preprocess(
     (val) => Number(val),
     z.number({ invalid_type_error: "Semester must be a number" })

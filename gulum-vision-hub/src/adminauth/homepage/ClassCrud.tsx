@@ -52,8 +52,6 @@ const ClassCrud = () => {
   const [className, setClassName] = useState("");
   const [semester, setSemester] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
-  const [newBatchYear, setNewBatchYear] = useState("");
-  const [isNewBatch, setIsNewBatch] = useState(false);
 
   // TanStack Queries
   const { data: rawDepts, isLoading: deptsLoading } = useGetDepartments();
@@ -87,7 +85,7 @@ const ClassCrud = () => {
           name: cls.name ?? "Unnamed Class",
           semester: Number(cls.semester ?? 1),
           batchId,
-          batchYear
+          batchYear,
         });
       });
     });
@@ -112,8 +110,6 @@ const ClassCrud = () => {
     setClassName("");
     setSemester("");
     setSelectedBatchId("");
-    setNewBatchYear("");
-    setIsNewBatch(false);
     setIsAddModalOpen(true);
   };
 
@@ -122,13 +118,12 @@ const ClassCrud = () => {
     setClassName(cls.name);
     setSemester(String(cls.semester));
     setSelectedBatchId(cls.batchId);
-    setNewBatchYear("");
-    setIsNewBatch(false);
     setIsEditModalOpen(true);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    /*
     const result = classFormSchema.safeParse({
       name: className,
       semester,
@@ -141,19 +136,16 @@ const ClassCrud = () => {
       toast.error(result.error.issues[0].message);
       return;
     }
+    */
 
     const payload: any = {
       name: className.trim(),
       semester: Number(semester),
       departmentId: selectedDeptId,
-      institutionId: user?.institutionId || ""
+      batchId: selectedBatchId,
+      institutionId: user?.institutionId || "",
+      createdBy: user?.id ?? "Admin"
     };
-
-    if (isNewBatch) {
-      payload.batchYear = newBatchYear.trim();
-    } else {
-      payload.batchId = selectedBatchId;
-    }
 
     try {
       await createClassMutation.mutateAsync(payload);
@@ -168,6 +160,7 @@ const ClassCrud = () => {
     e.preventDefault();
     if (!selectedClass) return;
 
+    /*
     const result = classFormSchema.safeParse({
       name: className,
       semester,
@@ -180,13 +173,16 @@ const ClassCrud = () => {
       toast.error(result.error.issues[0].message);
       return;
     }
+    */
 
     const payload = {
+      id: selectedClass.id,
       name: className.trim(),
       semester: Number(semester),
       departmentId: selectedDeptId,
       batchId: selectedBatchId,
-      institutionId: user?.institutionId || ""
+      institutionId: user?.institutionId || "",
+      createdBy: user?.id ?? "Admin"
     };
 
     try {
@@ -308,7 +304,7 @@ const ClassCrud = () => {
               <div className="relative w-full">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search classes by name, semester, batch year..."
+                  placeholder="Search classes by name, section, semester, batch year..."
                   className="pl-10 h-10 rounded-xl bg-card border-border shadow-sm"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -330,7 +326,7 @@ const ClassCrud = () => {
                     <thead className="bg-primary text-primary-foreground text-left text-xs font-bold uppercase tracking-wider">
                       <tr>
                         <th className="px-4 py-3" style={{ width: "60px" }}>S.No</th>
-                        <th className="px-4 py-3">Class/Section Name</th>
+                        <th className="px-4 py-3">Class Name</th>
                         <th className="px-4 py-3">Semester</th>
                         <th className="px-4 py-3">Batch/Year</th>
                         <th className="px-4 py-3" style={{ width: "120px" }}>Actions</th>
@@ -402,10 +398,10 @@ const ClassCrud = () => {
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="class-name">Class/Section Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="class-name">Class Name <span className="text-destructive">*</span></Label>
               <Input
                 id="class-name"
-                placeholder="e.g. Section A"
+                placeholder="e.g. B.Tech CSE"
                 value={className}
                 onChange={(e) => setClassName(e.target.value)}
                 required
@@ -422,48 +418,22 @@ const ClassCrud = () => {
               />
             </div>
 
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="new-batch-toggle"
-                  checked={isNewBatch}
-                  onChange={(e) => setIsNewBatch(e.target.checked)}
-                  className="rounded border-input text-primary focus:ring-ring"
-                />
-                <Label htmlFor="new-batch-toggle" className="cursor-pointer">Create class under a new Batch Year</Label>
-              </div>
-
-              {isNewBatch ? (
-                <div className="space-y-2">
-                  <Label htmlFor="new-batch-year">New Batch Year <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="new-batch-year"
-                    placeholder="e.g. 2024-25"
-                    value={newBatchYear}
-                    onChange={(e) => setNewBatchYear(e.target.value)}
-                    required={isNewBatch}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="existing-batch">Select Academic Batch <span className="text-destructive">*</span></Label>
-                  <select
-                    id="existing-batch"
-                    value={selectedBatchId}
-                    onChange={(e) => setSelectedBatchId(e.target.value)}
-                    className="w-full h-10 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    required={!isNewBatch}
-                  >
-                    <option value="">Select a batch</option>
-                    {batches.map((b: any) => (
-                      <option key={b.batchId ?? b.id} value={b.batchId ?? b.id}>
-                        {b.year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="existing-batch">Select Academic Batch <span className="text-destructive">*</span></Label>
+              <select
+                 id="existing-batch"
+                 value={selectedBatchId}
+                 onChange={(e) => setSelectedBatchId(e.target.value)}
+                 className="w-full h-10 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                 required
+              >
+                <option value="">Select a batch</option>
+                {batches.map((b: any) => (
+                  <option key={b.batchId ?? b.id} value={b.batchId ?? b.id}>
+                    {b.year}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <DialogFooter className="pt-4">
@@ -487,7 +457,7 @@ const ClassCrud = () => {
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-class-name">Class/Section Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="edit-class-name">Class Name <span className="text-destructive">*</span></Label>
               <Input
                 id="edit-class-name"
                 value={className}

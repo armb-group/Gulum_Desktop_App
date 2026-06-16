@@ -206,6 +206,23 @@ export const useDeleteSubject = (queryParams) => {
   });
 };
 
+// Academic Batch Creation APIs
+export const createAcademicBatch = async (batchData) => {
+  const response = await api.post("/academic-batches", batchData);
+  return response.data.responseData ?? response.data;
+};
+
+export const useCreateAcademicBatch = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAcademicBatch,
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["academic-batches", variables.departmentId] });
+    },
+  });
+};
+
+
 
 
 
