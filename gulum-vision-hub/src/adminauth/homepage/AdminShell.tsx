@@ -38,12 +38,25 @@ const NAV_GROUPS = [
   },
 
   {
-    label: "Work",
-    items: [
-      { title: "Assign Teacher",     url: "/admin/assign-teacher", icon: UserCheck },
-      { title: "Schedule Routine",    url: "/admin/routine",       icon: Calendar },
-    ],
-  }
+  label: "Work",
+  items: [
+    {
+      title: "Assign Teacher",
+      url: "/admin/assign-teacher",
+      icon: UserCheck,
+    },
+    {
+      title: "Assign Subject",
+      url: "/admin/assign-subject",
+      icon: BookMarked,
+    },
+    {
+      title: "Schedule Routine",
+      url: "/admin/routine",
+      icon: Calendar,
+    },
+  ],
+}
 ];
 
 interface AdminShellProps {

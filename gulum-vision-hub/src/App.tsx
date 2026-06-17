@@ -44,10 +44,10 @@ import SubjectCrud from "./adminauth/homepage/SubjectCrud";
 // import AssignWork from "./adminauth/homepage/AssignWork";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
 import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
-import ForgotPassword  from "./pages/ForgotPassword"; 
+import ForgotPassword  from "./pages/ForgotPassword";
 import AttendancePage from "./adminauth/homepage/AttendancePage";
 import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
-
+import AssignSubject from "./adminauth/homepage/AssignSubject";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -327,6 +327,10 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route
+  path="/admin/assign-subject"
+  element={<AssignSubject />}
+/>
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
