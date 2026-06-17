@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
-import { getCourseModules, getTrackingAll, getModuleStatus, progressApi, createProgressApi, deleteProgressApi, useSyllabusMasters, createTrackingApi } from "@/services/lectureAuditAPI";
+import { getCourseModules, getTrackingAll, getModuleStatus, progressApi, createProgressApi, deleteProgressApi, createTrackingApi, useSyllabusMasters } from "@/services/lectureAuditAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGetTeachers } from "@/services/teacherCrudAPI";
 import { useGetDepartments } from "@/services/departmentAPI";
@@ -56,7 +56,14 @@ export default function LectureAuditPage() {
   const teachers = useMemo(() => Array.isArray(rawTeachers) ? rawTeachers : [], [rawTeachers]);
 
   const { data: rawDepts } = useGetDepartments();
-  const { data: syllabusMasters = [] } = useSyllabusMasters();
+  const { data: rawSyllabusMasters } = useSyllabusMasters();
+
+  const syllabusMasters = useMemo(() => {
+    const list = Array.isArray(rawSyllabusMasters)
+      ? rawSyllabusMasters
+      : (rawSyllabusMasters?.responseData ?? rawSyllabusMasters ?? []);
+    return Array.isArray(list) ? list : [];
+  }, [rawSyllabusMasters]);
   const departments = useMemo(() => {
     return Array.isArray(rawDepts)
       ? Array.from(
@@ -225,14 +232,23 @@ export default function LectureAuditPage() {
                   queryClient.fetchQuery({
                     queryKey: ["lecture-audit", "modules", String(courseCode)],
                     queryFn: () => getCourseModules(courseCode),
+                  }).catch(err => {
+                    console.warn(`Failed to fetch modules for ${courseCode}:`, err);
+                    return null;
                   }),
                   trackingId ? queryClient.fetchQuery({
                     queryKey: ["lecture-audit", "module-status", String(trackingId)],
                     queryFn: () => getModuleStatus(trackingId),
+                  }).catch(err => {
+                    console.warn(`Failed to fetch module statuses for tracking ${trackingId}:`, err);
+                    return null;
                   }) : Promise.resolve(null),
                   trackingId ? queryClient.fetchQuery({
                     queryKey: ["lecture-audit", "progress", String(trackingId)],
                     queryFn: () => progressApi(trackingId),
+                  }).catch(err => {
+                    console.warn(`Failed to fetch progress for tracking ${trackingId}:`, err);
+                    return null;
                   }) : Promise.resolve(null)
                 ]);
 
