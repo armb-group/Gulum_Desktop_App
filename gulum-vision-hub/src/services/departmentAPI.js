@@ -222,8 +222,3 @@ export const useCreateAcademicBatch = () => {
     },
   });
 };
-
-
-
-
-
