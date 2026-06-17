@@ -15,9 +15,10 @@ import {
   useGetAcademicBatchesByDepartment,
   useCreateDepartment,
   useGetTeachersByClassBatch,
-  useGetStudentsByClassBatch,
-  useGetSubjectsByClassBatch
+  useGetStudentsByClassBatch
 } from "@/services/departmentAPI";
+import { useCoursesByClass } from "@/services/courseclassAPI";
+import { useGetCourseOfferings } from "@/services/teacherCrudAPI";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +64,45 @@ import { Textarea } from "@/components/ui/textarea";
     }
   ];
 };*/
+
+const TeacherClassesCell = ({ teacherId }: { teacherId: string | number }) => {
+  const { data: offerings, isLoading } = useGetCourseOfferings(teacherId);
+
+  const classesText = useMemo(() => {
+    if (!offerings) return "No classes assigned";
+    const list = Array.isArray(offerings) ? offerings : (offerings.responseData ?? offerings.data ?? []);
+    if (!Array.isArray(list) || list.length === 0) return "No classes assigned";
+
+    const classNames = list.map((offering: any) => {
+      const className = offering.className ?? offering.classes?.name ?? offering.class?.name ?? offering.classSectionName ?? "";
+      const semester = offering.semester ?? offering.classes?.semester ?? offering.class?.semester ?? "";
+      const courseName = offering.courseName ?? offering.course?.courseName ?? offering.course?.name ?? "";
+
+      const classLabel = className ? `${className} (Sem ${semester})` : `Sem ${semester}`;
+      return courseName ? `${courseName} in ${classLabel}` : classLabel;
+    }).filter((val, index, self) => val && self.indexOf(val) === index); // unique
+
+    return classNames.length > 0 ? classNames.join(", ") : "No classes assigned";
+  }, [offerings]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <span
+      className="text-xs text-muted-foreground font-semibold bg-primary/5 dark:bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg inline-block max-w-md truncate"
+      title={classesText}
+    >
+      {classesText}
+    </span>
+  );
+};
 
 const Departments = () => {
   const { user } = useAuth();
@@ -225,7 +265,10 @@ const Departments = () => {
   const activeTeachers = useMemo(() => {
     if (!rawTeachers) return [];
     const list = Array.isArray(rawTeachers) ? rawTeachers : [];
-    return list.map((t: any) => t.fullName ?? t.full_name ?? t.name ?? String(t));
+    return list.map((t: any) => ({
+      id: t.id ?? t.teacherId ?? t.teacher_id ?? "",
+      name: t.fullName ?? t.full_name ?? t.name ?? "Unknown Teacher"
+    }));
   }, [rawTeachers]);
 
   // 2. Fetch Students
@@ -246,25 +289,21 @@ const Departments = () => {
     return list.map((s: any) => s.fullName ?? s.full_name ?? s.name ?? String(s));
   }, [rawStudents]);
 
-  // 3. Fetch Subjects
-  const subjectsParams = useMemo(() => ({
-    departmentId: selectedDeptId,
-    batchId: selectedBatchId,
-    semester: selectedSemester,
-    classId: selectedClassId
-  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
-
-  const { data: rawSubjects, isLoading: subjectsLoading } = useGetSubjectsByClassBatch(subjectsParams, {
-    enabled: isTabQueryEnabled
-  });
+  // 3. Fetch Subjects (using course-class API)
+  const { data: rawSubjects, isLoading: subjectsLoading } = useCoursesByClass(
+    isTabQueryEnabled ? selectedClassId : ""
+  );
 
   const activeSubjects = useMemo(() => {
     if (!rawSubjects) return [];
     const list = Array.isArray(rawSubjects) ? rawSubjects : [];
-    return list.map((sub: any) => ({
-      name: sub.name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
-      code: sub.code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
-    }));
+    return list.map((item: any) => {
+      const sub = item.course ?? item.subject ?? item;
+      return {
+        name: sub.courseName ?? sub.name ?? sub.subjectName ?? sub.course_name ?? sub.subject_name ?? "Unknown Subject",
+        code: sub.courseCode ?? sub.code ?? sub.subjectCode ?? sub.course_code ?? sub.subject_code ?? "N/A"
+      };
+    });
   }, [rawSubjects]);
 
   const tabLoading = useMemo(() => {
@@ -435,7 +474,7 @@ const Departments = () => {
                 <ExportButton
                   data={
                     selectedTab === "teachers"
-                      ? activeTeachers.map((name, idx) => ({ no: idx + 1, name }))
+                      ? activeTeachers.map((t: any, idx) => ({ no: idx + 1, name: t.name }))
                       : selectedTab === "students"
                       ? activeStudents.map((name, idx) => ({ no: idx + 1, name }))
                       : activeSubjects.map((sub, idx) => ({ no: idx + 1, name: sub.name, code: sub.code }))
@@ -484,6 +523,7 @@ const Departments = () => {
                     {selectedTab === "teachers" && (
                       <>
                         <th className="px-4 py-3 text-left font-semibold text-foreground">Teacher Name</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Class / Subject Taken</th>
                       </>
                     )}
                     {selectedTab === "students" && (
@@ -502,9 +542,12 @@ const Departments = () => {
                 <tbody>
                   {selectedTab === "teachers" &&
                     activeTeachers.map((teacher, idx) => (
-                      <tr key={idx} className="border-b border-border hover:bg-muted/30 transition">
+                      <tr key={teacher.id || idx} className="border-b border-border hover:bg-muted/30 transition">
                         <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                        <td className="px-4 py-3 text-foreground">{teacher}</td>
+                        <td className="px-4 py-3 text-foreground font-medium">{teacher.name}</td>
+                        <td className="px-4 py-3 text-foreground">
+                          <TeacherClassesCell teacherId={teacher.id} />
+                        </td>
                       </tr>
                     ))}
 

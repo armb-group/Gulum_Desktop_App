@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "./AdminShell";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -62,6 +63,7 @@ const createDefaultYears = (deptName: string, deptId: string) => {
 
 const AssignSubject = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [departments, setDepartments] = useState<Department[]>(() => getDepartmentsInMemory());
 
@@ -126,15 +128,16 @@ const subjects = useMemo(() => {
 
   selectedSection.subjects.forEach((subjectName) => {
     const course = subjects.find(
-      (s) => s.name === subjectName
+      (s) => (s.courseName ?? s.name) === subjectName
     );
 
     if (!course) return;
 
     assignMutation.mutate(
       {
-        courseId: course.id,
+        courseId: course.id ?? (course as any).courseId,
         classesId: classId,
+        institution_id: user?.institutionId || "1",
       },
       {
         onError: (err) => {
@@ -198,10 +201,10 @@ const subjects = useMemo(() => {
   }, [selectedSection?.subjects?.length]);
 
   const filteredSubjectsForSelect = useMemo(() => {
-  return subjects.filter((s) =>
-    s.name?.toLowerCase().includes(subjectSearch.toLowerCase())
-  );
-}, [subjects, subjectSearch]);
+    return subjects.filter((s) =>
+      (s.courseName ?? s.name ?? "")?.toLowerCase().includes(subjectSearch.toLowerCase())
+    );
+  }, [subjects, subjectSearch]);
 
   const handleAssign = () => {
     if (!selectedCourseId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) {
@@ -639,7 +642,7 @@ onChange={(e) => setSubjectSearch(e.target.value)}
                                    <Button
                                      variant="ghost"
                                      size="sm"
-                                     onClick={() => handleRemove(subject)}
+                                     onClick={() => handleRemove(subjectName)}
                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg h-8 w-8"
                                    >
                                      <Trash2 className="h-4 w-4" />

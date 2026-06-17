@@ -14,15 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetTeachers, getTeachers, useAssignTeachersBulk } from "@/services/teacherCrudAPI";
-import { useGetDepartments, getDepartments, getAcademicBatchesByDepartment, useGetSubjectsByClassBatch } from "@/services/departmentAPI";
+import { useGetTeachers, getTeachers, useCreateCourseOffering } from "@/services/teacherCrudAPI";
+import { useGetDepartments, getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
+import { useCoursesByClass } from "@/services/courseclassAPI";
 import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department, type Subject } from "./departmentsData";
 import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TeacherData {
-  id: number;
+  id: string | number;
   full_name: string;
   employee_code: string;
   specialization: string;
@@ -31,11 +32,12 @@ interface TeacherData {
 }
 
 type TeacherSubjectAssignment = {
-  teacherId: number;
+  teacherId: string | number;
   teacherName: string;
   subjectId: string;
   subjectName: string;
   subjectCode: string;
+  maxCapacity: number;
 };
 
 const createDefaultYears = (deptName: string, deptId: string) => {
@@ -86,6 +88,7 @@ const AssignTeacher = () => {
   const [teacherSearch, setTeacherSearch] = useState<string>("");
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>("");
+  const [maxCapacity, setMaxCapacity] = useState<number | "">(60);
   const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [removeTargetAssignment, setRemoveTargetAssignment] = useState<TeacherSubjectAssignment | null>(null);
@@ -129,7 +132,7 @@ const AssignTeacher = () => {
     }
   }, [rawDepts]);
 
-  const assignMutation = useAssignTeachersBulk();
+  const assignMutation = useCreateCourseOffering();
   const confirming = assignMutation.isPending;
 
   const handleConfirmAssignment = async () => {
@@ -138,12 +141,10 @@ const AssignTeacher = () => {
       return;
     }
 
-    const batchId = (selectedSection as any).batchId;
     const classId = (selectedSection as any).classId;
-    const departmentId = selectedDeptId;
 
-    if (!batchId || !classId || !departmentId) {
-      toast.error("Missing batch, class, or department ID.");
+    if (!classId) {
+      toast.error("Missing class ID.");
       return;
     }
 
@@ -152,32 +153,15 @@ const AssignTeacher = () => {
       return;
     }
 
-    const groups = selectedAssignments.reduce((map, assignment) => {
-      const key = assignment.subjectCode || assignment.subjectId || assignment.subjectName;
-      const current = map.get(key) ?? {
-        subject: {
-          id: assignment.subjectId,
-          courseCode: assignment.subjectCode,
-          subjectCode: assignment.subjectCode,
-        },
-        teacherIds: [] as number[],
-      };
-      if (!current.teacherIds.includes(assignment.teacherId)) {
-        current.teacherIds.push(assignment.teacherId);
-      }
-      map.set(key, current);
-      return map;
-    }, new Map<string, { subject: any; teacherIds: number[] }>());
-
     try {
       await Promise.all(
-        Array.from(groups.values()).map((group) =>
+        selectedAssignments.map((assignment) =>
           assignMutation.mutateAsync({
-            batchId,
-            departmentId,
-            classId,
-            teacherIds: group.teacherIds,
-            subject: group.subject,
+            academicTermId: (selectedSection as any).academicTermId || "2025-26",
+            courseId: assignment.subjectId,
+            instructorId: String(assignment.teacherId),
+            maxCapacity: assignment.maxCapacity || 60,
+            classid: classId
           })
         )
       );
@@ -262,6 +246,11 @@ const AssignTeacher = () => {
       return;
     }
 
+    if (maxCapacity !== "" && (isNaN(Number(maxCapacity)) || Number(maxCapacity) <= 0)) {
+      toast.error("Max capacity must be a positive number.");
+      return;
+    }
+
     const teacher = teachers.find((t) => String(t.id) === selectedTeacherId);
     if (!teacher) {
       toast.error("Teacher not found.");
@@ -297,6 +286,7 @@ const AssignTeacher = () => {
                 subjectId: selectedSubject.id,
                 subjectName: selectedSubject.name,
                 subjectCode,
+                maxCapacity: Number(maxCapacity) || 60,
               };
 
               toast.success(`Added ${teacher.full_name} for ${selectedSubject.name}.`);
@@ -383,10 +373,11 @@ const AssignTeacher = () => {
 
         console.debug("[AssignTeacher] rawBatches for dept ", value, rawBatches);
 
-        const yearsMap: { [yearName: string]: { name: string; id: string; classId?: string; semester?: string }[] } = {};
+        const yearsMap: { [yearName: string]: { name: string; id: string; classId?: string; semester?: string; academicTermId?: string }[] } = {};
         rawBatches.forEach((batch: any) => {
           const yearName = batch.year ?? "Unknown Year";
           const batchId = String(batch.batchId ?? batch.id ?? "");
+          const academicTermId = batch.academicTermId ?? batch.academicTerm ?? batch.academic_term_id ?? batch.academic_term ?? batch.year ?? "";
           
           if (batch.classes && Array.isArray(batch.classes)) {
             batch.classes.forEach((c: any) => {
@@ -397,7 +388,7 @@ const AssignTeacher = () => {
               if (!yearsMap[yearName]) {
                 yearsMap[yearName] = [];
               }
-              yearsMap[yearName].push({ name: className, id: batchId, classId, semester });
+              yearsMap[yearName].push({ name: className, id: batchId, classId, semester, academicTermId });
             });
           }
         });
@@ -415,6 +406,7 @@ const AssignTeacher = () => {
                 semester: sec.semester,
                 batchId: sec.id,
                 classId: sec.classId,
+                academicTermId: sec.academicTermId,
                 teachers: existingSec?.teachers ?? [],
                 students: existingSec?.students ?? [],
                 subjects: existingSec?.subjects ?? [],
@@ -462,17 +454,10 @@ const AssignTeacher = () => {
     setAvailableSubjects([]);
   };
 
-  // Load subjects for the selected class using useGetSubjectsByClassBatch query from departmentAPI
-  const { data: rawSubjects, isLoading: subjectsQueryLoading } = useGetSubjectsByClassBatch(
-    {
-      departmentId: selectedDeptId,
-      batchId: (selectedSection as any)?.batchId,
-      semester: selectedSemester,
-      classId: (selectedSection as any)?.classId,
-    },
-    {
-      enabled: !!selectedDeptId && !!(selectedSection as any)?.batchId && !!selectedSemester && !!(selectedSection as any)?.classId,
-    }
+  // Load subjects for the selected class using useCoursesByClass query from courseclassAPI
+  const isQueryEnabled = !!selectedDeptId && !!(selectedSection as any)?.batchId && !!selectedSemester && !!(selectedSection as any)?.classId;
+  const { data: rawSubjects, isLoading: subjectsQueryLoading } = useCoursesByClass(
+    isQueryEnabled ? (selectedSection as any)?.classId : ""
   );
 
   const subjectsLoading = subjectsQueryLoading;
@@ -484,7 +469,8 @@ const AssignTeacher = () => {
       return;
     }
 
-    const subjects = (Array.isArray(rawSubjects) ? rawSubjects : []).map((sub: any) => {
+    const subjects = (Array.isArray(rawSubjects) ? rawSubjects : []).map((item: any) => {
+      const sub = item.course ?? item.subject ?? item;
       const name = sub.name ?? sub.subjectName ?? sub.subject_name ?? sub.courseName ?? sub.course_name ?? "Unknown Subject";
       const code = sub.code ?? sub.subjectCode ?? sub.subject_code ?? sub.courseCode ?? sub.course_code ?? "";
       const id = sub.id ?? sub.subjectId ?? sub.subject_id ?? (code && code !== "N/A" ? code : name);
@@ -734,6 +720,19 @@ const AssignTeacher = () => {
                   </Select>
                 )}
               </div>
+
+              {/* Max Capacity Input */}
+              <div className="space-y-2">
+                <Label htmlFor="max-capacity">Max Capacity</Label>
+                <Input
+                  id="max-capacity"
+                  type="number"
+                  placeholder="e.g. 60"
+                  value={maxCapacity}
+                  onChange={(e) => setMaxCapacity(e.target.value ? Number(e.target.value) : "")}
+                  className="h-11 rounded-lg"
+                />
+              </div>
             </div>
 
             <Button
@@ -801,6 +800,7 @@ const AssignTeacher = () => {
                             <th className="px-4 py-2">No</th>
                             <th className="px-4 py-2">Faculty Name</th>
                             <th className="px-4 py-2">Subject</th>
+                            <th className="px-4 py-2">Max Capacity</th>
                             <th className="px-4 py-2 text-right">Action</th>
                           </tr>
                         </thead>
@@ -815,6 +815,7 @@ const AssignTeacher = () => {
                                   <span className="text-[10px] uppercase font-mono text-muted-foreground">{assignment.subjectCode}</span>
                                 </div>
                               </td>
+                              <td className="px-4 py-3 text-muted-foreground font-medium">{assignment.maxCapacity ?? 60}</td>
                               <td className="px-4 py-3 text-right">
                                  <CustomTooltip content="Unassign Teacher">
                                    <Button

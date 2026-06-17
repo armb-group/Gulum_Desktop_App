@@ -178,3 +178,30 @@ export const useAssignTeachersBulk = () => {
   });
 };
 
+export const getCourseOfferings = async (teacherId) => {
+  const response = await api.get(`/course-offerings/${encodeURIComponent(teacherId)}`);
+  return response.data.responseData ?? response.data;
+};
+
+export const useGetCourseOfferings = (teacherId, options = {}) =>
+  useQuery({
+    queryKey: ["course-offerings", teacherId],
+    queryFn: () => getCourseOfferings(teacherId),
+    enabled: !!teacherId && (options.enabled ?? true),
+  });
+
+export const createCourseOffering = async (data) => {
+  const response = await api.post("/course-offerings", data);
+  return response.data.responseData ?? response.data;
+};
+
+export const useCreateCourseOffering = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createCourseOffering,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course-offerings"] });
+    },
+  });
+};
+
