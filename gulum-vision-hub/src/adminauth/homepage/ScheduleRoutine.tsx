@@ -74,18 +74,6 @@ interface DayRoutine {
   tracks: RoutineTrack[];
 }
 
-// Default/fallback time slots
-const DEFAULT_SLOT_TIME_MAP: Record<number, { startTime: string; endTime: string }> = {
-  1: { startTime: "09:30", endTime: "10:20" },
-  2: { startTime: "10:20", endTime: "11:10" },
-  3: { startTime: "11:10", endTime: "12:00" },
-  4: { startTime: "12:00", endTime: "12:50" },
-  5: { startTime: "01:40", endTime: "02:30" },
-  6: { startTime: "02:30", endTime: "03:20" },
-  7: { startTime: "03:20", endTime: "04:10" },
-  8: { startTime: "04:10", endTime: "05:00" }
-};
-
 // Resolve teacherId based on name from the teachers directory
 const resolveTeacherId = (name: string, teachersList: any[]) => {
   if (!name) return "";
@@ -110,7 +98,7 @@ const serializeStateToBackend = (
   institutionId: string,
   classId: string,
   semesterVal: number,
-  slotTimeMap: Record<number, { startTime: string; endTime: string }>
+  slotTimeMap?: Record<number, { startTime: string; endTime: string }> | null
 ) => {
   const flatSlots: {
     teacherId: string;
@@ -236,13 +224,13 @@ const serializeStateToBackend = (
       classesId: classId,
       teacherName,
       timeslot: slots.map((s) => {
-        const timeInfo = slotTimeMap[s.slotNumber] || DEFAULT_SLOT_TIME_MAP[s.slotNumber];
+        const timeInfo = slotTimeMap?.[s.slotNumber];
         return {
           scheduleId: s.scheduleId || undefined,
           timeslotId: s.timeslotId || undefined,
           day: s.day,
-          startTime: timeInfo.startTime,
-          endTime: timeInfo.endTime,
+          startTime: timeInfo?.startTime || "",
+          endTime: timeInfo?.endTime || "",
           slotNumber: s.slotNumber,
           courseName: s.courseName,
           courseCode: s.courseCode,
@@ -273,6 +261,15 @@ const createBlankRoutine = (): DayRoutine[] => [
   { day: "FRI", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] }
 ];
 
+
+const formatTimeHM = (timeStr: string) => {
+  if (!timeStr) return "";
+  const parts = timeStr.trim().split(":");
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+  }
+  return timeStr;
+};
 
 export default function ScheduleRoutine() {
   const { user } = useAuth();
@@ -306,31 +303,31 @@ export default function ScheduleRoutine() {
 
   // Raw records, and slot time map state
   const [rawRoutineData, setRawRoutineData] = useState<any>(null);
-  const [slotTimeMap, setSlotTimeMap] = useState<Record<number, { startTime: string; endTime: string }>>(DEFAULT_SLOT_TIME_MAP);
+  const [slotTimeMap, setSlotTimeMap] = useState<Record<number, { startTime: string; endTime: string }> | null>();
 
   // Dynamically compute left/right slots and break text
   const dynamicTimeSlotsLeft = useMemo(() => {
     return [
-      { name: "SLOT-1", time: `${slotTimeMap[1]?.startTime || "04:00"} - ${slotTimeMap[1]?.endTime || "04:50"}` },
-      { name: "SLOT-2", time: `${slotTimeMap[2]?.startTime || "04:50"} - ${slotTimeMap[2]?.endTime || "05:40"}` },
-      { name: "SLOT-3", time: `${slotTimeMap[3]?.startTime || "05:40"} - ${slotTimeMap[3]?.endTime || "06:30"}` },
-      { name: "SLOT-4", time: `${slotTimeMap[4]?.startTime || "06:30"} - ${slotTimeMap[4]?.endTime || "07:20"}` }
+      { name: "SLOT-1", time: `${formatTimeHM(slotTimeMap?.[1]?.startTime)} - ${formatTimeHM(slotTimeMap?.[1]?.endTime)}` },
+      { name: "SLOT-2", time: `${formatTimeHM(slotTimeMap?.[2]?.startTime)} - ${formatTimeHM(slotTimeMap?.[2]?.endTime)}` },
+      { name: "SLOT-3", time: `${formatTimeHM(slotTimeMap?.[3]?.startTime)} - ${formatTimeHM(slotTimeMap?.[3]?.endTime)}` },
+      { name: "SLOT-4", time: `${formatTimeHM(slotTimeMap?.[4]?.startTime)} - ${formatTimeHM(slotTimeMap?.[4]?.endTime)}` }
     ];
   }, [slotTimeMap]);
 
   const dynamicTimeSlotsRight = useMemo(() => {
     return [
-      { name: "SLOT-5", time: `${slotTimeMap[5]?.startTime || "08:10"} - ${slotTimeMap[5]?.endTime || "09:00"}` },
-      { name: "SLOT-6", time: `${slotTimeMap[6]?.startTime || "09:00"} - ${slotTimeMap[6]?.endTime || "09:50"}` },
-      { name: "SLOT-7", time: `${slotTimeMap[7]?.startTime || "09:50"} - ${slotTimeMap[7]?.endTime || "10:40"}` },
-      { name: "SLOT-8", time: `${slotTimeMap[8]?.startTime || "10:40"} - ${slotTimeMap[8]?.endTime || "11:30"}` }
+      { name: "SLOT-5", time: `${formatTimeHM(slotTimeMap?.[5]?.startTime)} - ${formatTimeHM(slotTimeMap?.[5]?.endTime)}` },
+      { name: "SLOT-6", time: `${formatTimeHM(slotTimeMap?.[6]?.startTime)} - ${formatTimeHM(slotTimeMap?.[6]?.endTime)}` },
+      { name: "SLOT-7", time: `${formatTimeHM(slotTimeMap?.[7]?.startTime)} - ${formatTimeHM(slotTimeMap?.[7]?.endTime)}` },
+      { name: "SLOT-8", time: `${formatTimeHM(slotTimeMap?.[8]?.startTime)} - ${formatTimeHM(slotTimeMap?.[8]?.endTime)}` }
     ];
   }, [slotTimeMap]);
 
   const breakIntervalText = useMemo(() => {
-    const breakStart = slotTimeMap[8]?.endTime || "11:30";
-    const breakEnd = slotTimeMap[1]?.startTime || "04:00";
-    return `${breakStart}-${breakEnd}`;
+    const breakStart = slotTimeMap?.[4]?.endTime;
+    const breakEnd = slotTimeMap?.[5]?.startTime;
+    return `${formatTimeHM(breakStart)}-${formatTimeHM(breakEnd)}`;
   }, [slotTimeMap]);
 
   const findTimeslotId = (dayShort: string, slotNum: number): string | undefined => {
@@ -833,11 +830,22 @@ export default function ScheduleRoutine() {
     } else if (routineData === null || routineData === undefined) {
       if (!routineLoading) {
         setRawRoutineData([]);
-        setSlotTimeMap(DEFAULT_SLOT_TIME_MAP);
+        setSlotTimeMap(null);
         loadLocalFallback();
       }
     }
   }, [routineData, routineLoading, selectedClassId]);
+
+  // Log routine state rendering and time slots
+  useEffect(() => {
+    console.log("Routine Rendering State:", routineState);
+  }, [routineState]);
+
+  useEffect(() => {
+    console.log("Time Slots Left (SLOT-1 to 4):", dynamicTimeSlotsLeft);
+    console.log("Time Slots Right (SLOT-5 to 8):", dynamicTimeSlotsRight);
+    console.log("Break Interval Text:", breakIntervalText);
+  }, [dynamicTimeSlotsLeft, dynamicTimeSlotsRight, breakIntervalText]);
 
   // Save changes locally
   const saveAllToStorage = (newRoutine: DayRoutine[]) => {
@@ -1106,7 +1114,7 @@ export default function ScheduleRoutine() {
 
       const sourceScheduleId = sourceCell.scheduleIds?.[0];
       const targetScheduleId = targetCell.scheduleIds?.[0];
-      
+
       let targetTimeslotId = targetCell.timeslotIds?.[0];
       if (!targetTimeslotId) {
         const minSlot = (side === "left" ? 1 : 5);
@@ -1445,21 +1453,18 @@ export default function ScheduleRoutine() {
               font-size: 8px !important;
             }
             .print-timetable-area th {
-              background-color: #f8fafc !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              background-color: transparent !important;
             }
             .print-timetable-area .print-subject-card {
-              border: 1.5px solid #cbd5e1 !important;
-              border-radius: 12px !important;
+              background: transparent !important;
+              background-color: transparent !important;
+              border: none !important;
+              border-left: none !important;
               box-shadow: none !important;
               padding: 6px !important;
               min-height: unset !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             .print-timetable-area .print-empty-slot {
-              border: none !important;
               background: transparent !important;
               box-shadow: none !important;
               padding: 6px !important;
@@ -1467,6 +1472,7 @@ export default function ScheduleRoutine() {
             }
             .print-timetable-area p, 
             .print-timetable-area span, 
+            .print-timetable-area div, 
             .print-timetable-area td, 
             .print-timetable-area th {
               color: #000000 !important;
@@ -2002,7 +2008,7 @@ export default function ScheduleRoutine() {
 
       {/* ── CELL DETAIL EDIT DIALOG (Hidden on print) ── */}
       <Dialog open={editingCell !== null} onOpenChange={(open) => !open && setEditingCell(null)}>
-        <DialogContent 
+        <DialogContent
           className="sm:max-w-[425px] admin-white-modal print-hide"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
