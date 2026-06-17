@@ -16,7 +16,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetTeachers, getTeachers, useAssignTeachersBulk } from "@/services/teacherCrudAPI";
 import { useGetDepartments, getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
-import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department } from "./departmentsData";
+import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department, type Subject } from "./departmentsData";
 import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,6 +76,9 @@ const AssignTeacher = () => {
   const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [teacherSearch, setTeacherSearch] = useState<string>("");
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>("");
+  const [subjectsLoading, setSubjectsLoading] = useState<boolean>(false);
   const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [removeTargetTeacherName, setRemoveTargetTeacherName] = useState<string | null>(null);
@@ -262,6 +265,8 @@ const AssignTeacher = () => {
     saveDepartments(updatedDepartments);
   };
 
+  // subjects are fetched automatically from backend and saved into departments state
+
   const handleRemove = (teacherName: string) => {
     setRemoveTargetTeacherName(teacherName);
   };
@@ -316,6 +321,8 @@ const AssignTeacher = () => {
           ? data
           : (data?.responseData ?? data?.data ?? []);
 
+        console.debug("[AssignTeacher] rawBatches for dept ", value, rawBatches);
+
         const yearsMap: { [yearName: string]: { name: string; id: string; classId?: string; semester?: string }[] } = {};
         rawBatches.forEach((batch: any) => {
           const yearName = batch.year ?? "Unknown Year";
@@ -356,6 +363,8 @@ const AssignTeacher = () => {
           };
         });
 
+        console.debug("[AssignTeacher] mappedYears for dept ", value, mappedYears);
+
         const updatedDepartments = departments.map((dept) => {
           if (dept.id === value) {
             return {
@@ -387,6 +396,70 @@ const AssignTeacher = () => {
     setSelectedSectionName(value);
     setSelectedSemester("");
   };
+
+  // Load subjects for the selected class from the course-class API
+  useEffect(() => {
+    const classId = (selectedSection as any)?.classId;
+    if (!classId || !selectedSemester) return; // only fetch after semester selected
+
+    setSubjectsLoading(true);
+    queryClient
+      .fetchQuery({
+        queryKey: ["class-subjects", classId],
+        queryFn: async () => {
+          const url = `http://localhost:8080/gulum/course-class/class/${classId}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`Failed to fetch subjects: ${res.status}`);
+          const data = await res.json();
+
+          // Try to locate subjects array in common shapes
+          let rawSubjects: any[] = [];
+          if (Array.isArray(data)) rawSubjects = data;
+          else if (Array.isArray(data.subjects)) rawSubjects = data.subjects;
+          else if (Array.isArray(data.responseData)) rawSubjects = data.responseData;
+          else if (Array.isArray(data.data)) rawSubjects = data.data;
+
+          // Map to Subject type (name, code)
+          return rawSubjects.map((s: any) => ({
+            name: s.name ?? s.title ?? s.subjectName ?? String(s),
+            code: s.code ?? s.short ?? s.subjectCode ?? s.id ?? "",
+          } as Subject));
+        },
+      })
+      .then((subjects: Subject[]) => {
+        setAvailableSubjects(subjects);
+        if (subjects && subjects.length > 0) setSelectedSubjectCode(String(subjects[0].code ?? subjects[0].name));
+
+        // update the departments in-memory with fetched subjects for this section
+        if (!selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) return;
+        const updated = departments.map((dept) => {
+          if (dept.id !== selectedDeptId) return dept;
+          return {
+            ...dept,
+            years: dept.years.map((yr) => {
+              if (yr.year !== selectedYear) return yr;
+              return {
+                ...yr,
+                sections: yr.sections.map((sect) => {
+                  if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
+                  return {
+                    ...sect,
+                    subjects: subjects,
+                  };
+                }),
+              };
+            }),
+          };
+        });
+
+        saveDepartments(updated);
+      })
+      .catch((err) => {
+        console.error("Error fetching class subjects:", err);
+        toast.error("Failed to load subjects for this class.");
+      })
+      .finally(() => setSubjectsLoading(false));
+  }, [selectedSection?.classId, selectedDeptId, selectedYear, selectedSectionName, selectedSemester]);
 
   return (
     <AdminShell title="Teacher Department Assignment">
@@ -566,6 +639,33 @@ const AssignTeacher = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Subject (auto-loaded) */}
+              <div className="space-y-2">
+                <Label htmlFor="subject-select">Subject</Label>
+                {subjectsLoading ? (
+                  <div className="h-11 w-full bg-muted animate-pulse rounded-lg flex items-center justify-center text-xs text-muted-foreground">
+                    Loading subjects...
+                  </div>
+                ) : (
+                  <Select value={selectedSubjectCode} onValueChange={setSelectedSubjectCode} disabled={!selectedSemester || availableSubjects.length === 0}>
+                    <SelectTrigger id="subject-select" className="h-11 rounded-lg">
+                      <SelectValue placeholder={availableSubjects.length ? "Choose subject" : "No subjects available"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSubjects.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-muted-foreground">No subjects available</div>
+                      ) : (
+                        availableSubjects.map((s) => (
+                          <SelectItem key={s.code || s.name} value={String(s.code)}>
+                            {s.name} ({s.code})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 

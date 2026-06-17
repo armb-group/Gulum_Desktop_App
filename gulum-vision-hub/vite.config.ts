@@ -10,10 +10,11 @@ export default defineConfig(({ mode }) => ({
     // port: 8080,
     port: 8082,
     proxy: {
-      "^/(gulum)": {
-        target: "http://localhost:8080",
+      "^/gulum": {
+        target: "http://localhost:3000",
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/gulum/, ''),
       },
     },
     hmr: {
