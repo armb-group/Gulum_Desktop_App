@@ -16,6 +16,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetTeachers, getTeachers, useAssignTeachersBulk } from "@/services/teacherCrudAPI";
 import { useGetDepartments, getDepartments, getAcademicBatchesByDepartment } from "@/services/departmentAPI";
+import { getSubjectsByClassSemester } from "@/services/subjectAPI";
 import { initialData as deptData, getDepartmentsInMemory, setDepartmentsInMemory, type Department, type Subject } from "./departmentsData";
 import { Users, UserCheck, Trash2, BookOpen, Layers, ShieldAlert, GraduationCap, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,14 @@ interface TeacherData {
   qualification: string;
   email: string;
 }
+
+type TeacherSubjectAssignment = {
+  teacherId: number;
+  teacherName: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+};
 
 const createDefaultYears = (deptName: string, deptId: string) => {
   const code = (deptId || deptName || "DEPT").substring(0, 3).toUpperCase();
@@ -81,7 +90,7 @@ const AssignTeacher = () => {
   const [subjectsLoading, setSubjectsLoading] = useState<boolean>(false);
   const [batchesLoading, setBatchesLoading] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [removeTargetTeacherName, setRemoveTargetTeacherName] = useState<string | null>(null);
+  const [removeTargetAssignment, setRemoveTargetAssignment] = useState<TeacherSubjectAssignment | null>(null);
 
   // TanStack Query for Teachers
   const { data: rawTeachers = [], isLoading: teachersLoading } = useGetTeachers();
@@ -125,7 +134,7 @@ const AssignTeacher = () => {
   const assignMutation = useAssignTeachersBulk();
   const confirming = assignMutation.isPending;
 
-  const handleConfirmAssignment = () => {
+  const handleConfirmAssignment = async () => {
     if (!selectedSection) {
       toast.error("No section selected.");
       return;
@@ -140,27 +149,46 @@ const AssignTeacher = () => {
       return;
     }
 
-    // Get selected teacher IDs
-    const teacherIds = selectedSection.teachers
-      .map((name) => {
-        const found = teachers.find((t) => t.full_name === name);
-        return found ? found.id : null;
-      })
-      .filter((id): id is number => id !== null);
+    if (selectedAssignments.length === 0) {
+      toast.error("Add at least one teacher with a subject before confirming.");
+      return;
+    }
 
-    assignMutation.mutate(
-      { batchId, departmentId, classId, teacherIds },
-      {
-        onSuccess: () => {
-          toast.success("Teacher assignments confirmed and saved successfully!");
+    const groups = selectedAssignments.reduce((map, assignment) => {
+      const key = assignment.subjectCode || assignment.subjectId || assignment.subjectName;
+      const current = map.get(key) ?? {
+        subject: {
+          id: assignment.subjectId,
+          courseCode: assignment.subjectCode,
+          subjectCode: assignment.subjectCode,
         },
-        onError: (err: any) => {
-          console.error("Error confirming teacher assignments:", err);
-          const errMsg = err.response?.data?.message ?? err.message ?? "Failed to save teacher assignments.";
-          toast.error(errMsg);
-        }
+        teacherIds: [] as number[],
+      };
+      if (!current.teacherIds.includes(assignment.teacherId)) {
+        current.teacherIds.push(assignment.teacherId);
       }
-    );
+      map.set(key, current);
+      return map;
+    }, new Map<string, { subject: any; teacherIds: number[] }>());
+
+    try {
+      await Promise.all(
+        Array.from(groups.values()).map((group) =>
+          assignMutation.mutateAsync({
+            batchId,
+            departmentId,
+            classId,
+            teacherIds: group.teacherIds,
+            subject: group.subject,
+          })
+        )
+      );
+      toast.success("Teacher subject assignments saved successfully!");
+    } catch (err: any) {
+      console.error("Error confirming teacher subject assignments:", err);
+      const errMsg = err.response?.data?.message ?? err.message ?? "Failed to save teacher subject assignments.";
+      toast.error(errMsg);
+    }
   };
 
   // Save departments back to in-memory store whenever state changes
@@ -201,6 +229,19 @@ const AssignTeacher = () => {
     ) || null;
   }, [selectedYearObj, selectedSectionName, selectedSemester]);
 
+  const selectedSubject = useMemo(() => {
+    return availableSubjects.find((subject: any) => {
+      const value = String(subject.code || subject.id || subject.name);
+      return value === selectedSubjectCode;
+    }) || null;
+  }, [availableSubjects, selectedSubjectCode]);
+
+  const selectedAssignments = useMemo<TeacherSubjectAssignment[]>(() => {
+    const assignments = (selectedSection as any)?.teacherAssignments;
+    if (Array.isArray(assignments)) return assignments;
+    return [];
+  }, [selectedSection]);
+
   useEffect(() => {
     if (scrollContainerRef.current) {
       const viewport = scrollContainerRef.current.querySelector("[data-radix-scroll-area-viewport]");
@@ -211,7 +252,7 @@ const AssignTeacher = () => {
         });
       }
     }
-  }, [selectedSection?.teachers?.length]);
+  }, [selectedAssignments.length]);
 
   const filteredTeachersForSelect = useMemo(() => {
     return teachers.filter((t) =>
@@ -221,8 +262,8 @@ const AssignTeacher = () => {
   }, [teachers, teacherSearch]);
 
   const handleAssign = () => {
-    if (!selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) {
-      toast.error("Please select a teacher, department, year, section, and semester.");
+    if (!selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester || !selectedSubject) {
+      toast.error("Please select a teacher, department, year, section, semester, and subject.");
       return;
     }
 
@@ -245,16 +286,31 @@ const AssignTeacher = () => {
             sections: yr.sections.map((sect) => {
               if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
 
-              // Check if teacher is already assigned
-              if (sect.teachers.includes(teacher.full_name)) {
-                toast.warning(`${teacher.full_name} is already assigned to this section.`);
+              const subjectCode = String((selectedSubject as any).code || (selectedSubject as any).id || (selectedSubject as any).name);
+              const currentAssignments = Array.isArray((sect as any).teacherAssignments)
+                ? (sect as any).teacherAssignments
+                : [];
+
+              if (currentAssignments.some((item: TeacherSubjectAssignment) => item.teacherId === teacher.id && item.subjectCode === subjectCode)) {
+                toast.warning(`${teacher.full_name} is already assigned to ${selectedSubject.name}.`);
                 return sect;
               }
 
-              toast.success(`Successfully assigned ${teacher.full_name} to ${dept.name} (${yr.year} - ${sect.name} - Sem ${selectedSemester})`);
+              const nextAssignment: TeacherSubjectAssignment = {
+                teacherId: teacher.id,
+                teacherName: teacher.full_name,
+                subjectId: String((selectedSubject as any).id || subjectCode),
+                subjectName: selectedSubject.name,
+                subjectCode,
+              };
+
+              toast.success(`Added ${teacher.full_name} for ${selectedSubject.name}.`);
               return {
                 ...sect,
-                teachers: [...sect.teachers, teacher.full_name],
+                teachers: sect.teachers.includes(teacher.full_name)
+                  ? sect.teachers
+                  : [...sect.teachers, teacher.full_name],
+                teacherAssignments: [...currentAssignments, nextAssignment],
               };
             }),
           };
@@ -267,12 +323,12 @@ const AssignTeacher = () => {
 
   // subjects are fetched automatically from backend and saved into departments state
 
-  const handleRemove = (teacherName: string) => {
-    setRemoveTargetTeacherName(teacherName);
+  const handleRemove = (assignment: TeacherSubjectAssignment) => {
+    setRemoveTargetAssignment(assignment);
   };
 
   const confirmRemove = () => {
-    if (!removeTargetTeacherName) return;
+    if (!removeTargetAssignment) return;
     if (!selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) return;
 
     const updatedDepartments = departments.map((dept) => {
@@ -288,10 +344,17 @@ const AssignTeacher = () => {
             sections: yr.sections.map((sect) => {
               if (sect.name !== selectedSectionName || String((sect as any).semester || "") !== selectedSemester) return sect;
 
-              toast.info(`Removed ${removeTargetTeacherName} from section.`);
+              const nextAssignments = ((sect as any).teacherAssignments ?? []).filter(
+                (item: TeacherSubjectAssignment) =>
+                  !(item.teacherId === removeTargetAssignment.teacherId && item.subjectCode === removeTargetAssignment.subjectCode)
+              );
+              const remainingTeacherNames = new Set(nextAssignments.map((item: TeacherSubjectAssignment) => item.teacherName));
+
+              toast.info(`Removed ${removeTargetAssignment.teacherName} from ${removeTargetAssignment.subjectName}.`);
               return {
                 ...sect,
-                teachers: sect.teachers.filter((t) => t !== removeTargetTeacherName),
+                teachers: sect.teachers.filter((t) => remainingTeacherNames.has(t)),
+                teacherAssignments: nextAssignments,
               };
             }),
           };
@@ -308,6 +371,8 @@ const AssignTeacher = () => {
     setSelectedYear("");
     setSelectedSectionName("");
     setSelectedSemester("");
+    setSelectedSubjectCode("");
+    setAvailableSubjects([]);
 
     if (!value) return;
 
@@ -358,6 +423,7 @@ const AssignTeacher = () => {
                 teachers: existingSec?.teachers ?? [],
                 students: existingSec?.students ?? [],
                 subjects: existingSec?.subjects ?? [],
+                teacherAssignments: (existingSec as any)?.teacherAssignments ?? [],
               };
             }),
           };
@@ -390,45 +456,35 @@ const AssignTeacher = () => {
     setSelectedYear(value);
     setSelectedSectionName("");
     setSelectedSemester("");
+    setSelectedSubjectCode("");
+    setAvailableSubjects([]);
   };
 
   const handleSectionChange = (value: string) => {
     setSelectedSectionName(value);
     setSelectedSemester("");
+    setSelectedSubjectCode("");
+    setAvailableSubjects([]);
   };
 
   // Load subjects for the selected class from the course-class API
   useEffect(() => {
     const classId = (selectedSection as any)?.classId;
-    if (!classId || !selectedSemester) return; // only fetch after semester selected
+    if (!classId || !selectedSemester) {
+      setAvailableSubjects([]);
+      setSelectedSubjectCode("");
+      return;
+    }
 
     setSubjectsLoading(true);
     queryClient
       .fetchQuery({
-        queryKey: ["class-subjects", classId],
-        queryFn: async () => {
-          const url = `http://localhost:8080/gulum/course-class/class/${classId}`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`Failed to fetch subjects: ${res.status}`);
-          const data = await res.json();
-
-          // Try to locate subjects array in common shapes
-          let rawSubjects: any[] = [];
-          if (Array.isArray(data)) rawSubjects = data;
-          else if (Array.isArray(data.subjects)) rawSubjects = data.subjects;
-          else if (Array.isArray(data.responseData)) rawSubjects = data.responseData;
-          else if (Array.isArray(data.data)) rawSubjects = data.data;
-
-          // Map to Subject type (name, code)
-          return rawSubjects.map((s: any) => ({
-            name: s.name ?? s.title ?? s.subjectName ?? String(s),
-            code: s.code ?? s.short ?? s.subjectCode ?? s.id ?? "",
-          } as Subject));
-        },
+        queryKey: ["class-subjects", classId, selectedSemester],
+        queryFn: () => getSubjectsByClassSemester({ classId, semester: selectedSemester }),
       })
       .then((subjects: Subject[]) => {
         setAvailableSubjects(subjects);
-        if (subjects && subjects.length > 0) setSelectedSubjectCode(String(subjects[0].code ?? subjects[0].name));
+        setSelectedSubjectCode(subjects[0] ? String((subjects[0] as any).code || (subjects[0] as any).id || subjects[0].name) : "");
 
         // update the departments in-memory with fetched subjects for this section
         if (!selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester) return;
@@ -625,7 +681,11 @@ const AssignTeacher = () => {
                 <Label htmlFor="semester-select">Semester</Label>
                 <Select
                   value={selectedSemester}
-                  onValueChange={setSelectedSemester}
+                  onValueChange={(value) => {
+                    setSelectedSemester(value);
+                    setSelectedSubjectCode("");
+                    setAvailableSubjects([]);
+                  }}
                   disabled={!selectedSectionName}
                 >
                   <SelectTrigger id="semester-select" className="h-11 rounded-lg disabled:opacity-50">
@@ -649,7 +709,7 @@ const AssignTeacher = () => {
                     Loading subjects...
                   </div>
                 ) : (
-                  <Select value={selectedSubjectCode} onValueChange={setSelectedSubjectCode} disabled={!selectedSemester || availableSubjects.length === 0}>
+                  <Select value={selectedSubjectCode} onValueChange={setSelectedSubjectCode} disabled={!selectedSemester || subjectsLoading || availableSubjects.length === 0}>
                     <SelectTrigger id="subject-select" className="h-11 rounded-lg">
                       <SelectValue placeholder={availableSubjects.length ? "Choose subject" : "No subjects available"} />
                     </SelectTrigger>
@@ -657,8 +717,8 @@ const AssignTeacher = () => {
                       {availableSubjects.length === 0 ? (
                         <div className="p-3 text-center text-xs text-muted-foreground">No subjects available</div>
                       ) : (
-                        availableSubjects.map((s) => (
-                          <SelectItem key={s.code || s.name} value={String(s.code)}>
+                        availableSubjects.map((s: any) => (
+                          <SelectItem key={s.code || s.id || s.name} value={String(s.code || s.id || s.name)}>
                             {s.name} ({s.code})
                           </SelectItem>
                         ))
@@ -671,7 +731,7 @@ const AssignTeacher = () => {
 
             <Button
               onClick={handleAssign}
-              disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester}
+              disabled={loading || !selectedTeacherId || !selectedDeptId || !selectedYear || !selectedSectionName || !selectedSemester || !selectedSubject}
               className="w-full mt-6 rounded-xl h-12 font-medium transition duration-200 transform hover:scale-[1.01] shadow-md flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -688,7 +748,7 @@ const AssignTeacher = () => {
               </div>
               {selectedSection && (
                 <span className="bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-900/50">
-                  {selectedSection.teachers.length} Active
+                  {selectedAssignments.length} Active
                 </span>
               )}
             </div>
@@ -718,7 +778,7 @@ const AssignTeacher = () => {
                   </div>
 
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Assigned Faculty Members</h3>
-                  {(!selectedSection || selectedSection.teachers.length === 0) ? (
+                  {(!selectedSection || selectedAssignments.length === 0) ? (
                     <div className="text-center py-10 bg-muted/20 border border-dashed rounded-xl flex flex-col items-center justify-center p-4">
                       <ShieldAlert className="h-8 w-8 text-amber-500 mb-2" />
                       <p className="text-sm font-medium text-foreground">No teachers assigned</p>
@@ -733,20 +793,27 @@ const AssignTeacher = () => {
                           <tr>
                             <th className="px-4 py-2">No</th>
                             <th className="px-4 py-2">Faculty Name</th>
+                            <th className="px-4 py-2">Subject</th>
                             <th className="px-4 py-2 text-right">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
-                          {selectedSection.teachers.map((teacherName, idx) => (
-                            <tr key={idx} className="hover:bg-muted/10 transition">
+                          {selectedAssignments.map((assignment, idx) => (
+                            <tr key={`${assignment.teacherId}-${assignment.subjectCode}`} className="hover:bg-muted/10 transition">
                               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{idx + 1}</td>
-                              <td className="px-4 py-3 font-medium text-foreground">{teacherName}</td>
+                              <td className="px-4 py-3 font-medium text-foreground">{assignment.teacherName}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-foreground">{assignment.subjectName}</span>
+                                  <span className="text-[10px] uppercase font-mono text-muted-foreground">{assignment.subjectCode}</span>
+                                </div>
+                              </td>
                               <td className="px-4 py-3 text-right">
                                  <CustomTooltip content="Unassign Teacher">
                                    <Button
                                      variant="ghost"
                                      size="sm"
-                                     onClick={() => handleRemove(teacherName)}
+                                     onClick={() => handleRemove(assignment)}
                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg h-8 w-8"
                                    >
                                      <Trash2 className="h-4 w-4" />
@@ -761,7 +828,7 @@ const AssignTeacher = () => {
                   )}
                 </div>
 
-                {selectedSection && selectedSection.teachers.length > 0 && (
+                {selectedSection && selectedAssignments.length > 0 && (
                   <Button
                     onClick={handleConfirmAssignment}
                     disabled={confirming}
@@ -785,11 +852,11 @@ const AssignTeacher = () => {
         </div>
       </section>
       <ConfirmModal
-        isOpen={removeTargetTeacherName !== null}
-        onClose={() => setRemoveTargetTeacherName(null)}
+        isOpen={removeTargetAssignment !== null}
+        onClose={() => setRemoveTargetAssignment(null)}
         onConfirm={confirmRemove}
         title="Remove Teacher Assignment"
-        description={`Are you sure you want to remove ${removeTargetTeacherName} from this section assignment?`}
+        description={`Are you sure you want to remove ${removeTargetAssignment?.teacherName ?? "this teacher"} from ${removeTargetAssignment?.subjectName ?? "this subject"}?`}
       />
     </AdminShell>
   );

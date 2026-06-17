@@ -109,9 +109,19 @@ export const updateTeacher = async (id, teacherData) => {
   return response.data.responseData ?? response.data;
 };
 
-export const assignTeachersBulk = async (batchId, departmentId, classId, teacherIds) => {
+export const assignTeachersBulk = async (batchId, departmentId, classId, teacherIds, subject = {}) => {
+  const params = new URLSearchParams({
+    batchId: String(batchId),
+    departmentId: String(departmentId),
+    classId: String(classId),
+  });
+  const courseCode = subject.courseCode ?? subject.subjectCode ?? subject.code;
+  const courseId = subject.courseId ?? subject.subjectId ?? subject.id;
+  if (courseCode) params.set("courseCode", String(courseCode));
+  if (courseId) params.set("courseId", String(courseId));
+
   const response = await api.post(
-    `/teachers/assign-bulk?batchId=${encodeURIComponent(batchId)}&departmentId=${encodeURIComponent(departmentId)}&classId=${encodeURIComponent(classId)}`,
+    `/teachers/assign-bulk?${params.toString()}`,
     teacherIds
   );
   return response.data.responseData ?? response.data;
@@ -148,8 +158,8 @@ export const useUpdateTeacher = () => {
 export const useAssignTeachersBulk = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ batchId, departmentId, classId, teacherIds }) =>
-      assignTeachersBulk(batchId, departmentId, classId, teacherIds),
+    mutationFn: ({ batchId, departmentId, classId, teacherIds, subject }) =>
+      assignTeachersBulk(batchId, departmentId, classId, teacherIds, subject),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
     },

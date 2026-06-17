@@ -259,10 +259,13 @@ const Departments = () => {
   const activeSubjects = useMemo(() => {
     if (!rawSubjects) return [];
     const list = Array.isArray(rawSubjects) ? rawSubjects : [];
-    return list.map((sub: any) => ({
-      name: sub.name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
-      code: sub.code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
-    }));
+    return list.map((item: any) => {
+      const sub = item.course ?? item.subject ?? item;
+      return {
+        name: sub.name ?? sub.courseName ?? sub.course_name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
+        code: sub.code ?? sub.courseCode ?? sub.course_code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
+      };
+    });
   }, [rawSubjects]);
 
   const tabLoading = useMemo(() => {
@@ -388,9 +391,6 @@ const Departments = () => {
                 onChange={(e) => {
                   setSelectedSemester(e.target.value);
                   setSelectedTab(null);
-                  setActiveTeachers([]);
-                  setActiveStudents([]);
-                  setActiveSubjects([]);
                 }}
                 disabled={!selectedClass}
                 className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed shadow-sm [&>option]:bg-card [&>option]:text-foreground"

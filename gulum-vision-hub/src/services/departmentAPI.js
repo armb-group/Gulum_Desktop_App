@@ -78,7 +78,10 @@ export const getStudentsByClassBatch = async (params) => {
 };
 
 export const getSubjectsByClassBatch = async (params) => {
-  const response = await api.get(`/subjects/department_class_batch`, { params });
+  const classId = params?.classId ?? params?.classesId;
+  const response = await api.get(`/course-class/class/${encodeURIComponent(classId)}`, {
+    params: params?.semester ? { semester: params.semester } : undefined,
+  });
   return response.data.responseData ?? response.data;
 };
 
