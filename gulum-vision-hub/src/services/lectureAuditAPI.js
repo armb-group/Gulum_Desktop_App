@@ -120,6 +120,12 @@ export const getModuleStatus = async (trackingId) => {
   return data?.responseData ?? data;
 };
 
+// Teacher lecture audit uses /module/status/ (no /api/ prefix) per API spec
+export const getTeacherModuleStatus = async (trackingId) => {
+  const { data } = await api.get(`/module/status/${encodeURIComponent(trackingId)}`);
+  return data?.responseData ?? data;
+};
+
 export const LECTURE_AUDIT_QUERY_KEY = ["lecture-audit"];
 
 export const useGetCourseModules = (courseCode, options = {}) =>

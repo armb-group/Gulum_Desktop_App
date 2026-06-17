@@ -5,6 +5,12 @@ import { ReactNode } from "react";
 export const ProtectedRoute = ({ role, children }: { role: Role; children: ReactNode }) => {
   const { user } = useAuth();
   if (!user) return <Navigate to={`/${role}/login`} replace />;
-  if (user.role !== role) return <Navigate to="/" replace />;
+  // If user is logged in but role doesn't match this portal, redirect them
+  // to their actual portal instead of bouncing to Welcome
+  if (user.role !== role) {
+    if (user.role === "admin") return <Navigate to="/admin/dashboard" replace />;
+    if (user.role === "teacher") return <Navigate to="/teacher" replace />;
+    return <Navigate to="/student" replace />;
+  }
   return <>{children}</>;
 };

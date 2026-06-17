@@ -30,8 +30,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    if (user) localStorage.setItem("gulum-user", JSON.stringify(user));
-    else localStorage.removeItem("gulum-user");
+    // Only sync to localStorage on logout (user becomes null).
+    // On login, SignIn writes to localStorage directly before calling login()
+    // so navigation is instant without waiting for this effect.
+    if (!user) localStorage.removeItem("gulum-user");
   }, [user]);
 
   return (
