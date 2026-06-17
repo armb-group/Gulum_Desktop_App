@@ -3,7 +3,7 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Upload, LogOut, Building2,
   GraduationCap, Users, Bell, ShieldCheck, UserCheck, Calendar,
-  PanelLeft, ClipboardCheck, BookOpen, Layers, BookMarked
+  PanelLeft, ClipboardCheck, BookOpen, Layers, BookMarked, FolderOpen
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ const NAV_GROUPS = [
       { title: "Department",        url: "/admin/department",  icon: Building2 },
       { title: "Classes",           url: "/admin/ClassCrud",   icon: Layers },
       { title: "Subjects",          url: "/admin/SubjectCrud",  icon: BookMarked },
+      { title: "Modules",           url: "/admin/ModuleCrud",   icon: FolderOpen },
       { title: "Teachers",           url: "/admin/TeacherCrud",  icon: Users },
       { title: "Students",           url: "/admin/StudentCrud",  icon: GraduationCap },
       { title: "Notice",             url: "/admin/NoticePage",   icon: Bell },

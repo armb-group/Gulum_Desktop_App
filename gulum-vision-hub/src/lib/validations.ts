@@ -123,3 +123,27 @@ export const studentEditSchema = z.object({
   email_id: z.string().min(1, "Email is required").email("Enter a valid email address"),
   phone_number: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
 });
+
+// Modules
+export const moduleFormSchema = z.object({
+  moduleTitle: z.string().min(1, "Module Title is required").max(150, "Module title is too long"),
+  moduleNumber: z.preprocess(
+    (val) => Number(val),
+    z.number({ invalid_type_error: "Module number must be a number" })
+     .int("Module number must be an integer")
+     .min(1, "Module number must be at least 1")
+  ),
+  expectedHours: z.preprocess(
+    (val) => Number(val),
+    z.number({ invalid_type_error: "Expected hours must be a number" })
+     .int("Expected hours must be an integer")
+     .min(1, "Expected hours must be at least 1")
+  ),
+  sequenceOrder: z.preprocess(
+    (val) => Number(val),
+    z.number({ invalid_type_error: "Sequence order must be a number" })
+     .int("Sequence order must be an integer")
+     .min(1, "Sequence order must be at least 1")
+  ),
+});
+
