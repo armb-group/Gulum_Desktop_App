@@ -390,9 +390,6 @@ const Departments = () => {
                 onChange={(e) => {
                   setSelectedSemester(e.target.value);
                   setSelectedTab(null);
-                  setActiveTeachers([]);
-                  setActiveStudents([]);
-                  setActiveSubjects([]);
                 }}
                 disabled={!selectedClass}
                 className="w-full rounded-lg border border-input bg-card px-4 py-3 text-foreground hover:bg-muted/50 hover:border-primary/30 transition focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed shadow-sm [&>option]:bg-card [&>option]:text-foreground"
