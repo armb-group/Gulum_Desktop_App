@@ -9,14 +9,16 @@ import type { Department } from "./departmentsData";
 import { toast } from "sonner";
 import ExportButton from "@/components/ExportButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { departmentSchema } from "@/lib/validations";
 import {
   useGetDepartments,
   useGetAcademicBatchesByDepartment,
   useCreateDepartment,
-  useGetTeachersByClassBatch,
-  useGetStudentsByClassBatch,
-  useGetSubjectsByClassBatch
+  useGetTeachersByClass,
+  useGetStudentsByClassBatch
 } from "@/services/departmentAPI";
+import { useCoursesByClass } from "@/services/courseclassAPI";
+import { useGetCourseOfferings } from "@/services/teacherCrudAPI";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +64,45 @@ import { Textarea } from "@/components/ui/textarea";
     }
   ];
 };*/
+
+const TeacherClassesCell = ({ teacherId }: { teacherId: string | number }) => {
+  const { data: offerings, isLoading } = useGetCourseOfferings(teacherId);
+
+  const classesText = useMemo(() => {
+    if (!offerings) return "No classes assigned";
+    const list = Array.isArray(offerings) ? offerings : (offerings.responseData ?? offerings.data ?? []);
+    if (!Array.isArray(list) || list.length === 0) return "No classes assigned";
+
+    const classNames = list.map((offering: any) => {
+      const className = offering.className ?? offering.classes?.name ?? offering.class?.name ?? offering.classSectionName ?? "";
+      const semester = offering.semester ?? offering.classes?.semester ?? offering.class?.semester ?? "";
+      const courseName = offering.courseName ?? offering.course?.courseName ?? offering.course?.name ?? "";
+
+      const classLabel = className ? `${className} (Sem ${semester})` : `Sem ${semester}`;
+      return courseName ? `${courseName} in ${classLabel}` : classLabel;
+    }).filter((val, index, self) => val && self.indexOf(val) === index); // unique
+
+    return classNames.length > 0 ? classNames.join(", ") : "No classes assigned";
+  }, [offerings]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <span
+      className="text-xs text-muted-foreground font-semibold bg-primary/5 dark:bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg inline-block max-w-md truncate"
+      title={classesText}
+    >
+      {classesText}
+    </span>
+  );
+};
 
 const Departments = () => {
   const { user } = useAuth();
@@ -123,8 +164,9 @@ const Departments = () => {
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeptName.trim()) {
-      toast.error("Department name is required.");
+    const result = departmentSchema.safeParse({ name: newDeptName.trim() });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
 
@@ -209,21 +251,20 @@ const Departments = () => {
   const isTabQueryEnabled = !!selectedDeptId && !!selectedYear && !!selectedClass && !!selectedSemester && !!selectedClassId && !!selectedBatchId;
 
   // 1. Fetch Teachers
-  const teachersParams = useMemo(() => ({
-    departmentId: selectedDeptId,
-    batchId: selectedBatchId,
-    semester: selectedSemester,
-    classId: selectedClassId
-  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
-
-  const { data: rawTeachers, isLoading: teachersLoading } = useGetTeachersByClassBatch(teachersParams, {
+  const { data: rawTeachers, isLoading: teachersLoading } = useGetTeachersByClass(selectedClassId, {
     enabled: isTabQueryEnabled
   });
 
   const activeTeachers = useMemo(() => {
     if (!rawTeachers) return [];
-    const list = Array.isArray(rawTeachers) ? rawTeachers : [];
-    return list.map((t: any) => t.fullName ?? t.full_name ?? t.name ?? String(t));
+    const list = Array.isArray(rawTeachers) ? rawTeachers : (rawTeachers.responseData ?? rawTeachers.data ?? []);
+    return list.map((t: any) => ({
+      teacherId: t.teacherId ?? "",
+      employeeCode: t.employeeCode ?? "N/A",
+      teacherName: t.teacherName ?? "Unknown Teacher",
+      courseName: t.courseName ?? "Unknown Course",
+      courseCode: t.courseCode ?? "N/A"
+    }));
   }, [rawTeachers]);
 
   // 2. Fetch Students
@@ -244,17 +285,10 @@ const Departments = () => {
     return list.map((s: any) => s.fullName ?? s.full_name ?? s.name ?? String(s));
   }, [rawStudents]);
 
-  // 3. Fetch Subjects
-  const subjectsParams = useMemo(() => ({
-    departmentId: selectedDeptId,
-    batchId: selectedBatchId,
-    semester: selectedSemester,
-    classId: selectedClassId
-  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
-
-  const { data: rawSubjects, isLoading: subjectsLoading } = useGetSubjectsByClassBatch(subjectsParams, {
-    enabled: isTabQueryEnabled
-  });
+  // 3. Fetch Subjects (using course-class API)
+  const { data: rawSubjects, isLoading: subjectsLoading } = useCoursesByClass(
+    isTabQueryEnabled ? selectedClassId : ""
+  );
 
   const activeSubjects = useMemo(() => {
     if (!rawSubjects) return [];
@@ -262,8 +296,8 @@ const Departments = () => {
     return list.map((item: any) => {
       const sub = item.course ?? item.subject ?? item;
       return {
-        name: sub.name ?? sub.courseName ?? sub.course_name ?? sub.subjectName ?? sub.subject_name ?? "Unknown Subject",
-        code: sub.code ?? sub.courseCode ?? sub.course_code ?? sub.subjectCode ?? sub.subject_code ?? "N/A"
+        name: sub.courseName ?? sub.name ?? sub.subjectName ?? sub.course_name ?? sub.subject_name ?? "Unknown Subject",
+        code: sub.courseCode ?? sub.code ?? sub.subjectCode ?? sub.course_code ?? sub.subject_code ?? "N/A"
       };
     });
   }, [rawSubjects]);
@@ -436,13 +470,25 @@ const Departments = () => {
                 <ExportButton
                   data={
                     selectedTab === "teachers"
-                      ? activeTeachers.map((name, idx) => ({ no: idx + 1, name }))
+                      ? activeTeachers.map((t: any, idx) => ({
+                          no: idx + 1,
+                          employeeCode: t.employeeCode,
+                          teacherName: t.teacherName,
+                          courseDisplay: `${t.courseName} (${t.courseCode})`
+                        }))
                       : selectedTab === "students"
                       ? activeStudents.map((name, idx) => ({ no: idx + 1, name }))
                       : activeSubjects.map((sub, idx) => ({ no: idx + 1, name: sub.name, code: sub.code }))
                   }
                   columns={
-                    selectedTab === "subjects"
+                    selectedTab === "teachers"
+                      ? [
+                          { key: "no", label: "No" },
+                          { key: "employeeCode", label: "Employee Code" },
+                          { key: "teacherName", label: "Teacher Name" },
+                          { key: "courseDisplay", label: "Course Name (Course Code)" }
+                        ]
+                      : selectedTab === "subjects"
                       ? [
                           { key: "no", label: "No" },
                           { key: "name", label: "Subject Name" },
@@ -450,7 +496,7 @@ const Departments = () => {
                         ]
                       : [
                           { key: "no", label: "No" },
-                          { key: "name", label: selectedTab === "teachers" ? "Teacher Name" : "Student Name" },
+                          { key: "name", label: "Student Name" },
                         ]
                   }
                   fileName={`${selectedDept?.name || "department"}_${selectedTab || "data"}`}
@@ -484,7 +530,9 @@ const Departments = () => {
                     <th className="px-4 py-3 text-left font-semibold text-foreground">No</th>
                     {selectedTab === "teachers" && (
                       <>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Employee Code</th>
                         <th className="px-4 py-3 text-left font-semibold text-foreground">Teacher Name</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Course Name (Course Code)</th>
                       </>
                     )}
                     {selectedTab === "students" && (
@@ -503,9 +551,13 @@ const Departments = () => {
                 <tbody>
                   {selectedTab === "teachers" &&
                     activeTeachers.map((teacher, idx) => (
-                      <tr key={idx} className="border-b border-border hover:bg-muted/30 transition">
+                      <tr key={teacher.teacherId || idx} className="border-b border-border hover:bg-muted/30 transition">
                         <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                        <td className="px-4 py-3 text-foreground">{teacher}</td>
+                        <td className="px-4 py-3 text-foreground font-mono text-xs">{teacher.employeeCode}</td>
+                        <td className="px-4 py-3 text-foreground font-medium">{teacher.teacherName}</td>
+                        <td className="px-4 py-3 text-foreground font-semibold">
+                          {teacher.courseName} ({teacher.courseCode})
+                        </td>
                       </tr>
                     ))}
 

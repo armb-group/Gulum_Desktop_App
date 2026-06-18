@@ -40,17 +40,20 @@ import TeacherCrud from "./adminauth/homepage/TeacherCrud";
 import StudentCrud from "./adminauth/homepage/StudentCrud";
 import NoticePage from "./adminauth/homepage/NoticePage";
 import Departments from "./adminauth/homepage/Departments";
+import ClassCrud from "./adminauth/homepage/ClassCrud";
+import SubjectCrud from "./adminauth/homepage/SubjectCrud";
+import ModuleCrud from "./adminauth/homepage/ModuleCrud";
 // import AssignWork from "./adminauth/homepage/AssignWork";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
 import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
-import ForgotPassword  from "./pages/ForgotPassword"; 
+import ForgotPassword  from "./pages/ForgotPassword";
 import AttendancePage from "./adminauth/homepage/AttendancePage";
 import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
-
+import AssignSubject from "./adminauth/homepage/AssignSubject";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 0
     },
   },
 });
@@ -248,6 +251,33 @@ const App = () => (
                 />
 
                 <Route
+                  path="/admin/ClassCrud"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <ClassCrud />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/SubjectCrud"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <SubjectCrud />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/ModuleCrud"
+                  element={
+                    <ProtectedRoute role="admin">
+                      <ModuleCrud />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/admin/TeacherCrud"
                   element={
                     <ProtectedRoute role="admin">
@@ -316,6 +346,10 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route
+  path="/admin/assign-subject"
+  element={<AssignSubject />}
+/>
 
                 <Route path="*" element={<NotFound />} />
               </Routes>

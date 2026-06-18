@@ -121,12 +121,24 @@ export const getStudentsByCourse = async (courseCode) => {
   return response.data.responseData ?? response.data;
 };
 
+export const getStudentsCount = async (institutionId) => {
+  const response = await api.get(`/api/students/count/${encodeURIComponent(institutionId)}`);
+  return response.data.responseData ?? response.data;
+};
+
 export const STUDENTS_QUERY_KEY = ["students"];
 
 export const useGetStudents = () =>
   useQuery({
     queryKey: STUDENTS_QUERY_KEY,
     queryFn: getStudents,
+  });
+
+export const useGetStudentsCount = (institutionId) =>
+  useQuery({
+    queryKey: [...STUDENTS_QUERY_KEY, "count", institutionId],
+    queryFn: () => getStudentsCount(institutionId),
+    enabled: !!institutionId,
   });
 
 export const useCreateStudent = () => {

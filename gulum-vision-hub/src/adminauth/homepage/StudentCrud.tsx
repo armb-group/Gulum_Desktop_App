@@ -3,6 +3,12 @@ import { toast } from "sonner";
 import { useGetStudents, useCreateStudent, useUpdateStudent } from "@/services/studentCrudAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  studentAccountSchema,
+  studentPersonalSchema,
+  studentAcademicSchema,
+  studentEditSchema
+} from "@/lib/validations";
 import { AdminShell } from "./AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -260,6 +266,11 @@ const StudentCrud = () => {
 
   const handleViewSave = async () => {
     if (!viewEditData) return;
+    const result = studentEditSchema.safeParse(viewEditData);
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
+      return;
+    }
     try {
       await updateStudentMutation.mutateAsync({ id: viewEditData.id, studentData: viewEditData });
       setSelectedViewStudent(viewEditData);
@@ -275,37 +286,23 @@ const StudentCrud = () => {
 
   const validateStep = (): boolean => {
     if (step === 0) {
-      if (!account.email || !/\S+@\S+\.\S+/.test(account.email)) {
-        toast.error("Enter a valid email address.");
-        return false;
-      }
-      if (!account.phone || account.phone.length < 7) {
-        toast.error("Enter a valid phone number.");
-        return false;
-      }
-      if (!account.password || account.password.length < 6) {
-        toast.error("Password must be at least 6 characters.");
+      const result = studentAccountSchema.safeParse(account);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
         return false;
       }
     }
     if (step === 1) {
-      if (!personal.full_name.trim()) {
-        toast.error("Full name is required.");
-        return false;
-      }
-      if (!personal.dob) {
-        toast.error("Date of birth is required.");
-        return false;
-      }
-      if (!personal.gender) {
-        toast.error("Gender is required.");
+      const result = studentPersonalSchema.safeParse(personal);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
         return false;
       }
     }
     if (step === 2) {
-      const { institution_id, admission_no, roll_no, batch_id, classess_id, department_id } = academic;
-      if (!institution_id || !admission_no || !roll_no || !batch_id || !classess_id || !department_id) {
-        toast.error("All academic fields are required.");
+      const result = studentAcademicSchema.safeParse(academic);
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
         return false;
       }
     }
@@ -633,7 +630,7 @@ const StudentCrud = () => {
                     <Input
                       placeholder="e.g. 9876543210"
                       value={account.phone}
-                      onChange={(e) => setAccount({ ...account, phone: e.target.value })}
+                      onChange={(e) => setAccount({ ...account, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                     />
                   </Field>
                   <Field label="Password *">
@@ -655,7 +652,7 @@ const StudentCrud = () => {
                     <Input
                       placeholder="e.g. Amit Kumar"
                       value={personal.full_name}
-                      onChange={(e) => setPersonal({ ...personal, full_name: e.target.value })}
+                      onChange={(e) => setPersonal({ ...personal, full_name: e.target.value.replace(/[^A-Za-z\s]/g, "") })}
                     />
                   </Field>
                   <Field label="Date of Birth *">
@@ -689,7 +686,7 @@ const StudentCrud = () => {
                       <Input
                         placeholder="e.g. 1"
                         value={academic.institution_id}
-                        onChange={(e) => setAcademic({ ...academic, institution_id: e.target.value })}
+                        onChange={(e) => setAcademic({ ...academic, institution_id: e.target.value.replace(/\D/g, "") })}
                       />
                     </Field>
                     <Field label="Admission No *">
@@ -710,21 +707,21 @@ const StudentCrud = () => {
                       <Input
                         placeholder="e.g. 101"
                         value={academic.batch_id}
-                        onChange={(e) => setAcademic({ ...academic, batch_id: e.target.value })}
+                        onChange={(e) => setAcademic({ ...academic, batch_id: e.target.value.replace(/\D/g, "") })}
                       />
                     </Field>
                     <Field label="Classess ID *">
                       <Input
                         placeholder="e.g. 1"
                         value={academic.classess_id}
-                        onChange={(e) => setAcademic({ ...academic, classess_id: e.target.value })}
+                        onChange={(e) => setAcademic({ ...academic, classess_id: e.target.value.replace(/\D/g, "") })}
                       />
                     </Field>
                     <Field label="Department ID *">
                       <Input
                         placeholder="e.g. 10"
                         value={academic.department_id}
-                        onChange={(e) => setAcademic({ ...academic, department_id: e.target.value })}
+                        onChange={(e) => setAcademic({ ...academic, department_id: e.target.value.replace(/\D/g, "") })}
                       />
                     </Field>
                   </div>
@@ -814,10 +811,25 @@ const StudentCrud = () => {
                       <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
                         {column.label}
                       </label>
-                      {isEditingView ? (
+                      {isEditingView && column.key !== "id" && column.key !== "user_id" && column.key !== "created_at" && column.key !== "created_by" ? (
                         <Input
                           value={String(viewEditData?.[column.key] ?? "")}
-                          onChange={(e) => setViewEditData((prev) => prev ? { ...prev, [column.key]: e.target.value } : prev)}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (column.key === "phone_number") {
+                              val = val.replace(/\D/g, "").slice(0, 10);
+                            } else if (column.key === "full_name") {
+                              val = val.replace(/[^A-Za-z\s]/g, "");
+                            } else if (
+                              column.key === "institution_id" ||
+                              column.key === "batch_id" ||
+                              column.key === "classess_id" ||
+                              column.key === "department_id"
+                            ) {
+                              val = val.replace(/\D/g, "");
+                            }
+                            setViewEditData((prev) => prev ? { ...prev, [column.key]: val } : prev);
+                          }}
                           className="h-9 mt-1"
                         />
                       ) : (

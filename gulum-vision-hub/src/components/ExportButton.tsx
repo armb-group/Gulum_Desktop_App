@@ -62,7 +62,17 @@ const ExportButton = ({ data, columns, fileName = "export", title }: ExportButto
       worksheet["!cols"] = colWidths;
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, title || "Sheet1");
+      
+      // Excel limits sheet names to 31 characters and forbids: \ / ? * : [ ]
+      let sheetName = (title || "Sheet1")
+        .replace(/[\\/?*:[\]]/g, "")
+        .substring(0, 31)
+        .trim();
+      if (!sheetName) {
+        sheetName = "Sheet1";
+      }
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
       XLSX.writeFile(workbook, `${fileName}.xlsx`);
 
       toast.success("Excel file exported successfully!");

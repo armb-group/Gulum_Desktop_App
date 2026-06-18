@@ -127,12 +127,24 @@ export const assignTeachersBulk = async (batchId, departmentId, classId, teacher
   return response.data.responseData ?? response.data;
 };
 
+export const getTeachersCount = async (institutionId) => {
+  const response = await api.get(`/teachers/count/institution/${encodeURIComponent(institutionId)}`);
+  return response.data.responseData ?? response.data;
+};
+
 export const TEACHERS_QUERY_KEY = ["teachers"];
 
 export const useGetTeachers = () =>
   useQuery({
     queryKey: TEACHERS_QUERY_KEY,
     queryFn: getTeachers,
+  });
+
+export const useGetTeachersCount = (institutionId) =>
+  useQuery({
+    queryKey: [...TEACHERS_QUERY_KEY, "count", institutionId],
+    queryFn: () => getTeachersCount(institutionId),
+    enabled: !!institutionId,
   });
 
 export const useCreateTeacher = () => {
@@ -162,6 +174,33 @@ export const useAssignTeachersBulk = () => {
       assignTeachersBulk(batchId, departmentId, classId, teacherIds, subject),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TEACHERS_QUERY_KEY });
+    },
+  });
+};
+
+export const getCourseOfferings = async (teacherId) => {
+  const response = await api.get(`/course-offerings/${encodeURIComponent(teacherId)}`);
+  return response.data.responseData ?? response.data;
+};
+
+export const useGetCourseOfferings = (teacherId, options = {}) =>
+  useQuery({
+    queryKey: ["course-offerings", teacherId],
+    queryFn: () => getCourseOfferings(teacherId),
+    enabled: !!teacherId && (options.enabled ?? true),
+  });
+
+export const createCourseOffering = async (data) => {
+  const response = await api.post("/course-offerings", data);
+  return response.data.responseData ?? response.data;
+};
+
+export const useCreateCourseOffering = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createCourseOffering,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["course-offerings"] });
     },
   });
 };
