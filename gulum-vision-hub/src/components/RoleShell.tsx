@@ -15,16 +15,11 @@ interface RoleShellProps {
 }
 
 const getMenuItems = (base: string, role: string) => [
-  { title: "Home",      url: base,                    icon: Home,           end: true },
-  ...(role === "student"
-    ? [{ title: "Insights", url: `${base}/dashboard`, icon: BarChart3 }]
-    : []),
-  ...(role === "teacher"
-    ? [{ title: "Assignments", url: `${base}/assignments`, icon: FolderClosed }]
-    : []),
-  { title: "Alerts",    url: `${base}/notifications`, icon: Bell },
-  { title: "Calendar", url: `${base}/calendar`, icon: Calendar },
-  { title: "Profile",   url: `${base}/profile`,       icon: User },
+  { title: "Home",     url: base,                    icon: Home,     end: true },
+  { title: "Insights", url: `${base}/dashboard`,     icon: BarChart3 },
+  { title: "Alerts",   url: `${base}/notifications`, icon: Bell },
+  { title: "Calendar", url: `${base}/calendar`,      icon: Calendar },
+  { title: "Profile",  url: `${base}/profile`,       icon: User },
 ];
 
 const formatDate = () =>

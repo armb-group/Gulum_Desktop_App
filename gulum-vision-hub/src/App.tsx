@@ -30,6 +30,7 @@ import TeacherProfile from "./teacherauth/homepage/TeacherProfile";
 import TeacherAttendance from "./teacherauth/homepage/TeacherAttendance";
 import TeacherLectureAudit from "./teacherauth/homepage/TeacherLectureAudit";
 import TeacherCalendar from "./teacherauth/homepage/TeacherCalendar";
+import TeacherTimetable from "./teacherauth/homepage/TeacherTimetable";
 
 import AdminLogin from "./adminauth/homepage/AdminLogin";
 import AdminDashboard from "./adminauth/homepage/AdminDashboard";
@@ -64,7 +65,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <PhoneFrame>
               <Routes>
                 <Route path="/" element={<Welcome />} />
@@ -201,6 +202,14 @@ const App = () => (
                   element={
                     <ProtectedRoute role="teacher">
                       <TeacherLectureAudit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/teacher/timetable"
+                  element={
+                    <ProtectedRoute role="teacher">
+                      <TeacherTimetable />
                     </ProtectedRoute>
                   }
                 />

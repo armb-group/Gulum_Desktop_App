@@ -1,167 +1,252 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Bell,
-  AlertCircle,
-  CalendarDays,
-  Search,
-  ChevronRight,
-  Users,
-  Sparkles,
-  Play,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  BarChart3, Sparkles, Calendar, BookOpen, User,
+  Users, Bell, ArrowRight, ClipboardList,
+} from "lucide-react";
+import {
+  defaultAdminNotifications,
+  defaultStudentNotifications,
+  notificationTypeStyle,
+  sortByCreatedAt,
+} from "@/lib/notifications";
+import { noticeToNotification, useGetNoticesByLevel } from "@/services/noticeAPI";
+import { useSyllabusMasters, useTracking } from "@/services/lectureAuditAPI";
+import { useAuth } from "@/contexts/AuthContext";
 
-const notifications = [
-  {
-    icon: AlertCircle,
-    iconCls: "bg-destructive/10 text-destructive",
-    title: "3 students below 75% attendance in DBMS",
-    time: "2h ago",
-  },
-  {
-    icon: CalendarDays,
-    iconCls: "bg-purple-soft text-purple",
-    title: "PTM scheduled for 28 July — Hall B",
-    time: "5h ago",
-  },
+const tiles = [
+  { label: "Insights",      icon: BarChart3,     to: "/teacher/dashboard" },
+  { label: "Lecture Audit", icon: BookOpen,       to: "/teacher/lecture-audit" },
+  { label: "Timetable",     icon: Calendar,      to: "/teacher/timetable" },
+  { label: "Profile",       icon: User,           to: "/teacher/profile" },
 ];
 
-const todaysClasses = [
-  { time: "09:00–10:00", subject: "DBMS", details: "BCA Sem 4 · Room 204", count: 42 },
-  { time: "11:00–12:00", subject: "OS", details: "BCA Sem 4 · Room 101", count: 38 },
+const TODAY_SCHEDULE = [
+  { time: "09:00–10:00", subject: "DBMS",    details: "BCA Sem 4 · Room 204", count: 42 },
+  { time: "11:00–12:00", subject: "OS",      details: "BCA Sem 4 · Room 101", count: 38 },
   { time: "14:00–15:00", subject: "Web Dev", details: "BCA Sem 6 · Room 305", count: 35 },
 ];
 
 const TeacherHome = () => {
+  const { user } = useAuth();
+
+  const adminNoticeQuery   = useGetNoticesByLevel("ADMIN",   { batchId: user?.batchId ?? "", enabled: Boolean(user?.batchId) });
+  const studentNoticeQuery = useGetNoticesByLevel("STUDENT");
+
+  const notifications = useMemo(() =>
+    sortByCreatedAt([
+      ...defaultAdminNotifications,
+      ...defaultStudentNotifications,
+      ...(adminNoticeQuery.data  ?? []).map(n => noticeToNotification(n, "admin")),
+      ...(studentNoticeQuery.data ?? []).map(n => noticeToNotification(n, "student")),
+    ]).slice(0, 3),
+    [adminNoticeQuery.data, studentNoticeQuery.data]
+  );
+
+  const { data: subjects = [] } = useSyllabusMasters();
+  const { data: tracking } = useTracking({
+    classId:    (subjects as any[])[0]?.classId    ?? "",
+    courseCode: (subjects as any[])[0]?.courseCode ?? "",
+  });
+
+  const syllabusCoverage = tracking?.progressPercentage ?? 0;
+  const completedModules  = tracking?.completedModules  ?? 0;
+  const totalModules      = tracking?.totalModules      ?? 0;
+
   return (
-    <RoleShell role="teacher" title="Welcome, Teacher" showDate>
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search classes, subjects, students..."
-          className="h-12 pl-11 rounded-2xl bg-muted/60 border-transparent"
-        />
-      </div>
+    <RoleShell role="teacher" title="Teacher Dashboard" showDate>
+      <div className="space-y-6">
 
-      {/* Notifications */}
-      <section>
-        <div className="flex items-center gap-2 text-primary text-xs font-semibold tracking-widest mb-2">
-          <Bell className="h-4 w-4" /> NOTIFICATIONS
-        </div>
-        <Card className="p-3 bg-surface border-border space-y-2">
-          {notifications.map((n) => (
-            <div key={n.title} className="flex items-start gap-3 p-2 rounded-xl">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${n.iconCls}`}>
-                <n.icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{n.title}</p>
-                <p className="text-xs text-muted-foreground">{n.time}</p>
+        {/* Hero */}
+        <Card
+          className="relative rounded-2xl overflow-hidden p-6 md:p-8 shrink-0 shadow-md"
+          style={{
+            backgroundColor: "var(--admin-hero)",
+            color: "var(--admin-hero-foreground)",
+            boxShadow: "0 8px 40px 0 rgba(102,20,20,0.28), 0 1.5px 0 0 rgba(255,255,255,0.08) inset",
+          }}
+        >
+          <div className="flex items-start justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-sm opacity-80">Welcome back,</p>
+              <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                Teacher Console
+              </h1>
+              <p className="mt-2 text-sm opacity-90">
+                {user?.institution
+                  ? `${user.institution} · Academic Year 2024-25`
+                  : "Gulum University · Academic Year 2024-25"}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{TODAY_SCHEDULE.length} classes today</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{syllabusCoverage}% syllabus covered</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">{completedModules}/{totalModules} modules done</span>
               </div>
             </div>
-          ))}
-          <button className="w-full text-center text-primary text-sm font-semibold py-2">
-            Show All (4) →
-          </button>
+          </div>
         </Card>
-      </section>
 
-      {/* Today's Classes */}
-      <section>
-        <div className="flex items-center gap-2 text-primary text-xs font-semibold tracking-widest mb-2">
-          <CalendarDays className="h-4 w-4" /> TODAY'S CLASSES
-        </div>
-        <Card className="p-3 bg-surface border-border space-y-2">
-          {todaysClasses.map((c) => (
+        {/* Stats */}
+        <section className="grid grid-cols-3 gap-4">
+          <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
+            <div className="flex flex-col items-center">
+              <BarChart3 className="h-6 w-6 text-primary mb-2" />
+              <p className="text-2xl font-bold text-foreground">{syllabusCoverage}%</p>
+              <p className="text-xs text-muted-foreground text-center">Syllabus</p>
+            </div>
+          </Card>
+          <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
+            <div className="flex flex-col items-center">
+              <BookOpen className="h-6 w-6 text-primary mb-2" />
+              <p className="text-2xl font-bold text-foreground">{completedModules}/{totalModules}</p>
+              <p className="text-xs text-muted-foreground text-center">Modules</p>
+            </div>
+          </Card>
+          <Card className="p-4 rounded-3xl border-0 bg-surface shadow-sm">
+            <div className="flex flex-col items-center">
+              <ClipboardList className="h-6 w-6 text-primary mb-2" />
+              <p className="text-2xl font-bold text-foreground">{TODAY_SCHEDULE.length}</p>
+              <p className="text-xs text-muted-foreground text-center">Classes Today</p>
+            </div>
+          </Card>
+        </section>
+
+        {/* Quick Access */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="h-4 w-4 text-[var(--admin-hero)]" />
+            <h2 className="font-bold text-lg text-[var(--admin-hero)]">Quick Access</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {tiles.map((t) => (
+              <Link
+                key={t.label}
+                to={t.to}
+                className="group rounded-3xl p-5 border border-white/20 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all"
+                style={{ backgroundColor: "var(--admin-hero)", color: "var(--admin-hero-foreground)" }}
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div
+                    className="h-14 w-14 rounded-2xl flex items-center justify-center mb-3 transition"
+                    style={{ backgroundColor: "rgba(255, 241, 158, 0.35)" }}
+                  >
+                    <t.icon className="h-7 w-7 text-[var(--admin-hero-foreground)]" />
+                  </div>
+                  <p className="font-semibold text-sm text-[var(--admin-hero-foreground)]">{t.label}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Main sections */}
+        <section>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            {/* Syllabus Coverage */}
+            <Card className="p-4 rounded-3xl bg-surface">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Lecture Progress
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-2xl font-bold text-foreground">{syllabusCoverage}%</p>
+                <p className="text-xs text-muted-foreground">Overall</p>
+              </div>
+              <Progress value={syllabusCoverage} className="h-2 mt-3 [&>div]:bg-primary" />
+              <Link to="/teacher/lecture-audit" className="block text-sm text-primary font-semibold mt-3">
+                View Full Progress →
+              </Link>
+            </Card>
+
+            {/* Today's Classes */}
+            <Card className="p-4 rounded-3xl bg-surface">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Today's Classes
+              </p>
+              <div className="space-y-2">
+                {TODAY_SCHEDULE.map((c) => (
+                  <Link
+                    key={c.subject}
+                    to="/teacher/attendance"
+                    className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover:bg-brand-soft/60 transition"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{c.subject}</p>
+                      <p className="text-xs text-muted-foreground">{c.details}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                      <Users className="h-3 w-3" /> {c.count}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <Link to="/teacher/timetable" className="block text-sm text-primary font-semibold mt-3">
+                View Full Timetable →
+              </Link>
+            </Card>
+
+            {/* Daily Routine */}
+            <Card className="p-4 rounded-3xl bg-surface">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Schedule
+              </p>
+              <div className="space-y-2">
+                {TODAY_SCHEDULE.map((c) => (
+                  <div key={c.subject} className="flex items-center justify-between p-2 rounded-lg bg-background/50">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{c.subject}</p>
+                      <p className="text-xs text-muted-foreground">{c.details}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">{c.time}</span>
+                  </div>
+                ))}
+              </div>
+              <Link to="/teacher/dashboard" className="block text-sm text-primary font-semibold mt-3">
+                View Insights →
+              </Link>
+            </Card>
+          </div>
+        </section>
+
+        {/* Notifications */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Bell className="h-4 w-4 text-primary" />
+            <h2 className="font-bold text-lg">Latest Notifications</h2>
+          </div>
+          <Card className="rounded-3xl border shadow-sm p-4 space-y-3">
+            {notifications.map((n) => {
+              const Icon = notificationTypeStyle[n.type]?.icon ?? notificationTypeStyle.info.icon;
+              const cls  = notificationTypeStyle[n.type]?.cls  ?? notificationTypeStyle.info.cls;
+              return (
+                <div key={n.id} className="flex gap-3 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition">
+                  <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${cls}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground whitespace-pre-line">{n.title}</p>
+                    {n.description && (
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{n.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">{n.time}</p>
+                  </div>
+                </div>
+              );
+            })}
             <Link
-              to="/teacher/attendance"
-              key={c.subject}
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/40"
+              to="/teacher/notifications"
+              className="flex items-center justify-center gap-2 py-3 text-primary font-semibold hover:bg-primary/5 rounded-2xl transition"
             >
-              <span className="text-xs font-bold text-primary bg-brand-soft rounded-xl px-3 py-2 whitespace-nowrap">
-                {c.time}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground">{c.subject}</p>
-                <p className="text-xs text-muted-foreground">{c.details}</p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-brand-soft rounded-xl px-2.5 py-1.5">
-                <Users className="h-3 w-3" /> {c.count}
-              </span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              View All Notifications ({notifications.length})
+              <ArrowRight className="h-4 w-4" />
             </Link>
-          ))}
-          <Link
-            to="/teacher/dashboard"
-            className="block text-center text-primary text-sm font-semibold py-2"
-          >
-            View Full Timetable →
-          </Link>
-        </Card>
-      </section>
+          </Card>
+        </section>
 
-      {/* Attendance Summary */}
-      <section>
-        <div className="flex items-center gap-2 text-primary text-xs font-semibold tracking-widest mb-2">
-          ATTENDANCE SUMMARY
-        </div>
-        <Card className="p-4 bg-surface border-border">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-foreground">Today's Overall</p>
-            <p className="text-success font-bold text-2xl">78%</p>
-          </div>
-          <Progress value={78} className="h-2 mt-2 [&>div]:bg-success" />
-          <div className="grid grid-cols-4 gap-2 mt-4 text-center">
-            <div className="rounded-xl bg-success-soft py-3">
-              <p className="font-bold text-success text-xl">32</p>
-              <p className="text-xs text-success">Present</p>
-            </div>
-            <div className="rounded-xl bg-destructive/10 py-3">
-              <p className="font-bold text-destructive text-xl">9</p>
-              <p className="text-xs text-destructive">Absent</p>
-            </div>
-            <div className="rounded-xl bg-warning-soft py-3">
-              <p className="font-bold text-warning text-xl">3</p>
-              <p className="text-xs text-warning">Late</p>
-            </div>
-            <div className="rounded-xl bg-muted py-3">
-              <p className="font-bold text-foreground text-xl">44</p>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </div>
-          </div>
-          <Link
-            to="/teacher/dashboard"
-            className="block text-center text-primary text-sm font-semibold py-2 mt-2"
-          >
-            View Detailed Insights →
-          </Link>
-        </Card>
-      </section>
-
-      {/* Quick Actions */}
-      <section>
-        <div className="text-primary text-xs font-semibold tracking-widest mb-2">⚡ QUICK ACTIONS</div>
-        <div className="grid grid-cols-2 gap-3">
-          <Button asChild className="h-20 rounded-2xl flex-col gap-1">
-            <Link to="/teacher/attendance">
-              <Play className="h-5 w-5" />
-            <span className="font-semibold">Start Attendance</span>
-            </Link>
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-20 rounded-2xl flex-col gap-1 bg-purple-soft text-purple hover:bg-purple-soft/80"
-          >
-            <Sparkles className="h-5 w-5" />
-            <span className="font-semibold">AI Assistant</span>
-          </Button>
-        </div>
-      </section>
+      </div>
     </RoleShell>
   );
 };

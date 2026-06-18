@@ -69,24 +69,31 @@ const SignIn = ({ role }: SignInProps) => {
     try {
       const res = await loginApi({ email: identifier, password });
       const data = res.responseData ?? res;
-      const rawRole = (data.role ?? data.userType ?? role) as string;
-      const normalizedRole = rawRole.toLowerCase() === "user" ? "student" : rawRole.toLowerCase();
-      login({
+      // Always trust the portal the user signed into — ignore backend role field
+      // because the backend may return "USER" or inconsistent role strings
+      const authUser = {
         id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
         name: data.name ?? data.fullName ?? identifier,
         email: data.email ?? data.emailId ?? identifier,
-        role: normalizedRole as Role,
+        role: role as Role,
         institution: data.institution ?? data.collegeName,
         institutionId: data.institutionId ?? data.institution_id,
         batchId: data.batchId ?? data.batch_id,
         classId: data.classesId ?? data.classId,
         departmentId: data.departmentId ?? data.department_id,
         token: data.token,
-      });
+      };
+      localStorage.setItem("gulum-user", JSON.stringify(authUser));
+      login(authUser);
       toast.success("Welcome back!");
-      navigate(cfg.redirect);
+      navigate(cfg.redirect, { replace: true });
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Invalid credentials.");
+      const msg = err?.response?.data?.message ?? err?.message ?? "";
+      if (msg.toLowerCase().includes("timeout") || err?.code === "ECONNABORTED") {
+        toast.error("Server took too long to respond. Please try again.");
+      } else {
+        toast.error(msg || "Invalid credentials.");
+      }
     } finally {
       setLoading(false);
     }
