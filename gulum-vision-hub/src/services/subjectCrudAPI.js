@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "./api";
 
 export const getSubjects = async () => {
-  const response = await api.get("/subjects");
+  const response = await api.get("/courses");
   const raw = response.data.responseData ?? response.data;
   const list = Array.isArray(raw) ? raw : [];
   return list.map((s) => ({
@@ -15,21 +15,21 @@ export const getSubjects = async () => {
 };
 
 export const createSubject = async (subjectData) => {
-  const response = await api.post("/subjects", subjectData);
+  const response = await api.post("/courses", subjectData);
   return response.data.responseData ?? response.data;
 };
 
 export const updateSubject = async (id, subjectData) => {
-  const response = await api.put(`/subjects/${id}`, subjectData);
+  const response = await api.put(`/courses/${id}`, subjectData);
   return response.data.responseData ?? response.data;
 };
 
 export const deleteSubject = async (id) => {
-  const response = await api.delete(`/subjects/${id}`);
+  const response = await api.delete(`/courses/${id}`);
   return response.data.responseData ?? response.data;
 };
 
-export const SUBJECTS_QUERY_KEY = ["subjects"];
+export const SUBJECTS_QUERY_KEY = ["courses"];
 
 export const useGetSubjects = () =>
   useQuery({
