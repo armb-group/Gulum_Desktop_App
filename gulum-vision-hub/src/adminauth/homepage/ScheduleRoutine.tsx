@@ -1674,14 +1674,6 @@ export default function ScheduleRoutine() {
               ) : (
                 <>
                   <Button
-                    onClick={handleSaveToBackend}
-                    disabled={saving}
-                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 font-medium shadow-sm disabled:opacity-50"
-                  >
-                    <Layers className="w-4 h-4" />
-                    {saving ? "Saving..." : "Save"}
-                  </Button>
-                  <Button
                     variant="outline"
                     onClick={handleCancelEdit}
                     className="h-10 px-4 flex items-center gap-2 font-medium border-destructive hover:bg-destructive/15 text-destructive"
