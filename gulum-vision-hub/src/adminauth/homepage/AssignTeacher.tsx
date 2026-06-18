@@ -161,7 +161,7 @@ const AssignTeacher = () => {
             courseId: assignment.subjectId,
             instructorId: String(assignment.teacherId),
             maxCapacity: assignment.maxCapacity || 60,
-            classid: classId
+            classesId: classId
           })
         )
       );
@@ -473,7 +473,7 @@ const AssignTeacher = () => {
       const sub = item.course ?? item.subject ?? item;
       const name = sub.name ?? sub.subjectName ?? sub.subject_name ?? sub.courseName ?? sub.course_name ?? "Unknown Subject";
       const code = sub.code ?? sub.subjectCode ?? sub.subject_code ?? sub.courseCode ?? sub.course_code ?? "";
-      const id = sub.id ?? sub.subjectId ?? sub.subject_id ?? (code && code !== "N/A" ? code : name);
+      const id = sub.courseId ?? sub.id ?? sub.subjectId ?? sub.subject_id ?? (code && code !== "N/A" ? code : name);
       return {
         ...sub,
         name,

@@ -84,6 +84,11 @@ export const getTeachersByClassBatch = async (params) => {
   return response.data.responseData ?? response.data;
 };
 
+export const getTeachersByClass = async (classId) => {
+  const response = await api.get(`/course-offerings/class/${encodeURIComponent(classId)}/teacher-subjects`);
+  return response.data.responseData ?? response.data;
+};
+
 export const getStudentsByClassBatch = async (params) => {
   const response = await api.get(`/api/students/department_class_batch`, { params });
   return response.data.responseData ?? response.data;
@@ -99,6 +104,13 @@ export const useGetTeachersByClassBatch = (params, options = {}) =>
     queryKey: ["teachers-class-batch", params],
     queryFn: () => getTeachersByClassBatch(params),
     enabled: !!params.departmentId && !!params.batchId && !!params.semester && !!params.classId && (options.enabled ?? true),
+  });
+
+export const useGetTeachersByClass = (classId, options = {}) =>
+  useQuery({
+    queryKey: ["teachers-class", classId],
+    queryFn: () => getTeachersByClass(classId),
+    enabled: !!classId && (options.enabled ?? true),
   });
 
 export const useGetStudentsByClassBatch = (params, options = {}) =>

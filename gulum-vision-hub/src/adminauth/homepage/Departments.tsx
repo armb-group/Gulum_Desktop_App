@@ -14,7 +14,7 @@ import {
   useGetDepartments,
   useGetAcademicBatchesByDepartment,
   useCreateDepartment,
-  useGetTeachersByClassBatch,
+  useGetTeachersByClass,
   useGetStudentsByClassBatch
 } from "@/services/departmentAPI";
 import { useCoursesByClass } from "@/services/courseclassAPI";
@@ -251,23 +251,19 @@ const Departments = () => {
   const isTabQueryEnabled = !!selectedDeptId && !!selectedYear && !!selectedClass && !!selectedSemester && !!selectedClassId && !!selectedBatchId;
 
   // 1. Fetch Teachers
-  const teachersParams = useMemo(() => ({
-    departmentId: selectedDeptId,
-    batchId: selectedBatchId,
-    semester: selectedSemester,
-    classId: selectedClassId
-  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
-
-  const { data: rawTeachers, isLoading: teachersLoading } = useGetTeachersByClassBatch(teachersParams, {
+  const { data: rawTeachers, isLoading: teachersLoading } = useGetTeachersByClass(selectedClassId, {
     enabled: isTabQueryEnabled
   });
 
   const activeTeachers = useMemo(() => {
     if (!rawTeachers) return [];
-    const list = Array.isArray(rawTeachers) ? rawTeachers : [];
+    const list = Array.isArray(rawTeachers) ? rawTeachers : (rawTeachers.responseData ?? rawTeachers.data ?? []);
     return list.map((t: any) => ({
-      id: t.id ?? t.teacherId ?? t.teacher_id ?? "",
-      name: t.fullName ?? t.full_name ?? t.name ?? "Unknown Teacher"
+      teacherId: t.teacherId ?? "",
+      employeeCode: t.employeeCode ?? "N/A",
+      teacherName: t.teacherName ?? "Unknown Teacher",
+      courseName: t.courseName ?? "Unknown Course",
+      courseCode: t.courseCode ?? "N/A"
     }));
   }, [rawTeachers]);
 
@@ -474,13 +470,25 @@ const Departments = () => {
                 <ExportButton
                   data={
                     selectedTab === "teachers"
-                      ? activeTeachers.map((t: any, idx) => ({ no: idx + 1, name: t.name }))
+                      ? activeTeachers.map((t: any, idx) => ({
+                          no: idx + 1,
+                          employeeCode: t.employeeCode,
+                          teacherName: t.teacherName,
+                          courseDisplay: `${t.courseName} (${t.courseCode})`
+                        }))
                       : selectedTab === "students"
                       ? activeStudents.map((name, idx) => ({ no: idx + 1, name }))
                       : activeSubjects.map((sub, idx) => ({ no: idx + 1, name: sub.name, code: sub.code }))
                   }
                   columns={
-                    selectedTab === "subjects"
+                    selectedTab === "teachers"
+                      ? [
+                          { key: "no", label: "No" },
+                          { key: "employeeCode", label: "Employee Code" },
+                          { key: "teacherName", label: "Teacher Name" },
+                          { key: "courseDisplay", label: "Course Name (Course Code)" }
+                        ]
+                      : selectedTab === "subjects"
                       ? [
                           { key: "no", label: "No" },
                           { key: "name", label: "Subject Name" },
@@ -488,7 +496,7 @@ const Departments = () => {
                         ]
                       : [
                           { key: "no", label: "No" },
-                          { key: "name", label: selectedTab === "teachers" ? "Teacher Name" : "Student Name" },
+                          { key: "name", label: "Student Name" },
                         ]
                   }
                   fileName={`${selectedDept?.name || "department"}_${selectedTab || "data"}`}
@@ -522,8 +530,9 @@ const Departments = () => {
                     <th className="px-4 py-3 text-left font-semibold text-foreground">No</th>
                     {selectedTab === "teachers" && (
                       <>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Employee Code</th>
                         <th className="px-4 py-3 text-left font-semibold text-foreground">Teacher Name</th>
-                        <th className="px-4 py-3 text-left font-semibold text-foreground">Class / Subject Taken</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Course Name (Course Code)</th>
                       </>
                     )}
                     {selectedTab === "students" && (
@@ -542,11 +551,12 @@ const Departments = () => {
                 <tbody>
                   {selectedTab === "teachers" &&
                     activeTeachers.map((teacher, idx) => (
-                      <tr key={teacher.id || idx} className="border-b border-border hover:bg-muted/30 transition">
+                      <tr key={teacher.teacherId || idx} className="border-b border-border hover:bg-muted/30 transition">
                         <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                        <td className="px-4 py-3 text-foreground font-medium">{teacher.name}</td>
-                        <td className="px-4 py-3 text-foreground">
-                          <TeacherClassesCell teacherId={teacher.id} />
+                        <td className="px-4 py-3 text-foreground font-mono text-xs">{teacher.employeeCode}</td>
+                        <td className="px-4 py-3 text-foreground font-medium">{teacher.teacherName}</td>
+                        <td className="px-4 py-3 text-foreground font-semibold">
+                          {teacher.courseName} ({teacher.courseCode})
                         </td>
                       </tr>
                     ))}
