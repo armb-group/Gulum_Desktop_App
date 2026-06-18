@@ -179,7 +179,7 @@ export const useAssignTeachersBulk = () => {
 };
 
 export const getCourseOfferings = async (teacherId) => {
-  const response = await api.get(`/course-offerings/${encodeURIComponent(teacherId)}`);
+  const response = await api.get(`/course-offerings/teacher/${encodeURIComponent(teacherId)}`);
   return response.data.responseData ?? response.data;
 };
 
