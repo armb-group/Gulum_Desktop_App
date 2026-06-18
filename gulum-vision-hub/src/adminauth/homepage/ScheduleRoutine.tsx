@@ -44,7 +44,8 @@ import {
   useSaveScheduleRoutine,
   useSwapScheduleLayout,
   useMoveScheduleLayout,
-  useExtendScheduleLayout
+  useExtendScheduleLayout,
+  useGenerateScheduleRoutine
 } from "@/services/scheduleAPI";
 import { useGetTeachers } from "@/services/teacherCrudAPI";
 
@@ -297,6 +298,8 @@ export default function ScheduleRoutine() {
   }, [rawBatches]);
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createGroupCount, setCreateGroupCount] = useState<number>(1);
 
   // Routine State
   const [routineState, setRoutineState] = useState<DayRoutine[]>([]);
@@ -485,6 +488,7 @@ export default function ScheduleRoutine() {
     });
     return foundId;
   }, [batches, selectedYear, selectedSection, selectedSemester]);
+
 
   // Map backend timetable items to structured DayRoutine[]
   const mapBackendToState = (data: any): DayRoutine[] => {
@@ -814,12 +818,70 @@ export default function ScheduleRoutine() {
     }
   );
 
+  // Check if the fetched routine has any actual data (any occupied slot)
+  const hasRoutineData = useMemo(() => {
+    if (!routineData) return false;
+    const data = routineData?.responseData ?? routineData;
+    if (data && Array.isArray(data.timetable)) {
+      return data.timetable.some(
+        (slot: any) => slot.occupied === true || slot.courseId || slot.courseName || slot.scheduleId
+      );
+    }
+    if (Array.isArray(data)) {
+      return data.length > 0;
+    }
+    return false;
+  }, [routineData]);
+
   const saveRoutineMutation = useSaveScheduleRoutine();
   const saving = saveRoutineMutation.isPending;
 
   const swapScheduleMutation = useSwapScheduleLayout();
   const moveScheduleMutation = useMoveScheduleLayout();
   const extendScheduleMutation = useExtendScheduleLayout();
+  const generateRoutineMutation = useGenerateScheduleRoutine();
+  const generating = generateRoutineMutation.isPending;
+
+  // Handler for Create button — opens the dialog to input number of groups
+  const handleCreateRoutine = () => {
+    if (!selectedClassId || !selectedDeptId || !institutionId) {
+      toast.error("Please select a complete class (Department, Year, Section, Semester) before creating.");
+      return;
+    }
+    setCreateGroupCount(1);
+    setShowCreateDialog(true);
+  };
+
+  // Confirm create — calls the generate API with noofgroups body
+  const confirmCreateRoutine = () => {
+    setShowCreateDialog(false);
+
+    const toastId = toast.loading("Generating schedule routine...");
+    generateRoutineMutation.mutate(
+      {
+        instituteId: institutionId,
+        departmentId: selectedDeptId,
+        classId: selectedClassId,
+        body: { noofgroups: createGroupCount }
+      },
+      {
+        onSuccess: (data) => {
+          toast.success("Schedule routine generated successfully!", { id: toastId });
+          if (data) {
+            setRawRoutineData(data);
+            const parsed = mapBackendToState(data);
+            setRoutineState(parsed);
+          }
+          setIsEditMode(true);
+          refetchRoutine();
+        },
+        onError: (err) => {
+          console.error("Error generating routine:", err);
+          toast.error("Failed to generate schedule routine.", { id: toastId });
+        }
+      }
+    );
+  };
 
   // Load / Sync Routine state
   useEffect(() => {
@@ -1587,23 +1649,27 @@ export default function ScheduleRoutine() {
             <div className="flex gap-2 md:w-64 md:justify-end flex-shrink-0">
               {!isEditMode ? (
                 <>
-                  <Button
-                    onClick={() => setIsEditMode(true)}
-                    disabled={!selectedClassId}
-                    className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-2 font-medium shadow-sm disabled:opacity-50"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleExportPDF}
-                    disabled={!selectedClassId}
-                    className="h-10 px-4 flex items-center gap-2 font-medium disabled:opacity-50"
-                  >
-                    <FileDown className="w-4 h-4 text-muted-foreground" />
-                    Print
-                  </Button>
+                  {hasRoutineData ? (
+                    <Button
+                      onClick={() => setIsEditMode(true)}
+                      disabled={!selectedClassId}
+                      className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 flex items-center gap-2 font-medium shadow-sm disabled:opacity-50"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit
+                    </Button>
+                  ) : null}
+                  {hasRoutineData && (
+                    <Button
+                      variant="outline"
+                      onClick={handleExportPDF}
+                      disabled={!selectedClassId}
+                      className="h-10 px-4 flex items-center gap-2 font-medium disabled:opacity-50"
+                    >
+                      <FileDown className="w-4 h-4 text-muted-foreground" />
+                      Print
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
@@ -1644,6 +1710,28 @@ export default function ScheduleRoutine() {
             <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px]">
               <RefreshCw className="h-8 w-8 text-primary animate-spin mb-3" />
               <p className="text-sm font-semibold text-muted-foreground">Fetching routine...</p>
+            </Card>
+          ) : !hasRoutineData && !isEditMode ? (
+            <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px] text-center border-dashed">
+              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
+                <Layers className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-black text-foreground mb-1">No Routine Available</h3>
+              <p className="text-xs font-bold text-muted-foreground max-w-sm mb-4">
+                This class does not have a routine scheduled yet. Click the "Create" button above to start building a new timetable.
+              </p>
+              <Button
+                onClick={handleCreateRoutine}
+                disabled={generating}
+                className="h-10 px-6 flex items-center gap-2 font-medium shadow-sm disabled:opacity-50"
+              >
+                {generating ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                {generating ? "Creating..." : "Create Routine"}
+              </Button>
             </Card>
           ) : (
             <Card className="p-6 bg-card border-border shadow-lg rounded-2xl overflow-hidden overflow-x-auto scrollbar-beautiful">
@@ -2086,6 +2174,50 @@ export default function ScheduleRoutine() {
               className="h-10 bg-primary text-primary-foreground text-xs font-bold"
             >
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Create Routine Dialog — input number of groups */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-[420px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black">Create Schedule Routine</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enter the number of groups for this class. This will be used to generate the schedule routine.
+            </p>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="create-groups" className="text-right text-xs font-black">
+                No. of Groups
+              </Label>
+              <Input
+                id="create-groups"
+                type="number"
+                min={1}
+                max={20}
+                value={createGroupCount}
+                onChange={(e) => setCreateGroupCount(Math.max(1, parseInt(e.target.value) || 1))}
+                className="col-span-3 h-10 text-xs rounded-lg"
+                placeholder="e.g. 2"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              className="h-10 text-xs font-bold"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmCreateRoutine}
+              disabled={generating}
+              className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+            >
+              {generating ? "Generating..." : "Generate Routine"}
             </Button>
           </DialogFooter>
         </DialogContent>

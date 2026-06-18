@@ -71,6 +71,19 @@ export const extendScheduleLayout = async (sourceScheduleId, targetTimeSlotId) =
   return response.data.responseData ?? response.data;
 };
 
+/**
+ * Generate a new schedule routine for a specific class.
+ * @param {string} instituteId
+ * @param {string} departmentId
+ * @param {string} classId
+ * @param {object} body - Request body containing noofgroups
+ * @returns {Promise<any>}
+ */
+export const generateScheduleRoutine = async (instituteId, departmentId, classId, body) => {
+  const response = await api.post(`/schedule/generate/${encodeURIComponent(instituteId)}/${encodeURIComponent(departmentId)}/${encodeURIComponent(classId)}`, body);
+  return response.data.responseData ?? response.data;
+};
+
 
 // Fetch schedule routine for a specific teacher
 export const getTeacherSchedule = async (teacherId) => {
@@ -140,3 +153,15 @@ export const useGetTeacherSchedule = (teacherId, options = {}) =>
     enabled: !!teacherId && (options.enabled ?? true),
   });
 
+export const useGenerateScheduleRoutine = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ instituteId, departmentId, classId, body }) =>
+      generateScheduleRoutine(instituteId, departmentId, classId, body),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [...SCHEDULE_QUERY_KEY, "routine", variables.instituteId ?? "", variables.departmentId ?? "", variables.classId ?? ""],
+      });
+    },
+  });
+};
