@@ -111,7 +111,7 @@ const AdminSidebarContent = () => {
   const expanded = state === "expanded";
 
   return (
-    <SidebarContent className={`px-2 py-3 scrollbar-beautiful ${expanded ? "overflow-y-auto" : "!overflow-visible"}`}>
+    <SidebarContent className=" py-3 scrollbar-beautiful overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
       {NAV_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-0.5 mb-4">
           {expanded && (
@@ -138,13 +138,16 @@ const AdminSidebarContent = () => {
                   {isActive && !expanded && (
                     <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-primary-foreground" />
                   )}
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {expanded && <span className="truncate">{item.title}</span>}
-                    {!expanded && (
-                      <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap rounded-md bg-foreground text-background text-xs font-semibold px-2 py-1 opacity-0 group-hover/nav-item:opacity-100 transition-opacity shadow-lg z-50">
-                        {item.title}
+                  {!expanded ? (
+                    <CustomTooltip content={item.title} side="right">
+                      <span className="flex items-center justify-center shrink-0">
+                        <item.icon className="h-4 w-4 shrink-0" />
                       </span>
-                    )}
+                    </CustomTooltip>
+                  ) : (
+                    <item.icon className="h-4 w-4 shrink-0" />
+                  )}
+                  {expanded && <span className="truncate">{item.title}</span>}
                 </>
               )}
             </NavLink>
@@ -166,28 +169,35 @@ const AdminSidebarFooter = ({ handleLogout, user }: { handleLogout: () => void; 
         className={`group/logout-btn relative flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-all w-full
           ${!expanded ? "justify-center" : ""}`}
       >
-        <LogOut className="h-4 w-4 shrink-0" />
-        {expanded && <span className="text-xs font-medium">Sign out</span>}
-        {!expanded && (
-          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap rounded-md bg-foreground text-background text-xs font-semibold px-2 py-1 opacity-0 group-hover/logout-btn:opacity-100 transition-opacity shadow-lg z-50">
-            Sign out
-          </span>
+        {!expanded ? (
+          <CustomTooltip content="Sign out" side="right">
+            <span className="flex items-center justify-center shrink-0">
+              <LogOut className="h-4 w-4 shrink-0" />
+            </span>
+          </CustomTooltip>
+        ) : (
+          <LogOut className="h-4 w-4 shrink-0" />
         )}
+        {expanded && <span className="text-xs font-medium">Sign out</span>}
       </button>
 
       <div className={`group/avatar relative flex items-center gap-2 rounded-lg px-2 py-2 mt-1 bg-sidebar-accent ${!expanded ? "justify-center" : ""}`}>
-        <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
-          A
-        </div>
-        {expanded ? (
+        {!expanded ? (
+          <CustomTooltip content={`Admin (${user?.institution ?? "Gulum"})`} side="right">
+            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0 cursor-pointer">
+              A
+            </div>
+          </CustomTooltip>
+        ) : (
+          <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+            A
+          </div>
+        )}
+        {expanded && (
           <div className="min-w-0">
             <p className="text-xs font-semibold text-sidebar-primary truncate">Admin</p>
             <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.institution ?? "Gulum"}</p>
           </div>
-        ) : (
-          <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 whitespace-nowrap rounded-md bg-foreground text-background text-xs font-semibold px-2 py-1 opacity-0 group-hover/avatar:opacity-100 transition-opacity shadow-lg z-50">
-            Admin ({user?.institution ?? "Gulum"})
-          </span>
         )}
       </div>
     </SidebarFooter>
