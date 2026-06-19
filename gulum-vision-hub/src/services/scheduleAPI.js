@@ -165,3 +165,24 @@ export const useGenerateScheduleRoutine = () => {
     },
   });
 };
+
+/**
+ * Delete a schedule by scheduleId.
+ * @param {string} scheduleId
+ * @returns {Promise<any>}
+ */
+export const deleteSchedule = async (scheduleId) => {
+  const response = await api.delete(`/schedule/${encodeURIComponent(scheduleId)}`);
+  return response.data.responseData ?? response.data;
+};
+
+export const useDeleteSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (scheduleId) => deleteSchedule(scheduleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SCHEDULE_QUERY_KEY });
+    },
+  });
+};
+

@@ -46,6 +46,7 @@ import {
   useMoveScheduleLayout,
   useExtendScheduleLayout,
   useGenerateScheduleRoutine,
+  useDeleteSchedule,
 } from "@/services/scheduleAPI";
 import { useGetTeachers } from "@/services/teacherCrudAPI";
 
@@ -1014,6 +1015,7 @@ export default function ScheduleRoutine() {
   const extendScheduleMutation = useExtendScheduleLayout();
   const generateRoutineMutation = useGenerateScheduleRoutine();
   const generating = generateRoutineMutation.isPending;
+  const deleteScheduleMutation = useDeleteSchedule();
 
   // Handler for Create button — opens the dialog to input number of groups
   const handleCreateRoutine = () => {
@@ -1231,15 +1233,47 @@ export default function ScheduleRoutine() {
     const { dayIndex, trackIndex, side, cellIndex } = clearCellTarget;
     const updated = [...routineState];
     const cell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
-    updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
-      ...cell,
-      subject: "",
-      code: "",
-      teacher: "",
-      room: "",
-    };
-    updateRoutine(updated);
-    toast.info("Cleared slot details");
+    const scheduleId = cell.dbRecordId || cell.scheduleIds?.[0];
+
+    if (scheduleId) {
+      const toastId = toast.loading("Deleting schedule slot on server...");
+      deleteScheduleMutation.mutate(scheduleId, {
+        onSuccess: () => {
+          toast.success("Schedule slot deleted successfully!", {
+            id: toastId,
+          });
+          // Update state locally
+          updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
+            ...cell,
+            subject: "",
+            code: "",
+            teacher: "",
+            room: "",
+            dbRecordId: undefined,
+            scheduleIds: undefined,
+          };
+          updateRoutine(updated);
+          refetchRoutine();
+        },
+        onError: (err) => {
+          console.error("Error deleting schedule slot:", err);
+          toast.error("Failed to delete schedule slot on server.", {
+            id: toastId,
+          });
+          refetchRoutine();
+        },
+      });
+    } else {
+      updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
+        ...cell,
+        subject: "",
+        code: "",
+        teacher: "",
+        room: "",
+      };
+      updateRoutine(updated);
+      toast.info("Cleared slot details locally");
+    }
   };
 
   // HTML5 Drag and Drop Handlers
@@ -2230,21 +2264,6 @@ export default function ScheduleRoutine() {
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <CustomTooltip content="Edit Slot">
-                                            <button
-                                              onClick={() =>
-                                                handleOpenEditCell(
-                                                  dayIndex,
-                                                  trackIndex,
-                                                  "left",
-                                                  cellIndex,
-                                                )
-                                              }
-                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                            >
-                                              <Edit2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </CustomTooltip>
                                           <CustomTooltip content="Clear Slot">
                                             <button
                                               onClick={() =>
@@ -2429,21 +2448,6 @@ export default function ScheduleRoutine() {
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <CustomTooltip content="Edit Slot">
-                                            <button
-                                              onClick={() =>
-                                                handleOpenEditCell(
-                                                  dayIndex,
-                                                  trackIndex,
-                                                  "right",
-                                                  cellIndex,
-                                                )
-                                              }
-                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                            >
-                                              <Edit2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </CustomTooltip>
                                           <CustomTooltip content="Clear Slot">
                                             <button
                                               onClick={() =>
@@ -2724,8 +2728,9 @@ export default function ScheduleRoutine() {
         isOpen={clearCellTarget !== null}
         onClose={() => setClearCellTarget(null)}
         onConfirm={confirmClearCell}
-        title="Clear Schedule Slot"
-        description="Are you sure you want to clear this schedule slot? The slot will be reset to empty."
+        title="Delete Schedule Slot"
+        description="Are you sure you want to delete this schedule slot? This will remove it from the routine."
+        isLoading={deleteScheduleMutation.isPending}
       />
       <ConfirmModal
         isOpen={removeTrackTarget !== null}

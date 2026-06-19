@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
-import { getCourseModules, getTrackingAll, getModuleStatus, progressApi, createProgressApi, deleteProgressApi, createTrackingApi, useSyllabusMasters } from "@/services/lectureAuditAPI";
+import { getCourseModules, getTrackingAll, getModuleStatus, progressApi, createProgressApi, deleteProgressApi, createTrackingApi } from "@/services/lectureAuditAPI";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGetTeachers, getCourseOfferings } from "@/services/teacherCrudAPI";
 import { useGetDepartments } from "@/services/departmentAPI";
@@ -59,14 +59,7 @@ export default function LectureAuditPage() {
   const teachers = useMemo(() => Array.isArray(rawTeachers) ? rawTeachers : [], [rawTeachers]);
 
   const { data: rawDepts } = useGetDepartments();
-  const { data: rawSyllabusMasters } = useSyllabusMasters();
 
-  const syllabusMasters = useMemo(() => {
-    const list = Array.isArray(rawSyllabusMasters)
-      ? rawSyllabusMasters
-      : (rawSyllabusMasters?.responseData ?? rawSyllabusMasters ?? []);
-    return Array.isArray(list) ? list : [];
-  }, [rawSyllabusMasters]);
   const departments = useMemo(() => {
     return Array.isArray(rawDepts)
       ? Array.from(
