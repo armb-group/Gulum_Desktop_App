@@ -258,7 +258,7 @@ const StudentTimetable = () => {
                   <tr key={day}>
                     {/* Day label */}
                     <td
-                      className="text-center text-sm font-black tracking-wider uppercase px-1 text-primary bg-muted/30"
+                      className="text-center text-[12px] font-black tracking-wider uppercase px-1 text-primary bg-muted/30"
                       style={{
                         borderRight: "1px solid hsl(var(--border))",
                         borderBottom: isLast ? "none" : "1px solid hsl(var(--border))",
