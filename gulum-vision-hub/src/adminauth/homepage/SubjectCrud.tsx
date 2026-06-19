@@ -30,8 +30,8 @@ import { subjectFormSchema } from "@/lib/validations";
 
 interface SubjectItem {
   id: string;
-  name: string;
-  code: string;
+  courseName: string;
+  courseCode: string;
   institutionId?: string;
   description?: string;
   credits?: number;
@@ -57,7 +57,6 @@ const SubjectCrud = () => {
   const [credits, setCredits] = useState("");
   const [courseType, setCourseType] = useState("CORE");
   const [isLab, setIsLab] = useState("false");
-  const [weeklyHours, setWeeklyHours] = useState("");
 
   // Fetch Departments for Dropdown selection
   const { data: rawDepts, isLoading: deptsLoading } = useGetDepartments();
@@ -77,10 +76,12 @@ const SubjectCrud = () => {
     return Array.isArray(rawSubjects) ? rawSubjects : [];
   }, [rawSubjects]);
 
+  // console.log("subjects : ",subjects)
+
   const filteredSubjects = useMemo(() => {
     return subjects.filter((s) => 
-      s.name.toLowerCase().includes(search.toLowerCase()) || 
-      s.code.toLowerCase().includes(search.toLowerCase())
+      s?.courseName?.toLowerCase().includes(search.toLowerCase()) || 
+      s?.courseCode?.toLowerCase().includes(search.toLowerCase())
     );
   }, [subjects, search]);
 
@@ -96,19 +97,17 @@ const SubjectCrud = () => {
     setCredits("");
     setCourseType("CORE");
     setIsLab("false");
-    setWeeklyHours("");
     setIsAddModalOpen(true);
   };
 
   const handleOpenEdit = (sub: SubjectItem) => {
     setSelectedSubject(sub);
-    setSubjectName(sub.name);
-    setSubjectCode(sub.code);
+    setSubjectName(sub.courseName);
+    setSubjectCode(sub.courseCode);
     setDescription(sub.description || "");
     setCredits(sub.credits ? String(sub.credits) : "");
     setCourseType(sub.courseType || "CORE");
     setIsLab(sub.isLab ? "true" : "false");
-    setWeeklyHours(sub.weeklyHours ? String(sub.weeklyHours) : "");
     setIsEditModalOpen(true);
   };
 
@@ -123,20 +122,15 @@ const SubjectCrud = () => {
       toast.error("Credits must be a valid number");
       return;
     }
-    if (!weeklyHours.trim() || isNaN(Number(weeklyHours))) {
-      toast.error("Weekly Hours must be a valid number");
-      return;
-    }
 
     const payload = {
-      name: subjectName.trim(),
-      code: subjectCode.trim(),
+      courseName: subjectName.trim(),
+      courseCode: subjectCode.trim(),
       institutionId: user?.institutionId || "",
       description: description.trim(),
       credits: Number(credits),
       courseType,
-      isLab: isLab === "true",
-      weeklyHours: Number(weeklyHours)
+      isLab: isLab === "true"
     };
 
     try {
@@ -161,10 +155,6 @@ const SubjectCrud = () => {
       toast.error("Credits must be a valid number");
       return;
     }
-    if (!weeklyHours.trim() || isNaN(Number(weeklyHours))) {
-      toast.error("Weekly Hours must be a valid number");
-      return;
-    }
 
     const payload = {
       name: subjectName.trim(),
@@ -173,8 +163,7 @@ const SubjectCrud = () => {
       description: description.trim(),
       credits: Number(credits),
       courseType,
-      isLab: isLab === "true",
-      weeklyHours: Number(weeklyHours)
+      isLab: isLab === "true"
     };
 
     try {
@@ -229,12 +218,11 @@ const SubjectCrud = () => {
                 <ExportButton
                   data={filteredSubjects.map((s, idx) => ({
                     sno: idx + 1,
-                    name: s.name,
-                    code: s.code,
+                    name: s.courseName,
+                    code: s.courseCode,
                     courseType: s.courseType || "CORE",
                     isLab: s.isLab ? "Yes" : "No",
-                    credits: s.credits ?? 0,
-                    weeklyHours: s.weeklyHours ?? 0,
+                    credits: s.credits ?? 0
                   }))}
                   columns={[
                     { key: "sno", label: "S.No" },
@@ -243,7 +231,6 @@ const SubjectCrud = () => {
                     { key: "courseType", label: "Type" },
                     { key: "isLab", label: "Lab" },
                     { key: "credits", label: "Credits" },
-                    { key: "weeklyHours", label: "Hrs/Wk" },
                   ]}
                   fileName="subjects_list"
                   title="Subject Directory"
@@ -283,7 +270,6 @@ const SubjectCrud = () => {
                       <th className="px-3 py-3">Type</th>
                       <th className="px-3 py-3" style={{ width: "50px" }}>Lab</th>
                       <th className="px-3 py-3" style={{ width: "60px" }}>Credits</th>
-                      <th className="px-3 py-3" style={{ width: "60px" }}>Hrs/Wk</th>
                       <th className="px-3 py-3" style={{ width: "100px" }}>Actions</th>
                     </tr>
                   </thead>
@@ -299,10 +285,10 @@ const SubjectCrud = () => {
                           {idx + 1}
                         </td>
                         <td className="px-3 py-3 border-r border-border/45 font-semibold text-black dark:text-[#FFF19E]">
-                          {sub.name}
+                          {sub.courseName}
                         </td>
                         <td className="px-3 py-3 border-r border-border/45 font-mono text-xs text-black dark:text-[#FFF19E] uppercase tracking-wider">
-                          {sub.code}
+                          {sub.courseCode}
                         </td>
                         <td className="px-3 py-3 border-r border-border/45 text-center">
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${sub.courseType === "ELECTIVE" ? "bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-900/30" : "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/30"}`}>
@@ -316,9 +302,6 @@ const SubjectCrud = () => {
                         </td>
                         <td className="px-3 py-3 border-r border-border/45 text-black dark:text-[#FFF19E] text-center font-mono font-medium">
                           {sub.credits ?? 0}
-                        </td>
-                        <td className="px-3 py-3 border-r border-border/45 text-black dark:text-[#FFF19E] text-center font-mono font-medium">
-                          {sub.weeklyHours ?? 0}
                         </td>
                         <td className="px-3 py-3 align-middle">
                           <div className="flex items-center gap-2">
@@ -418,17 +401,6 @@ const SubjectCrud = () => {
                   <option value="true">Yes</option>
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="weekly-hours">Weekly Hours <span className="text-destructive">*</span></Label>
-                <Input
-                  id="weekly-hours"
-                  type="number"
-                  placeholder="e.g. 4"
-                  value={weeklyHours}
-                  onChange={(e) => setWeeklyHours(e.target.value)}
-                  required
-                />
-              </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="description">Description</Label>
                 <Input
@@ -514,16 +486,6 @@ const SubjectCrud = () => {
                   <option value="true">Yes</option>
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-weekly-hours">Weekly Hours <span className="text-destructive">*</span></Label>
-                <Input
-                  id="edit-weekly-hours"
-                  type="number"
-                  value={weeklyHours}
-                  onChange={(e) => setWeeklyHours(e.target.value)}
-                  required
-                />
-              </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="edit-description">Description</Label>
                 <Input
@@ -551,7 +513,7 @@ const SubjectCrud = () => {
         onClose={() => setSubjectToDelete(null)}
         onConfirm={handleDelete}
         title="Delete Subject"
-        description={`Are you sure you want to delete the subject "${subjectToDelete?.name}" (${subjectToDelete?.code})? This action cannot be undone.`}
+        description={`Are you sure you want to delete the subject "${subjectToDelete?.courseName}" (${subjectToDelete?.courseCode})? This action cannot be undone.`}
       />
     </AdminShell>
   );

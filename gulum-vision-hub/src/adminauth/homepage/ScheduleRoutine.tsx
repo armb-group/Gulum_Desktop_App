@@ -31,13 +31,13 @@ import {
   Link2,
   Layers,
   Move,
-  FileDown
+  FileDown,
 } from "lucide-react";
 import { initialData as deptData, type Subject } from "./departmentsData";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useGetDepartments,
-  useGetAcademicBatchesByDepartment
+  useGetAcademicBatchesByDepartment,
 } from "@/services/departmentAPI";
 import {
   useGetScheduleRoutine,
@@ -45,7 +45,8 @@ import {
   useSwapScheduleLayout,
   useMoveScheduleLayout,
   useExtendScheduleLayout,
-  useGenerateScheduleRoutine
+  useGenerateScheduleRoutine,
+  useDeleteSchedule,
 } from "@/services/scheduleAPI";
 import { useGetTeachers } from "@/services/teacherCrudAPI";
 
@@ -66,8 +67,8 @@ interface RoutineItem {
 
 interface RoutineTrack {
   id: string;
-  left: RoutineItem[];   // Slots I-IV, total colSpan sum must equal 4
-  right: RoutineItem[];  // Slots V-VIII, total colSpan sum must equal 4
+  left: RoutineItem[]; // Slots I-IV, total colSpan sum must equal 4
+  right: RoutineItem[]; // Slots V-VIII, total colSpan sum must equal 4
 }
 
 interface DayRoutine {
@@ -81,11 +82,17 @@ const resolveTeacherId = (name: string, teachersList: any[]) => {
   const normalized = name.trim().toLowerCase();
 
   // Try exact match
-  let found = teachersList.find(t => t.full_name?.trim().toLowerCase() === normalized);
+  let found = teachersList.find(
+    (t) => t.full_name?.trim().toLowerCase() === normalized,
+  );
   if (found) return found.id;
 
   // Try partial match
-  found = teachersList.find(t => t.full_name?.trim().toLowerCase().includes(normalized) || normalized.includes(t.full_name?.trim().toLowerCase()));
+  found = teachersList.find(
+    (t) =>
+      t.full_name?.trim().toLowerCase().includes(normalized) ||
+      normalized.includes(t.full_name?.trim().toLowerCase()),
+  );
   if (found) return found.id;
 
   return "";
@@ -99,7 +106,7 @@ const serializeStateToBackend = (
   institutionId: string,
   classId: string,
   semesterVal: number,
-  slotTimeMap?: Record<number, { startTime: string; endTime: string }> | null
+  slotTimeMap?: Record<number, { startTime: string; endTime: string }> | null,
 ) => {
   const flatSlots: {
     teacherId: string;
@@ -114,13 +121,13 @@ const serializeStateToBackend = (
   }[] = [];
 
   const dayMap: Record<string, string> = {
-    "MON": "Monday",
-    "TUES": "Tuesday",
-    "WED": "Wednesday",
-    "THURS": "Thursday",
-    "FRI": "Friday",
-    "SAT": "Saturday",
-    "SUN": "Sunday"
+    MON: "Monday",
+    TUES: "Tuesday",
+    WED: "Wednesday",
+    THURS: "Thursday",
+    FRI: "Friday",
+    SAT: "Saturday",
+    SUN: "Sunday",
   };
 
   routine.forEach((dayItem) => {
@@ -132,7 +139,8 @@ const serializeStateToBackend = (
       track.left.forEach((cell) => {
         const span = cell.colSpan;
         if (cell.subject) {
-          let tId = cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
+          let tId =
+            cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
 
           for (let i = 0; i < span; i++) {
             const slotNum = leftSlotIdx + i;
@@ -148,7 +156,7 @@ const serializeStateToBackend = (
               scheduleId: sIdFromCell || undefined,
               courseName: cell.subject,
               courseCode: cell.code,
-              noofgroups: cell.noofgroups || null
+              noofgroups: cell.noofgroups || null,
             });
           }
         }
@@ -160,7 +168,8 @@ const serializeStateToBackend = (
       track.right.forEach((cell) => {
         const span = cell.colSpan;
         if (cell.subject) {
-          let tId = cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
+          let tId =
+            cell.teacherId || resolveTeacherId(cell.teacher, teachersList);
 
           for (let i = 0; i < span; i++) {
             const slotNum = rightSlotIdx + i;
@@ -176,7 +185,7 @@ const serializeStateToBackend = (
               scheduleId: sIdFromCell || undefined,
               courseName: cell.subject,
               courseCode: cell.code,
-              noofgroups: cell.noofgroups || null
+              noofgroups: cell.noofgroups || null,
             });
           }
         }
@@ -203,14 +212,23 @@ const serializeStateToBackend = (
 
     let originalRecord: any = null;
     if (Array.isArray(originalRecords)) {
-      originalRecord = originalRecords.find((r) =>
-        (teacherId && r.teacherId === teacherId) ||
-        (r.teacherName && r.teacherName.trim().toLowerCase() === teacherName.trim().toLowerCase())
+      originalRecord = originalRecords.find(
+        (r) =>
+          (teacherId && r.teacherId === teacherId) ||
+          (r.teacherName &&
+            r.teacherName.trim().toLowerCase() ===
+            teacherName.trim().toLowerCase()),
       );
-    } else if (originalRecords && Array.isArray((originalRecords as any).timetable)) {
-      const foundSlot = (originalRecords as any).timetable.find((s: any) =>
-        (teacherId && s.teacherId === teacherId) ||
-        (s.teacherName && s.teacherName.trim().toLowerCase() === teacherName.trim().toLowerCase())
+    } else if (
+      originalRecords &&
+      Array.isArray((originalRecords as any).timetable)
+    ) {
+      const foundSlot = (originalRecords as any).timetable.find(
+        (s: any) =>
+          (teacherId && s.teacherId === teacherId) ||
+          (s.teacherName &&
+            s.teacherName.trim().toLowerCase() ===
+            teacherName.trim().toLowerCase()),
       );
       if (foundSlot) {
         originalRecord = { id: foundSlot.scheduleId || undefined };
@@ -235,9 +253,9 @@ const serializeStateToBackend = (
           slotNumber: s.slotNumber,
           courseName: s.courseName,
           courseCode: s.courseCode,
-          noofgroups: s.noofgroups
+          noofgroups: s.noofgroups,
         };
-      })
+      }),
     };
   });
 };
@@ -247,21 +265,93 @@ const generateId = () => "id_" + Math.random().toString(36).substring(2, 9);
 
 // Create a blank row segment (either left or right)
 const createBlankSegment = (): RoutineItem[] => [
-  { id: generateId(), subject: "", code: "", teacher: "", room: "", colSpan: 1 },
-  { id: generateId(), subject: "", code: "", teacher: "", room: "", colSpan: 1 },
-  { id: generateId(), subject: "", code: "", teacher: "", room: "", colSpan: 1 },
-  { id: generateId(), subject: "", code: "", teacher: "", room: "", colSpan: 1 }
+  {
+    id: generateId(),
+    subject: "",
+    code: "",
+    teacher: "",
+    room: "",
+    colSpan: 1,
+  },
+  {
+    id: generateId(),
+    subject: "",
+    code: "",
+    teacher: "",
+    room: "",
+    colSpan: 1,
+  },
+  {
+    id: generateId(),
+    subject: "",
+    code: "",
+    teacher: "",
+    room: "",
+    colSpan: 1,
+  },
+  {
+    id: generateId(),
+    subject: "",
+    code: "",
+    teacher: "",
+    room: "",
+    colSpan: 1,
+  },
 ];
 
 // Create a default blank timetable (MON to FRI, 1 track each)
 const createBlankRoutine = (): DayRoutine[] => [
-  { day: "MON", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] },
-  { day: "TUES", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] },
-  { day: "WED", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] },
-  { day: "THURS", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] },
-  { day: "FRI", tracks: [{ id: generateId(), left: createBlankSegment(), right: createBlankSegment() }] }
+  {
+    day: "MON",
+    tracks: [
+      {
+        id: generateId(),
+        left: createBlankSegment(),
+        right: createBlankSegment(),
+      },
+    ],
+  },
+  {
+    day: "TUES",
+    tracks: [
+      {
+        id: generateId(),
+        left: createBlankSegment(),
+        right: createBlankSegment(),
+      },
+    ],
+  },
+  {
+    day: "WED",
+    tracks: [
+      {
+        id: generateId(),
+        left: createBlankSegment(),
+        right: createBlankSegment(),
+      },
+    ],
+  },
+  {
+    day: "THURS",
+    tracks: [
+      {
+        id: generateId(),
+        left: createBlankSegment(),
+        right: createBlankSegment(),
+      },
+    ],
+  },
+  {
+    day: "FRI",
+    tracks: [
+      {
+        id: generateId(),
+        left: createBlankSegment(),
+        right: createBlankSegment(),
+      },
+    ],
+  },
 ];
-
 
 const formatTimeHM = (timeStr: string) => {
   if (!timeStr) return "";
@@ -284,17 +374,26 @@ export default function ScheduleRoutine() {
 
   // TanStack Query Hooks
   const { data: teachersData = [] } = useGetTeachers();
-  const teachers = useMemo(() => Array.isArray(teachersData) ? teachersData : [], [teachersData]);
+  const teachers = useMemo(
+    () => (Array.isArray(teachersData) ? teachersData : []),
+    [teachersData],
+  );
 
   const { data: rawDepts, isLoading: departmentsLoading } = useGetDepartments();
-  const departments = useMemo(() => Array.isArray(rawDepts) ? rawDepts : [], [rawDepts]);
+  const departments = useMemo(
+    () => (Array.isArray(rawDepts) ? rawDepts : []),
+    [rawDepts],
+  );
 
-  const { data: rawBatches, isLoading: batchesLoading } = useGetAcademicBatchesByDepartment(selectedDeptId, {
-    enabled: !!selectedDeptId
-  });
+  const { data: rawBatches, isLoading: batchesLoading } =
+    useGetAcademicBatchesByDepartment(selectedDeptId, {
+      enabled: !!selectedDeptId,
+    });
   const batches = useMemo(() => {
     if (!rawBatches) return [];
-    return Array.isArray(rawBatches) ? rawBatches : (rawBatches.responseData ?? rawBatches.data ?? []);
+    return Array.isArray(rawBatches)
+      ? rawBatches
+      : (rawBatches.responseData ?? rawBatches.data ?? []);
   }, [rawBatches]);
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -306,24 +405,51 @@ export default function ScheduleRoutine() {
 
   // Raw records, and slot time map state
   const [rawRoutineData, setRawRoutineData] = useState<any>(null);
-  const [slotTimeMap, setSlotTimeMap] = useState<Record<number, { startTime: string; endTime: string }> | null>();
+  const [slotTimeMap, setSlotTimeMap] = useState<Record<
+    number,
+    { startTime: string; endTime: string }
+  > | null>();
 
   // Dynamically compute left/right slots and break text
   const dynamicTimeSlotsLeft = useMemo(() => {
     return [
-      { name: "SLOT-1", time: `${formatTimeHM(slotTimeMap?.[1]?.startTime)} - ${formatTimeHM(slotTimeMap?.[1]?.endTime)}` },
-      { name: "SLOT-2", time: `${formatTimeHM(slotTimeMap?.[2]?.startTime)} - ${formatTimeHM(slotTimeMap?.[2]?.endTime)}` },
-      { name: "SLOT-3", time: `${formatTimeHM(slotTimeMap?.[3]?.startTime)} - ${formatTimeHM(slotTimeMap?.[3]?.endTime)}` },
-      { name: "SLOT-4", time: `${formatTimeHM(slotTimeMap?.[4]?.startTime)} - ${formatTimeHM(slotTimeMap?.[4]?.endTime)}` }
+      {
+        name: "SLOT-1",
+        time: `${formatTimeHM(slotTimeMap?.[1]?.startTime)} - ${formatTimeHM(slotTimeMap?.[1]?.endTime)}`,
+      },
+      {
+        name: "SLOT-2",
+        time: `${formatTimeHM(slotTimeMap?.[2]?.startTime)} - ${formatTimeHM(slotTimeMap?.[2]?.endTime)}`,
+      },
+      {
+        name: "SLOT-3",
+        time: `${formatTimeHM(slotTimeMap?.[3]?.startTime)} - ${formatTimeHM(slotTimeMap?.[3]?.endTime)}`,
+      },
+      {
+        name: "SLOT-4",
+        time: `${formatTimeHM(slotTimeMap?.[4]?.startTime)} - ${formatTimeHM(slotTimeMap?.[4]?.endTime)}`,
+      },
     ];
   }, [slotTimeMap]);
 
   const dynamicTimeSlotsRight = useMemo(() => {
     return [
-      { name: "SLOT-5", time: `${formatTimeHM(slotTimeMap?.[5]?.startTime)} - ${formatTimeHM(slotTimeMap?.[5]?.endTime)}` },
-      { name: "SLOT-6", time: `${formatTimeHM(slotTimeMap?.[6]?.startTime)} - ${formatTimeHM(slotTimeMap?.[6]?.endTime)}` },
-      { name: "SLOT-7", time: `${formatTimeHM(slotTimeMap?.[7]?.startTime)} - ${formatTimeHM(slotTimeMap?.[7]?.endTime)}` },
-      { name: "SLOT-8", time: `${formatTimeHM(slotTimeMap?.[8]?.startTime)} - ${formatTimeHM(slotTimeMap?.[8]?.endTime)}` }
+      {
+        name: "SLOT-5",
+        time: `${formatTimeHM(slotTimeMap?.[5]?.startTime)} - ${formatTimeHM(slotTimeMap?.[5]?.endTime)}`,
+      },
+      {
+        name: "SLOT-6",
+        time: `${formatTimeHM(slotTimeMap?.[6]?.startTime)} - ${formatTimeHM(slotTimeMap?.[6]?.endTime)}`,
+      },
+      {
+        name: "SLOT-7",
+        time: `${formatTimeHM(slotTimeMap?.[7]?.startTime)} - ${formatTimeHM(slotTimeMap?.[7]?.endTime)}`,
+      },
+      {
+        name: "SLOT-8",
+        time: `${formatTimeHM(slotTimeMap?.[8]?.startTime)} - ${formatTimeHM(slotTimeMap?.[8]?.endTime)}`,
+      },
     ];
   }, [slotTimeMap]);
 
@@ -333,15 +459,18 @@ export default function ScheduleRoutine() {
     return `${formatTimeHM(breakStart)}-${formatTimeHM(breakEnd)}`;
   }, [slotTimeMap]);
 
-  const findTimeslotId = (dayShort: string, slotNum: number): string | undefined => {
+  const findTimeslotId = (
+    dayShort: string,
+    slotNum: number,
+  ): string | undefined => {
     const dayMap: Record<string, string> = {
-      "MON": "Monday",
-      "TUES": "Tuesday",
-      "WED": "Wednesday",
-      "THURS": "Thursday",
-      "FRI": "Friday",
-      "SAT": "Saturday",
-      "SUN": "Sunday"
+      MON: "Monday",
+      TUES: "Tuesday",
+      WED: "Wednesday",
+      THURS: "Thursday",
+      FRI: "Friday",
+      SAT: "Saturday",
+      SUN: "Sunday",
     };
     const fullDay = dayMap[dayShort] || dayShort;
 
@@ -349,7 +478,7 @@ export default function ScheduleRoutine() {
       const found = (rawRoutineData as any).timetable.find(
         (s: any) =>
           String(s.day).toLowerCase() === fullDay.toLowerCase() &&
-          s.slotNumber === slotNum
+          s.slotNumber === slotNum,
       );
       if (found?.timeslotId) return found.timeslotId;
     }
@@ -360,14 +489,13 @@ export default function ScheduleRoutine() {
         const found = slots.find(
           (s: any) =>
             String(s.day).toLowerCase() === fullDay.toLowerCase() &&
-            s.slotNumber === slotNum
+            s.slotNumber === slotNum,
         );
         if (found?.timeslotId) return found.timeslotId;
       }
     }
     return undefined;
   };
-
 
   // Edit Cell Modal State
   const [editingCell, setEditingCell] = useState<{
@@ -381,7 +509,7 @@ export default function ScheduleRoutine() {
     subject: "",
     code: "",
     teacher: "",
-    room: ""
+    room: "",
   });
 
   // Drag states
@@ -422,10 +550,12 @@ export default function ScheduleRoutine() {
   const availableYears = useMemo(() => {
     let list: string[] = [];
     if (batches.length === 0 && selectedDeptId) {
-      const dept = deptData.find(d => d.id === selectedDeptId);
-      list = dept?.years.map(y => y.year) || [];
+      const dept = deptData.find((d) => d.id === selectedDeptId);
+      list = dept?.years.map((y) => y.year) || [];
     } else {
-      list = Array.from(new Set(batches.map((b: any) => b.year).filter(Boolean))) as string[];
+      list = Array.from(
+        new Set(batches.map((b: any) => b.year).filter(Boolean)),
+      ) as string[];
     }
     return [...list].sort((a, b) => {
       const numA = parseInt(a, 10);
@@ -433,15 +563,18 @@ export default function ScheduleRoutine() {
       if (!isNaN(numA) && !isNaN(numB)) {
         return numA - numB;
       }
-      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      return a.localeCompare(b, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     });
   }, [batches, selectedDeptId]);
 
   const availableSections = useMemo(() => {
     if (batches.length === 0 && selectedDeptId) {
-      const dept = deptData.find(d => d.id === selectedDeptId);
-      const yearObj = dept?.years.find(y => y.year === selectedYear);
-      return yearObj?.sections.map(s => s.name) || [];
+      const dept = deptData.find((d) => d.id === selectedDeptId);
+      const yearObj = dept?.years.find((y) => y.year === selectedYear);
+      return yearObj?.sections.map((s) => s.name) || [];
     }
     const matchingBatches = batches.filter((b: any) => b.year === selectedYear);
     const sections: string[] = [];
@@ -480,7 +613,10 @@ export default function ScheduleRoutine() {
     matchingBatches.forEach((b: any) => {
       if (b.classes && Array.isArray(b.classes)) {
         b.classes.forEach((c: any) => {
-          if (c.name === selectedSection && String(c.semester) === selectedSemester) {
+          if (
+            c.name === selectedSection &&
+            String(c.semester) === selectedSemester
+          ) {
             foundId = String(c.id || c.classId || "");
           }
         });
@@ -488,7 +624,6 @@ export default function ScheduleRoutine() {
     });
     return foundId;
   }, [batches, selectedYear, selectedSection, selectedSemester]);
-
 
   // Map backend timetable items to structured DayRoutine[]
   const mapBackendToState = (data: any): DayRoutine[] => {
@@ -516,7 +651,7 @@ export default function ScheduleRoutine() {
               courseCode: slot.courseCode,
               teacherId: record.teacherId,
               teacherName: record.teacherName,
-              noofgroups: slot.noofgroups
+              noofgroups: slot.noofgroups,
             });
           });
         }
@@ -541,7 +676,7 @@ export default function ScheduleRoutine() {
                 courseCode: slot.courseCode,
                 teacherId: record.teacherId,
                 teacherName: record.teacherName,
-                noofgroups: slot.noofgroups
+                noofgroups: slot.noofgroups,
               });
             });
           }
@@ -555,28 +690,31 @@ export default function ScheduleRoutine() {
       if (slot.slotNumber && slot.startTime && slot.endTime) {
         newSlotTimeMap[slot.slotNumber] = {
           startTime: slot.startTime,
-          endTime: slot.endTime
+          endTime: slot.endTime,
         };
       }
     });
     setSlotTimeMap(newSlotTimeMap);
 
     // Helper to find timeslotId inside this local function to avoid React state delay
-    const getLocalTimeslotId = (dayShort: string, slotNum: number): string | undefined => {
+    const getLocalTimeslotId = (
+      dayShort: string,
+      slotNum: number,
+    ): string | undefined => {
       const dayMap: Record<string, string> = {
-        "MON": "Monday",
-        "TUES": "Tuesday",
-        "WED": "Wednesday",
-        "THURS": "Thursday",
-        "FRI": "Friday",
-        "SAT": "Saturday",
-        "SUN": "Sunday"
+        MON: "Monday",
+        TUES: "Tuesday",
+        WED: "Wednesday",
+        THURS: "Thursday",
+        FRI: "Friday",
+        SAT: "Saturday",
+        SUN: "Sunday",
       };
       const fullDay = dayMap[dayShort] || dayShort;
       const found = timetableArray.find(
         (s: any) =>
           String(s.day).toLowerCase() === fullDay.toLowerCase() &&
-          s.slotNumber === slotNum
+          s.slotNumber === slotNum,
       );
       return found?.timeslotId;
     };
@@ -596,9 +734,28 @@ export default function ScheduleRoutine() {
     }[] = [];
 
     timetableArray.forEach((slot: any) => {
-      if (slot.occupied) {
+      if (!slot.occupied) return;
+
+      // NEW ELECTIVE FORMAT
+      if (slot.subjects && Array.isArray(slot.subjects)) {
+        slot.subjects.forEach((subject: any) => {
+          flatSlots.push({
+            dbRecordId: subject.scheduleId || "",
+            teacherId: subject.teacherId || "",
+            teacherName: subject.teacherName || "",
+            timeslotId: slot.timeslotId || "",
+            scheduleId: subject.scheduleId || "",
+            slotNumber: slot.slotNumber,
+            courseName: subject.courseName || "",
+            courseCode: subject.courseCode || "",
+            noofgroups: subject.noofgroups ?? null,
+            day: slot.day,
+          });
+        });
+      } else {
+        // OLD FORMAT SUPPORT
         flatSlots.push({
-          dbRecordId: slot.scheduleId || "", // use scheduleId as dbRecordId since we group by schedule
+          dbRecordId: slot.scheduleId || "",
           teacherId: slot.teacherId || "",
           teacherName: slot.teacherName || "",
           timeslotId: slot.timeslotId || "",
@@ -607,34 +764,38 @@ export default function ScheduleRoutine() {
           courseName: slot.courseName || "",
           courseCode: slot.courseCode || "",
           noofgroups: slot.noofgroups ?? null,
-          day: slot.day
+          day: slot.day,
         });
       }
     });
 
     const dayNameMap: Record<string, string> = {
-      "monday": "MON",
-      "tuesday": "TUES",
-      "wednesday": "WED",
-      "thursday": "THURS",
-      "friday": "FRI",
-      "saturday": "SAT",
-      "sunday": "SUN",
-      "mon": "MON",
-      "tue": "TUES",
-      "tues": "TUES",
-      "wed": "WED",
-      "thu": "THURS",
-      "thurs": "THURS",
-      "fri": "FRI",
-      "sat": "SAT",
-      "sun": "SUN"
+      monday: "MON",
+      tuesday: "TUES",
+      wednesday: "WED",
+      thursday: "THURS",
+      friday: "FRI",
+      saturday: "SAT",
+      sunday: "SUN",
+      mon: "MON",
+      tue: "TUES",
+      tues: "TUES",
+      wed: "WED",
+      thu: "THURS",
+      thurs: "THURS",
+      fri: "FRI",
+      sat: "SAT",
+      sun: "SUN",
     };
 
     const base = createBlankRoutine();
 
     // Helper to build side segment
-    const localBuildSideSegment = (trackBlocks: any[], side: "left" | "right", dayShort: string): RoutineItem[] => {
+    const localBuildSideSegment = (
+      trackBlocks: any[],
+      side: "left" | "right",
+      dayShort: string,
+    ): RoutineItem[] => {
       const minSlot = side === "left" ? 1 : 5;
       const items: any[] = [];
 
@@ -649,19 +810,21 @@ export default function ScheduleRoutine() {
           room: "",
           colSpan: 1,
           slotNumber: slotNum,
-          timeslotIds: tId ? [tId] : undefined
+          timeslotIds: tId ? [tId] : undefined,
         });
       }
 
       trackBlocks.forEach((b) => {
-        const relevantSlots = b.slots.filter((s: number) => side === "left" ? s <= 4 : s >= 5);
+        const relevantSlots = b.slots.filter((s: number) =>
+          side === "left" ? s <= 4 : s >= 5,
+        );
         if (relevantSlots.length === 0) return;
 
         relevantSlots.sort((a: number, b: number) => a - b);
         const startSlot = relevantSlots[0];
         const span = relevantSlots.length;
 
-        const idx = items.findIndex(item => item.slotNumber === startSlot);
+        const idx = items.findIndex((item) => item.slotNumber === startSlot);
         if (idx !== -1) {
           items[idx] = {
             id: generateId(),
@@ -675,7 +838,7 @@ export default function ScheduleRoutine() {
             dbRecordId: b.dbRecordId,
             noofgroups: b.noofgroups,
             timeslotIds: b.timeslotIds,
-            scheduleIds: b.scheduleIds
+            scheduleIds: b.scheduleIds,
           };
           items.splice(idx + 1, span - 1);
         }
@@ -688,17 +851,19 @@ export default function ScheduleRoutine() {
     base.forEach((dayObj) => {
       const targetDayShort = dayObj.day;
 
-      const daySlots = flatSlots.filter(s => {
+      const daySlots = flatSlots.filter((s) => {
         const slotDayNormalized = String(s.day).toLowerCase();
         return dayNameMap[slotDayNormalized] === targetDayShort;
       });
 
       if (daySlots.length === 0) {
-        dayObj.tracks = [{
-          id: generateId(),
-          left: localBuildSideSegment([], "left", targetDayShort),
-          right: localBuildSideSegment([], "right", targetDayShort)
-        }];
+        dayObj.tracks = [
+          {
+            id: generateId(),
+            left: localBuildSideSegment([], "left", targetDayShort),
+            right: localBuildSideSegment([], "right", targetDayShort),
+          },
+        ];
         return;
       }
 
@@ -719,14 +884,18 @@ export default function ScheduleRoutine() {
       daySlots.forEach((s) => {
         let merged = false;
         for (const b of blocks) {
-          const sameCourse = b.subject === s.courseName && b.code === s.courseCode;
+          const sameCourse = b.subject === s.courseName;
           const sameTeacher = b.teacherId === s.teacherId;
-          const sameGroups = b.noofgroups === s.noofgroups;
+
+          // electives must never merge together
+          const sameGroups =
+            b.noofgroups === s.noofgroups && b.teacherId === s.teacherId;
 
           if (sameCourse && sameTeacher && sameGroups) {
             const maxSlot = Math.max(...b.slots);
             const minSlot = Math.min(...b.slots);
-            const isConsecutive = s.slotNumber === maxSlot + 1 || s.slotNumber === minSlot - 1;
+            const isConsecutive =
+              s.slotNumber === maxSlot + 1 || s.slotNumber === minSlot - 1;
 
             const bSide = maxSlot <= 4 ? "left" : "right";
             const sSide = s.slotNumber <= 4 ? "left" : "right";
@@ -752,17 +921,17 @@ export default function ScheduleRoutine() {
             noofgroups: s.noofgroups,
             slots: [s.slotNumber],
             timeslotIds: [s.timeslotId],
-            scheduleIds: [s.scheduleId]
+            scheduleIds: [s.scheduleId],
           });
         }
       });
 
-      const tracks: typeof blocks[] = [];
+      const tracks: (typeof blocks)[] = [];
       blocks.forEach((b) => {
         let placed = false;
         for (const track of tracks) {
-          const hasOverlap = track.some(existingBlock =>
-            existingBlock.slots.some(slot => b.slots.includes(slot))
+          const hasOverlap = track.some((existingBlock) =>
+            existingBlock.slots.some((slot) => b.slots.includes(slot)),
           );
           if (!hasOverlap) {
             track.push(b);
@@ -779,16 +948,18 @@ export default function ScheduleRoutine() {
         return {
           id: generateId(),
           left: localBuildSideSegment(trackBlocks, "left", targetDayShort),
-          right: localBuildSideSegment(trackBlocks, "right", targetDayShort)
+          right: localBuildSideSegment(trackBlocks, "right", targetDayShort),
         };
       });
 
       if (dayObj.tracks.length === 0) {
-        dayObj.tracks = [{
-          id: generateId(),
-          left: localBuildSideSegment([], "left", targetDayShort),
-          right: localBuildSideSegment([], "right", targetDayShort)
-        }];
+        dayObj.tracks = [
+          {
+            id: generateId(),
+            left: localBuildSideSegment([], "left", targetDayShort),
+            right: localBuildSideSegment([], "right", targetDayShort),
+          },
+        ];
       }
     });
 
@@ -809,14 +980,13 @@ export default function ScheduleRoutine() {
   };
 
   // TanStack Query for Routine
-  const { data: routineData, isLoading: routineLoading, refetch: refetchRoutine } = useGetScheduleRoutine(
-    institutionId,
-    selectedDeptId,
-    selectedClassId,
-    {
-      enabled: !!selectedClassId
-    }
-  );
+  const {
+    data: routineData,
+    isLoading: routineLoading,
+    refetch: refetchRoutine,
+  } = useGetScheduleRoutine(institutionId, selectedDeptId, selectedClassId, {
+    enabled: !!selectedClassId,
+  });
 
   // Check if the fetched routine has any actual data (any occupied slot)
   const hasRoutineData = useMemo(() => {
@@ -824,7 +994,11 @@ export default function ScheduleRoutine() {
     const data = routineData?.responseData ?? routineData;
     if (data && Array.isArray(data.timetable)) {
       return data.timetable.some(
-        (slot: any) => slot.occupied === true || slot.courseId || slot.courseName || slot.scheduleId
+        (slot: any) =>
+          slot.occupied === true ||
+          slot.courseId ||
+          slot.courseName ||
+          slot.scheduleId,
       );
     }
     if (Array.isArray(data)) {
@@ -841,11 +1015,14 @@ export default function ScheduleRoutine() {
   const extendScheduleMutation = useExtendScheduleLayout();
   const generateRoutineMutation = useGenerateScheduleRoutine();
   const generating = generateRoutineMutation.isPending;
+  const deleteScheduleMutation = useDeleteSchedule();
 
   // Handler for Create button — opens the dialog to input number of groups
   const handleCreateRoutine = () => {
     if (!selectedClassId || !selectedDeptId || !institutionId) {
-      toast.error("Please select a complete class (Department, Year, Section, Semester) before creating.");
+      toast.error(
+        "Please select a complete class (Department, Year, Section, Semester) before creating.",
+      );
       return;
     }
     setCreateGroupCount(1);
@@ -862,11 +1039,13 @@ export default function ScheduleRoutine() {
         instituteId: institutionId,
         departmentId: selectedDeptId,
         classId: selectedClassId,
-        body: { noofgroups: createGroupCount }
+        body: { noofgroups: createGroupCount },
       },
       {
         onSuccess: (data) => {
-          toast.success("Schedule routine generated successfully!", { id: toastId });
+          toast.success("Schedule routine generated successfully!", {
+            id: toastId,
+          });
           if (data) {
             setRawRoutineData(data);
             const parsed = mapBackendToState(data);
@@ -878,8 +1057,8 @@ export default function ScheduleRoutine() {
         onError: (err) => {
           console.error("Error generating routine:", err);
           toast.error("Failed to generate schedule routine.", { id: toastId });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -921,7 +1100,9 @@ export default function ScheduleRoutine() {
 
   const handleSaveToBackend = () => {
     if (!selectedClassId) {
-      toast.error("Please specify a complete class (Department, Year, Section, Semester) before saving.");
+      toast.error(
+        "Please specify a complete class (Department, Year, Section, Semester) before saving.",
+      );
       return;
     }
 
@@ -932,7 +1113,7 @@ export default function ScheduleRoutine() {
       institutionId,
       selectedClassId,
       parseInt(selectedSemester, 10) || 6,
-      slotTimeMap
+      slotTimeMap,
     );
 
     saveRoutineMutation.mutate(
@@ -940,7 +1121,7 @@ export default function ScheduleRoutine() {
         instituteId: institutionId,
         departmentId: selectedDeptId,
         classId: selectedClassId,
-        scheduleData: payload
+        scheduleData: payload,
       },
       {
         onSuccess: (data) => {
@@ -955,8 +1136,8 @@ export default function ScheduleRoutine() {
         onError: (err) => {
           console.error("Error saving routine to backend:", err);
           toast.error("Failed to save schedule routine to database.");
-        }
-      }
+        },
+      },
     );
   };
 
@@ -967,8 +1148,6 @@ export default function ScheduleRoutine() {
     toast.info("Editing canceled. Routine restored.");
   };
 
-
-
   // Track Management
   const handleAddTrack = (dayIndex: number) => {
     const updated = [...routineState];
@@ -976,7 +1155,7 @@ export default function ScheduleRoutine() {
     day.tracks.push({
       id: generateId(),
       left: createBlankSegment(),
-      right: createBlankSegment()
+      right: createBlankSegment(),
     });
     updateRoutine(updated);
     toast.success(`Added parallel scheduling row for ${day.day}`);
@@ -1002,14 +1181,19 @@ export default function ScheduleRoutine() {
   };
 
   // Edit Cell Modal Operations
-  const handleOpenEditCell = (dayIndex: number, trackIndex: number, side: "left" | "right", cellIndex: number) => {
+  const handleOpenEditCell = (
+    dayIndex: number,
+    trackIndex: number,
+    side: "left" | "right",
+    cellIndex: number,
+  ) => {
     const cell = routineState[dayIndex].tracks[trackIndex][side][cellIndex];
     setEditingCell({ dayIndex, trackIndex, side, cellIndex });
     setEditForm({
       subject: cell.subject,
       code: cell.code || "",
       teacher: cell.teacher || "",
-      room: cell.room || ""
+      room: cell.room || "",
     });
   };
 
@@ -1027,7 +1211,7 @@ export default function ScheduleRoutine() {
       code: editForm.code,
       teacher: editForm.teacher,
       teacherId: resolvedId || undefined,
-      room: editForm.room
+      room: editForm.room,
     };
     updateRoutine(updated);
     setEditingCell(null);
@@ -1035,7 +1219,12 @@ export default function ScheduleRoutine() {
   };
 
   // Clear cell details
-  const handleClearCell = (dayIndex: number, trackIndex: number, side: "left" | "right", cellIndex: number) => {
+  const handleClearCell = (
+    dayIndex: number,
+    trackIndex: number,
+    side: "left" | "right",
+    cellIndex: number,
+  ) => {
     setClearCellTarget({ dayIndex, trackIndex, side, cellIndex });
   };
 
@@ -1044,15 +1233,47 @@ export default function ScheduleRoutine() {
     const { dayIndex, trackIndex, side, cellIndex } = clearCellTarget;
     const updated = [...routineState];
     const cell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
-    updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
-      ...cell,
-      subject: "",
-      code: "",
-      teacher: "",
-      room: ""
-    };
-    updateRoutine(updated);
-    toast.info("Cleared slot details");
+    const scheduleId = cell.dbRecordId || cell.scheduleIds?.[0];
+
+    if (scheduleId) {
+      const toastId = toast.loading("Deleting schedule slot...");
+      deleteScheduleMutation.mutate(scheduleId, {
+        onSuccess: () => {
+          toast.success("Schedule slot deleted successfully!", {
+            id: toastId,
+          });
+          // Update state locally
+          updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
+            ...cell,
+            subject: "",
+            code: "",
+            teacher: "",
+            room: "",
+            dbRecordId: undefined,
+            scheduleIds: undefined,
+          };
+          updateRoutine(updated);
+          refetchRoutine();
+        },
+        onError: (err) => {
+          console.error("Error deleting schedule slot:", err);
+          toast.error("Failed to delete schedule slot", {
+            id: toastId,
+          });
+          refetchRoutine();
+        },
+      });
+    } else {
+      updated[dayIndex].tracks[trackIndex][side][cellIndex] = {
+        ...cell,
+        subject: "",
+        code: "",
+        teacher: "",
+        room: "",
+      };
+      updateRoutine(updated);
+      toast.info("Cleared slot details locally");
+    }
   };
 
   // HTML5 Drag and Drop Handlers
@@ -1061,7 +1282,7 @@ export default function ScheduleRoutine() {
     dayIndex: number,
     trackIndex: number,
     side: "left" | "right",
-    cellIndex: number
+    cellIndex: number,
   ) => {
     if (!isEditMode) {
       e.preventDefault();
@@ -1076,7 +1297,7 @@ export default function ScheduleRoutine() {
     dayIndex: number,
     trackIndex: number,
     side: "left" | "right",
-    cellIndex: number
+    cellIndex: number,
   ) => {
     if (!isEditMode) return;
     e.preventDefault();
@@ -1088,7 +1309,12 @@ export default function ScheduleRoutine() {
         resizeInfo.side === side
       ) {
         const sideList = routineState[dayIndex].tracks[trackIndex][side];
-        const targetSlotIdx = getTargetSlotIndexFromEvent(e, sideList, cellIndex, side);
+        const targetSlotIdx = getTargetSlotIndexFromEvent(
+          e,
+          sideList,
+          cellIndex,
+          side,
+        );
         const cellKey = `${dayIndex}-${trackIndex}-${side}-${cellIndex}-resize-${targetSlotIdx}`;
         if (hoveredCell !== cellKey) {
           setHoveredCell(cellKey);
@@ -1112,7 +1338,7 @@ export default function ScheduleRoutine() {
     dayIndex: number,
     trackIndex: number,
     side: "left" | "right",
-    cellIndex: number
+    cellIndex: number,
   ) => {
     e.preventDefault();
     if (!isEditMode) return;
@@ -1125,20 +1351,42 @@ export default function ScheduleRoutine() {
         resizeInfo.side === side
       ) {
         const sideList = routineState[dayIndex].tracks[trackIndex][side];
-        const targetSlotIdx = getTargetSlotIndexFromEvent(e, sideList, cellIndex, side);
-        handleResizeCell(dayIndex, trackIndex, side, resizeInfo.cellIndex, targetSlotIdx);
+        const targetSlotIdx = getTargetSlotIndexFromEvent(
+          e,
+          sideList,
+          cellIndex,
+          side,
+        );
+        handleResizeCell(
+          dayIndex,
+          trackIndex,
+          side,
+          resizeInfo.cellIndex,
+          targetSlotIdx,
+        );
       }
       setResizeInfo(null);
       return;
     }
 
     if (draggedCellInfo) {
-      const updated = [...routineState];
+      const previousState = JSON.parse(JSON.stringify(routineState));
+      const updated = JSON.parse(JSON.stringify(routineState));
       const targetCell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
-      const { dayIndex: srcDay, trackIndex: srcTrack, side: srcSide, cellIndex: srcCellIdx } = draggedCellInfo;
+      const {
+        dayIndex: srcDay,
+        trackIndex: srcTrack,
+        side: srcSide,
+        cellIndex: srcCellIdx,
+      } = draggedCellInfo;
 
       // Don't do anything if dropped on itself
-      if (srcDay === dayIndex && srcTrack === trackIndex && srcSide === side && srcCellIdx === cellIndex) {
+      if (
+        srcDay === dayIndex &&
+        srcTrack === trackIndex &&
+        srcSide === side &&
+        srcCellIdx === cellIndex
+      ) {
         return;
       }
 
@@ -1155,7 +1403,7 @@ export default function ScheduleRoutine() {
         dbRecordId: sourceCell.dbRecordId,
         noofgroups: sourceCell.noofgroups,
         timeslotIds: sourceCell.timeslotIds,
-        scheduleIds: sourceCell.scheduleIds
+        scheduleIds: sourceCell.scheduleIds,
       };
 
       updated[srcDay].tracks[srcTrack][srcSide][srcCellIdx] = {
@@ -1168,7 +1416,7 @@ export default function ScheduleRoutine() {
         dbRecordId: targetCell.dbRecordId,
         noofgroups: targetCell.noofgroups,
         timeslotIds: targetCell.timeslotIds,
-        scheduleIds: targetCell.scheduleIds
+        scheduleIds: targetCell.scheduleIds,
       };
 
       // Optimistically update the local state
@@ -1179,33 +1427,44 @@ export default function ScheduleRoutine() {
 
       let targetTimeslotId = targetCell.timeslotIds?.[0];
       if (!targetTimeslotId) {
-        const minSlot = (side === "left" ? 1 : 5);
+        const minSlot = side === "left" ? 1 : 5;
         const sideList = updated[dayIndex].tracks[trackIndex][side];
         let targetSlotIdx = 0;
         for (let i = 0; i < cellIndex; i++) {
           targetSlotIdx += sideList[i].colSpan;
         }
         const targetSlotNumber = minSlot + targetSlotIdx;
-        targetTimeslotId = findTimeslotId(updated[dayIndex].day, targetSlotNumber);
+        targetTimeslotId = findTimeslotId(
+          updated[dayIndex].day,
+          targetSlotNumber,
+        );
       }
 
       if (targetCell.subject) {
         // SWAP: two occupied class slots
         if (sourceScheduleId && targetScheduleId) {
-          const toastId = toast.loading("Swapping scheduling periods on server...");
+          const toastId = toast.loading(
+            "Swapping scheduling periods...",
+          );
           swapScheduleMutation.mutate(
             { sourceScheduleId, targetScheduleId },
             {
               onSuccess: () => {
-                toast.success("Swapped scheduling periods successfully!", { id: toastId });
+                toast.success("Swapped scheduling periods successfully!", {
+                  id: toastId,
+                });
                 refetchRoutine();
               },
               onError: (err) => {
                 console.error("Failed to swap scheduling periods:", err);
-                toast.error("Failed to swap scheduling periods on server. Reverting swap.", { id: toastId });
+                toast.error(
+                  "Failed to swap scheduling periods. Reverting swap.",
+                  { id: toastId },
+                );
+                updateRoutine(previousState);
                 refetchRoutine(); // Revert local state by reloading from backend
-              }
-            }
+              },
+            },
           );
         } else {
           toast.success("Swapped scheduling periods locally");
@@ -1213,20 +1472,28 @@ export default function ScheduleRoutine() {
       } else {
         // MOVE: one class moved to an empty slot
         if (sourceScheduleId && targetTimeslotId) {
-          const toastId = toast.loading("Moving scheduling period on server...");
+          const toastId = toast.loading(
+            "Moving scheduling period...",
+          );
           moveScheduleMutation.mutate(
             { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
             {
               onSuccess: () => {
-                toast.success("Moved scheduling period successfully!", { id: toastId });
+                toast.success("Moved scheduling period successfully!", {
+                  id: toastId,
+                });
                 refetchRoutine();
               },
               onError: (err) => {
                 console.error("Failed to move scheduling period:", err);
-                toast.error("Failed to move scheduling period on server. Reverting move.", { id: toastId });
+                toast.error(
+                  "Failed to move scheduling period. Reverting move.",
+                  { id: toastId },
+                );
+                updateRoutine(previousState);
                 refetchRoutine();
-              }
-            }
+              },
+            },
           );
         } else {
           toast.success("Moved scheduling period locally");
@@ -1249,7 +1516,7 @@ export default function ScheduleRoutine() {
     dayIndex: number,
     trackIndex: number,
     side: "left" | "right",
-    cellIndex: number
+    cellIndex: number,
   ) => {
     e.stopPropagation();
     setResizeInfo({ dayIndex, trackIndex, side, cellIndex });
@@ -1265,7 +1532,7 @@ export default function ScheduleRoutine() {
     e: React.DragEvent,
     sideList: RoutineItem[],
     cellIndex: number,
-    side: "left" | "right"
+    side: "left" | "right",
   ) => {
     let startSlotIdx = 0;
     for (let i = 0; i < cellIndex; i++) {
@@ -1290,9 +1557,10 @@ export default function ScheduleRoutine() {
     trackIndex: number,
     side: "left" | "right",
     srcCellIndex: number,
-    targetSlotIdx: number
+    targetSlotIdx: number,
   ) => {
-    const updated = [...routineState];
+    const previousState = JSON.parse(JSON.stringify(routineState));
+    const updated = JSON.parse(JSON.stringify(routineState));
     const sideList = updated[dayIndex].tracks[trackIndex][side];
 
     // Rebuild flat array of 4 slots
@@ -1302,7 +1570,7 @@ export default function ScheduleRoutine() {
         flat.push({
           ...cell,
           timeslotIds: cell.timeslotIds ? [cell.timeslotIds[i]] : undefined,
-          scheduleIds: cell.scheduleIds ? [cell.scheduleIds[i]] : undefined
+          scheduleIds: cell.scheduleIds ? [cell.scheduleIds[i]] : undefined,
         });
       }
     });
@@ -1325,7 +1593,7 @@ export default function ScheduleRoutine() {
         if (i === srcStartSlotIdx) {
           newFlat.push({
             ...srcCell,
-            colSpan: 1
+            colSpan: 1,
           });
         } else {
           newFlat.push({
@@ -1337,17 +1605,20 @@ export default function ScheduleRoutine() {
             teacherId: srcCell.teacherId,
             dbRecordId: srcCell.dbRecordId,
             noofgroups: srcCell.noofgroups,
-            colSpan: 1
+            colSpan: 1,
           });
         }
-      } else if (i > targetSlotIdx && i < srcStartSlotIdx + sideList[srcCellIndex].colSpan) {
+      } else if (
+        i > targetSlotIdx &&
+        i < srcStartSlotIdx + sideList[srcCellIndex].colSpan
+      ) {
         newFlat.push({
           id: generateId(),
           subject: "",
           code: "",
           teacher: "",
           room: "",
-          colSpan: 1
+          colSpan: 1,
         });
       } else {
         newFlat.push(flat[i]);
@@ -1359,21 +1630,27 @@ export default function ScheduleRoutine() {
 
     for (let i = 0; i < 4; i++) {
       const item = newFlat[i];
-      const isSameAsCurrent = currentCell && (
-        (!currentCell.subject && !item.subject) ||
-        (currentCell.subject &&
-          currentCell.subject === item.subject &&
-          currentCell.teacher === item.teacher &&
-          currentCell.code === item.code)
-      );
+      const isSameAsCurrent =
+        currentCell &&
+        ((!currentCell.subject && !item.subject) ||
+          (currentCell.subject &&
+            currentCell.subject === item.subject &&
+            currentCell.teacher === item.teacher &&
+            currentCell.code === item.code));
 
       if (isSameAsCurrent && currentCell) {
         currentCell.colSpan += 1;
         if (item.timeslotIds && item.timeslotIds[0]) {
-          currentCell.timeslotIds = [...(currentCell.timeslotIds || []), item.timeslotIds[0]];
+          currentCell.timeslotIds = [
+            ...(currentCell.timeslotIds || []),
+            item.timeslotIds[0],
+          ];
         }
         if (item.scheduleIds && item.scheduleIds[0]) {
-          currentCell.scheduleIds = [...(currentCell.scheduleIds || []), item.scheduleIds[0]];
+          currentCell.scheduleIds = [
+            ...(currentCell.scheduleIds || []),
+            item.scheduleIds[0],
+          ];
         }
       } else {
         if (currentCell) {
@@ -1390,7 +1667,7 @@ export default function ScheduleRoutine() {
           dbRecordId: item.dbRecordId,
           noofgroups: item.noofgroups,
           timeslotIds: item.timeslotIds ? [item.timeslotIds[0]] : undefined,
-          scheduleIds: item.scheduleIds ? [item.scheduleIds[0]] : undefined
+          scheduleIds: item.scheduleIds ? [item.scheduleIds[0]] : undefined,
         };
       }
     }
@@ -1399,28 +1676,37 @@ export default function ScheduleRoutine() {
     }
 
     const sourceScheduleId = srcCell.scheduleIds?.[0];
-    const minSlot = (side === "left" ? 1 : 5);
+    const minSlot = side === "left" ? 1 : 5;
     const targetSlotNumber = minSlot + targetSlotIdx;
-    const targetTimeslotId = findTimeslotId(updated[dayIndex].day, targetSlotNumber);
+    const targetTimeslotId = findTimeslotId(
+      updated[dayIndex].day,
+      targetSlotNumber,
+    );
 
     updated[dayIndex].tracks[trackIndex][side] = newSideList;
     updateRoutine(updated);
 
     if (sourceScheduleId && targetTimeslotId) {
-      const toastId = toast.loading("Extending scheduling period on server...");
+      const toastId = toast.loading("Extending scheduling period...");
       extendScheduleMutation.mutate(
         { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
         {
           onSuccess: () => {
-            toast.success("Extended scheduling period successfully!", { id: toastId });
+            toast.success("Extended scheduling period successfully!", {
+              id: toastId,
+            });
             refetchRoutine();
           },
           onError: (err) => {
             console.error("Failed to extend scheduling period:", err);
-            toast.error("Failed to extend scheduling period on server. Reverting extend.", { id: toastId });
+            toast.error(
+              "Failed to extend scheduling period. Reverting extend.",
+              { id: toastId },
+            );
+            updateRoutine(previousState);
             refetchRoutine();
-          }
-        }
+          },
+        },
       );
     } else {
       toast.success("Resized schedule period successfully!");
@@ -1434,7 +1720,8 @@ export default function ScheduleRoutine() {
 
   // Generate color tints for classes based on subject name
   const getSubjectColorClass = (subject: string) => {
-    if (!subject) return "bg-background border-dashed border border-border/80 hover:bg-muted/30";
+    if (!subject)
+      return "bg-background border-dashed border border-border/80 hover:bg-muted/30";
 
     // Hash function to pick color
     let hash = 0;
@@ -1448,7 +1735,7 @@ export default function ScheduleRoutine() {
       "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 border-l-4 border-l-emerald-500",
       "bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300 border-l-4 border-l-cyan-500",
       "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 border-l-4 border-l-purple-500",
-      "bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 border-l-4 border-l-orange-500"
+      "bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 border-l-4 border-l-orange-500",
     ];
     return colors[Math.abs(hash) % colors.length];
   };
@@ -1456,10 +1743,10 @@ export default function ScheduleRoutine() {
   return (
     <AdminShell title="Routine Scheduling Console">
       <section className="container py-8 space-y-6 print:p-0 print:m-0">
-
         {/* Style block for printing */}
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           @page {
             size: landscape;
             margin: 5mm 10mm;
@@ -1532,10 +1819,10 @@ export default function ScheduleRoutine() {
               padding: 6px !important;
               min-height: unset !important;
             }
-            .print-timetable-area p, 
-            .print-timetable-area span, 
-            .print-timetable-area div, 
-            .print-timetable-area td, 
+            .print-timetable-area p,
+            .print-timetable-area span,
+            .print-timetable-area div,
+            .print-timetable-area td,
             .print-timetable-area th {
               color: #000000 !important;
             }
@@ -1555,7 +1842,9 @@ export default function ScheduleRoutine() {
               margin-bottom: 20px;
             }
           }
-        `}} />
+        `,
+          }}
+        />
 
         {/* ── Selection Filter Bar (Hidden on print) ── */}
         <Card className="p-6 bg-card border-border shadow-lg rounded-2xl print-hide">
@@ -1563,20 +1852,32 @@ export default function ScheduleRoutine() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
               {/* Department */}
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Department</Label>
-                <Select value={selectedDeptId} onValueChange={(val) => {
-                  setSelectedDeptId(val);
-                  setSelectedYear("");
-                  setSelectedSection("");
-                  setSelectedSemester("");
-                }} disabled={isEditMode}>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Department
+                </Label>
+                <Select
+                  value={selectedDeptId}
+                  onValueChange={(val) => {
+                    setSelectedDeptId(val);
+                    setSelectedYear("");
+                    setSelectedSection("");
+                    setSelectedSemester("");
+                  }}
+                  disabled={isEditMode}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((d: any) => {
-                      const id = String(d.id ?? d.departmentId ?? d.department_id ?? "");
-                      const name = d.name ?? d.departmentName ?? d.department_name ?? "Unknown Dept";
+                      const id = String(
+                        d.id ?? d.departmentId ?? d.department_id ?? "",
+                      );
+                      const name =
+                        d.name ??
+                        d.departmentName ??
+                        d.department_name ??
+                        "Unknown Dept";
                       return (
                         <SelectItem key={id} value={id}>
                           {name}
@@ -1589,12 +1890,18 @@ export default function ScheduleRoutine() {
 
               {/* Year */}
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Year</Label>
-                <Select value={selectedYear} onValueChange={(val) => {
-                  setSelectedYear(val);
-                  setSelectedSection("");
-                  setSelectedSemester("");
-                }} disabled={isEditMode || !selectedDeptId}>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Year
+                </Label>
+                <Select
+                  value={selectedYear}
+                  onValueChange={(val) => {
+                    setSelectedYear(val);
+                    setSelectedSection("");
+                    setSelectedSemester("");
+                  }}
+                  disabled={isEditMode || !selectedDeptId}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Year" />
                   </SelectTrigger>
@@ -1610,11 +1917,17 @@ export default function ScheduleRoutine() {
 
               {/* Section */}
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Section</Label>
-                <Select value={selectedSection} onValueChange={(val) => {
-                  setSelectedSection(val);
-                  setSelectedSemester("");
-                }} disabled={isEditMode || !selectedYear}>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Section
+                </Label>
+                <Select
+                  value={selectedSection}
+                  onValueChange={(val) => {
+                    setSelectedSection(val);
+                    setSelectedSemester("");
+                  }}
+                  disabled={isEditMode || !selectedYear}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Section" />
                   </SelectTrigger>
@@ -1630,8 +1943,14 @@ export default function ScheduleRoutine() {
 
               {/* Semester */}
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Semester</Label>
-                <Select value={selectedSemester} onValueChange={setSelectedSemester} disabled={isEditMode || !selectedSection}>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Semester
+                </Label>
+                <Select
+                  value={selectedSemester}
+                  onValueChange={setSelectedSemester}
+                  disabled={isEditMode || !selectedSection}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select Semester" />
                   </SelectTrigger>
@@ -1674,12 +1993,11 @@ export default function ScheduleRoutine() {
               ) : (
                 <>
                   <Button
-                    onClick={handleSaveToBackend}
-                    disabled={saving}
-                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 font-medium shadow-sm disabled:opacity-50"
+                    variant="outline"
+                    onClick={() => setIsEditMode(false)}
+                    className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 hover:text-primary-foreground flex items-center gap-2 font-medium"
                   >
-                    <Layers className="w-4 h-4" />
-                    {saving ? "Saving..." : "Save"}
+                    Save
                   </Button>
                   <Button
                     variant="outline"
@@ -1701,24 +2019,32 @@ export default function ScheduleRoutine() {
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
                 <Move className="w-8 h-8 animate-pulse text-primary/80" />
               </div>
-              <h3 className="text-lg font-black text-foreground mb-1">Select Target Class</h3>
+              <h3 className="text-lg font-black text-foreground mb-1">
+                Select Target Class
+              </h3>
               <p className="text-xs font-bold text-muted-foreground max-w-sm">
-                Please select a Department, Year, Section, and Semester in the controls above to load and edit the class routine.
+                Please select a Department, Year, Section, and Semester in the
+                controls above to load and edit the class routine.
               </p>
             </Card>
           ) : routineLoading ? (
             <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px]">
               <RefreshCw className="h-8 w-8 text-primary animate-spin mb-3" />
-              <p className="text-sm font-semibold text-muted-foreground">Fetching routine...</p>
+              <p className="text-sm font-semibold text-muted-foreground">
+                Fetching routine...
+              </p>
             </Card>
           ) : !hasRoutineData && !isEditMode ? (
             <Card className="p-12 bg-card border-border shadow-lg rounded-2xl flex flex-col items-center justify-center min-h-[350px] text-center border-dashed">
               <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
                 <Layers className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="text-lg font-black text-foreground mb-1">No Routine Available</h3>
+              <h3 className="text-lg font-black text-foreground mb-1">
+                No Routine Available
+              </h3>
               <p className="text-xs font-bold text-muted-foreground max-w-sm mb-4">
-                This class does not have a routine scheduled yet. Click the "Create" button above to start building a new timetable.
+                This class does not have a routine scheduled yet. Click the
+                "Create" button above to start building a new timetable.
               </p>
               <Button
                 onClick={handleCreateRoutine}
@@ -1735,14 +2061,19 @@ export default function ScheduleRoutine() {
             </Card>
           ) : (
             <Card className="p-6 bg-card border-border shadow-lg rounded-2xl overflow-hidden overflow-x-auto scrollbar-beautiful">
-
               {/* Timetable Header */}
               <div className="mb-6 border-b pb-4 text-center">
                 <h2 className="text-2xl font-black text-foreground">
-                  {departments.find((d: any) => String(d.id ?? d.departmentId ?? d.department_id ?? "") === selectedDeptId)?.name || "Class Timetable"}
+                  {departments.find(
+                    (d: any) =>
+                      String(
+                        d.id ?? d.departmentId ?? d.department_id ?? "",
+                      ) === selectedDeptId,
+                  )?.name || "Class Timetable"}
                 </h2>
                 <p className="text-sm font-semibold text-muted-foreground mt-1 uppercase tracking-widest">
-                  {selectedYear || "N/A"} · Section {selectedSection || "N/A"} · {selectedSemester ? `Semester ${selectedSemester}` : "N/A"}
+                  {selectedYear || "N/A"} · Section {selectedSection || "N/A"} ·{" "}
+                  {selectedSemester ? `Semester ${selectedSemester}` : "N/A"}
                 </p>
               </div>
 
@@ -1771,25 +2102,45 @@ export default function ScheduleRoutine() {
                 {/* Table Header: time slots */}
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="bg-muted p-3 text-center text-xs font-bold text-muted-foreground uppercase border border-border">DAY</th>
+                    <th className="bg-muted p-3 text-center text-xs font-bold text-muted-foreground uppercase border border-border">
+                      DAY
+                    </th>
 
                     {dynamicTimeSlotsLeft.map((slot, idx) => (
-                      <th key={slot.name} className="p-3 text-center border border-border">
-                        <div className="text-xs font-black text-foreground">{slot.time}</div>
-                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">({slot.name})</div>
+                      <th
+                        key={slot.name}
+                        className="p-3 text-center border border-border"
+                      >
+                        <div className="text-xs font-black text-foreground">
+                          {slot.time}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                          ({slot.name})
+                        </div>
                       </th>
                     ))}
 
                     {/* Break header */}
                     <th className="p-3 text-center border border-border bg-orange-50/20 dark:bg-orange-950/10">
-                      <div className="text-xs font-black text-orange-600 dark:text-orange-400">{breakIntervalText}</div>
-                      <div className="text-[10px] text-orange-500/80 font-bold mt-0.5">BREAK</div>
+                      <div className="text-xs font-black text-orange-600 dark:text-orange-400">
+                        {breakIntervalText}
+                      </div>
+                      <div className="text-[10px] text-orange-500/80 font-bold mt-0.5">
+                        BREAK
+                      </div>
                     </th>
 
                     {dynamicTimeSlotsRight.map((slot, idx) => (
-                      <th key={slot.name} className="p-3 text-center border border-border">
-                        <div className="text-xs font-black text-foreground">{slot.time}</div>
-                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">({slot.name})</div>
+                      <th
+                        key={slot.name}
+                        className="p-3 text-center border border-border"
+                      >
+                        <div className="text-xs font-black text-foreground">
+                          {slot.time}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                          ({slot.name})
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -1804,8 +2155,10 @@ export default function ScheduleRoutine() {
                       const isFirstTrack = trackIndex === 0;
 
                       return (
-                        <tr key={track.id} className="hover:bg-muted/5 group/row border-b border-border">
-
+                        <tr
+                          key={track.id}
+                          className="hover:bg-muted/5 group/row border-b border-border"
+                        >
                           {/* DAY Cell: spans all tracks of the day */}
                           {isFirstTrack && (
                             <td
@@ -1839,19 +2192,51 @@ export default function ScheduleRoutine() {
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered
+                                  ? "bg-primary/10 ring-2 ring-primary ring-inset"
+                                  : ""
                                   }`}
-                                onDragOver={(e) => handleDragOverCell(e, dayIndex, trackIndex, "left", cellIndex)}
+                                onDragOver={(e) =>
+                                  handleDragOverCell(
+                                    e,
+                                    dayIndex,
+                                    trackIndex,
+                                    "left",
+                                    cellIndex,
+                                  )
+                                }
                                 onDragLeave={handleDragLeaveCell}
-                                onDrop={(e) => handleDropOnCell(e, dayIndex, trackIndex, "left", cellIndex)}
-                                onClick={() => console.log("Clicked cell details:", cell)}
+                                onDrop={(e) =>
+                                  handleDropOnCell(
+                                    e,
+                                    dayIndex,
+                                    trackIndex,
+                                    "left",
+                                    cellIndex,
+                                  )
+                                }
+                                onClick={() =>
+                                  console.log("Clicked cell details:", cell)
+                                }
                               >
                                 <div
                                   draggable={isEditMode && !!cell.subject}
-                                  onDragStart={(e) => handleDragStartFromCell(e, dayIndex, trackIndex, "left", cellIndex)}
+                                  onDragStart={(e) =>
+                                    handleDragStartFromCell(
+                                      e,
+                                      dayIndex,
+                                      trackIndex,
+                                      "left",
+                                      cellIndex,
+                                    )
+                                  }
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                                    } ${cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode
+                                    ? "cursor-grab active:cursor-grabbing"
+                                    : "cursor-default"
+                                    } ${cell.subject || isEditMode
+                                      ? "shadow-sm"
+                                      : "shadow-none"
                                     } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
@@ -1863,33 +2248,40 @@ export default function ScheduleRoutine() {
                                     <>
                                       {/* Subject text content */}
                                       <div className="space-y-1">
-                                        <p className="font-black text-sm tracking-tight leading-tight line-clamp-2">{cell.subject}</p>
+                                        <p className="font-black text-sm tracking-tight leading-tight line-clamp-2">
+                                          {cell.subject}
+                                        </p>
                                         {(cell.code || cell.teacher) && (
                                           <p className="text-[10px] opacity-80 flex flex-wrap gap-1 leading-none font-bold">
                                             <span>{cell.code}</span>
-                                            {cell.code && cell.teacher && <span>·</span>}
-                                            <span className="text-black dark:text-white font-black">{cell.teacher}</span>
+                                            {cell.code && cell.teacher && (
+                                              <span>·</span>
+                                            )}
+                                            <span className="text-black dark:text-white font-black">
+                                              {cell.teacher}
+                                            </span>
                                           </p>
                                         )}
                                         {cell.room && (
-                                          <p className="text-[9px] opacity-75 font-medium leading-none">🏢 {cell.room}</p>
+                                          <p className="text-[9px] opacity-75 font-medium leading-none">
+                                            🏢 {cell.room}
+                                          </p>
                                         )}
                                       </div>
 
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <CustomTooltip content="Edit Slot">
-                                            <button
-                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "left", cellIndex)}
-                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                            >
-                                              <Edit2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </CustomTooltip>
                                           <CustomTooltip content="Clear Slot">
                                             <button
-                                              onClick={() => handleClearCell(dayIndex, trackIndex, "left", cellIndex)}
+                                              onClick={() =>
+                                                handleClearCell(
+                                                  dayIndex,
+                                                  trackIndex,
+                                                  "left",
+                                                  cellIndex,
+                                                )
+                                              }
                                               className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
@@ -1903,7 +2295,15 @@ export default function ScheduleRoutine() {
                                         <CustomTooltip content="Drag edge to resize">
                                           <div
                                             draggable
-                                            onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "left", cellIndex)}
+                                            onDragStart={(e) =>
+                                              handleResizeStart(
+                                                e,
+                                                dayIndex,
+                                                trackIndex,
+                                                "left",
+                                                cellIndex,
+                                              )
+                                            }
                                             onDragEnd={handleResizeEnd}
                                             className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
                                           >
@@ -1918,18 +2318,29 @@ export default function ScheduleRoutine() {
                                       {isEditMode ? (
                                         <div className="flex flex-col items-center justify-center text-muted-foreground/35 hover:text-muted-foreground/80 transition-colors">
                                           <Move className="w-4 h-4 stroke-[1.5]" />
-                                          <span className="text-[9px] mt-1 uppercase font-bold tracking-wider">Empty</span>
-                                          <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity print-hide">
+                                          <span className="text-[9px] mt-1 uppercase font-bold tracking-wider">
+                                            Empty
+                                          </span>
+                                          {/* <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity print-hide">
                                             <button
-                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "left", cellIndex)}
+                                              onClick={() =>
+                                                handleOpenEditCell(
+                                                  dayIndex,
+                                                  trackIndex,
+                                                  "left",
+                                                  cellIndex,
+                                                )
+                                              }
                                               className="text-[9px] font-bold text-primary hover:underline"
                                             >
                                               + Add Subject
                                             </button>
-                                          </div>
+                                          </div> */}
                                         </div>
                                       ) : (
-                                        <span className="text-xs font-semibold text-muted-foreground/45">No Class</span>
+                                        <span className="text-xs font-semibold text-muted-foreground/45">
+                                          No Class
+                                        </span>
                                       )}
                                     </div>
                                   )}
@@ -1943,7 +2354,10 @@ export default function ScheduleRoutine() {
                             <td
                               rowSpan={totalTracks}
                               className="p-2 border border-border text-center align-middle font-black text-orange-600 dark:text-orange-400 bg-orange-50/10 dark:bg-orange-950/10 tracking-widest text-xs uppercase"
-                              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+                              style={{
+                                writingMode: "vertical-rl",
+                                textOrientation: "mixed",
+                              }}
                             >
                               BREAK
                             </td>
@@ -1958,19 +2372,51 @@ export default function ScheduleRoutine() {
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered ? "bg-primary/10 ring-2 ring-primary ring-inset" : ""
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered
+                                  ? "bg-primary/10 ring-2 ring-primary ring-inset"
+                                  : ""
                                   }`}
-                                onDragOver={(e) => handleDragOverCell(e, dayIndex, trackIndex, "right", cellIndex)}
+                                onDragOver={(e) =>
+                                  handleDragOverCell(
+                                    e,
+                                    dayIndex,
+                                    trackIndex,
+                                    "right",
+                                    cellIndex,
+                                  )
+                                }
                                 onDragLeave={handleDragLeaveCell}
-                                onDrop={(e) => handleDropOnCell(e, dayIndex, trackIndex, "right", cellIndex)}
-                                onClick={() => console.log("Clicked cell details:", cell)}
+                                onDrop={(e) =>
+                                  handleDropOnCell(
+                                    e,
+                                    dayIndex,
+                                    trackIndex,
+                                    "right",
+                                    cellIndex,
+                                  )
+                                }
+                                onClick={() =>
+                                  console.log("Clicked cell details:", cell)
+                                }
                               >
                                 <div
                                   draggable={isEditMode && !!cell.subject}
-                                  onDragStart={(e) => handleDragStartFromCell(e, dayIndex, trackIndex, "right", cellIndex)}
+                                  onDragStart={(e) =>
+                                    handleDragStartFromCell(
+                                      e,
+                                      dayIndex,
+                                      trackIndex,
+                                      "right",
+                                      cellIndex,
+                                    )
+                                  }
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                                    } ${cell.subject || isEditMode ? "shadow-sm" : "shadow-none"
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode
+                                    ? "cursor-grab active:cursor-grabbing"
+                                    : "cursor-default"
+                                    } ${cell.subject || isEditMode
+                                      ? "shadow-sm"
+                                      : "shadow-none"
                                     } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
@@ -1982,33 +2428,40 @@ export default function ScheduleRoutine() {
                                     <>
                                       {/* Subject text content */}
                                       <div className="space-y-1">
-                                        <p className="font-black text-sm tracking-tight leading-tight line-clamp-2">{cell.subject}</p>
+                                        <p className="font-black text-sm tracking-tight leading-tight line-clamp-2">
+                                          {cell.subject}
+                                        </p>
                                         {(cell.code || cell.teacher) && (
                                           <p className="text-[10px] opacity-80 flex flex-wrap gap-1 leading-none font-bold">
                                             <span>{cell.code}</span>
-                                            {cell.code && cell.teacher && <span>·</span>}
-                                            <span className="text-black dark:text-white font-black">{cell.teacher}</span>
+                                            {cell.code && cell.teacher && (
+                                              <span>·</span>
+                                            )}
+                                            <span className="text-black dark:text-white font-black">
+                                              {cell.teacher}
+                                            </span>
                                           </p>
                                         )}
                                         {cell.room && (
-                                          <p className="text-[9px] opacity-75 font-medium leading-none">🏢 {cell.room}</p>
+                                          <p className="text-[9px] opacity-75 font-medium leading-none">
+                                            🏢 {cell.room}
+                                          </p>
                                         )}
                                       </div>
 
                                       {/* Action Menu (Visible on hover, hidden on print) */}
                                       {isEditMode && (
                                         <div className="flex justify-end gap-1 mt-2 border-t border-border/10 pt-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity print-hide">
-                                          <CustomTooltip content="Edit Slot">
-                                            <button
-                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "right", cellIndex)}
-                                              className="p-1 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                                            >
-                                              <Edit2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </CustomTooltip>
                                           <CustomTooltip content="Clear Slot">
                                             <button
-                                              onClick={() => handleClearCell(dayIndex, trackIndex, "right", cellIndex)}
+                                              onClick={() =>
+                                                handleClearCell(
+                                                  dayIndex,
+                                                  trackIndex,
+                                                  "right",
+                                                  cellIndex,
+                                                )
+                                              }
                                               className="p-1 rounded hover:bg-muted/40 hover:text-destructive text-muted-foreground"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
@@ -2022,7 +2475,15 @@ export default function ScheduleRoutine() {
                                         <CustomTooltip content="Drag edge to resize">
                                           <div
                                             draggable
-                                            onDragStart={(e) => handleResizeStart(e, dayIndex, trackIndex, "right", cellIndex)}
+                                            onDragStart={(e) =>
+                                              handleResizeStart(
+                                                e,
+                                                dayIndex,
+                                                trackIndex,
+                                                "right",
+                                                cellIndex,
+                                              )
+                                            }
                                             onDragEnd={handleResizeEnd}
                                             className="absolute right-0 top-0 bottom-0 w-2 hover:w-3 bg-primary/15 hover:bg-primary/35 cursor-ew-resize rounded-r-xl transition-all duration-150 flex items-center justify-center group/resize print-hide"
                                           >
@@ -2037,10 +2498,19 @@ export default function ScheduleRoutine() {
                                       {isEditMode ? (
                                         <div className="flex flex-col items-center justify-center text-muted-foreground/35 hover:text-muted-foreground/80 transition-colors">
                                           <Move className="w-4 h-4 stroke-[1.5]" />
-                                          <span className="text-[9px] mt-1 uppercase font-bold tracking-wider">Empty</span>
+                                          <span className="text-[9px] mt-1 uppercase font-bold tracking-wider">
+                                            Empty
+                                          </span>
                                           <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity print-hide">
                                             <button
-                                              onClick={() => handleOpenEditCell(dayIndex, trackIndex, "right", cellIndex)}
+                                              onClick={() =>
+                                                handleOpenEditCell(
+                                                  dayIndex,
+                                                  trackIndex,
+                                                  "right",
+                                                  cellIndex,
+                                                )
+                                              }
                                               className="text-[9px] font-bold text-primary hover:underline"
                                             >
                                               + Add Subject
@@ -2048,7 +2518,9 @@ export default function ScheduleRoutine() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <span className="text-xs font-semibold text-muted-foreground/45">No Class</span>
+                                        <span className="text-xs font-semibold text-muted-foreground/45">
+                                          No Class
+                                        </span>
                                       )}
                                     </div>
                                   )}
@@ -2065,7 +2537,9 @@ export default function ScheduleRoutine() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                  onClick={() => handleRemoveTrack(dayIndex, trackIndex)}
+                                  onClick={() =>
+                                    handleRemoveTrack(dayIndex, trackIndex)
+                                  }
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
@@ -2091,11 +2565,13 @@ export default function ScheduleRoutine() {
               </div>
             )} */}
         </div>
-
       </section>
 
       {/* ── CELL DETAIL EDIT DIALOG (Hidden on print) ── */}
-      <Dialog open={editingCell !== null} onOpenChange={(open) => !open && setEditingCell(null)}>
+      <Dialog
+        open={editingCell !== null}
+        onOpenChange={(open) => !open && setEditingCell(null)}
+      >
         <DialogContent
           className="sm:max-w-[425px] admin-white-modal print-hide"
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -2109,52 +2585,72 @@ export default function ScheduleRoutine() {
 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-subject" className="text-right text-xs font-black">
+              <Label
+                htmlFor="edit-subject"
+                className="text-right text-xs font-black"
+              >
                 Subject
               </Label>
               <Input
                 id="edit-subject"
                 value={editForm.subject}
-                onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, subject: e.target.value })
+                }
                 className="col-span-3 h-10 text-xs rounded-lg"
                 placeholder="Subject name"
               />
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-code" className="text-right text-xs font-black">
+              <Label
+                htmlFor="edit-code"
+                className="text-right text-xs font-black"
+              >
                 Code
               </Label>
               <Input
                 id="edit-code"
                 value={editForm.code}
-                onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, code: e.target.value })
+                }
                 className="col-span-3 h-10 text-xs rounded-lg"
                 placeholder="e.g. PE-CS602B"
               />
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-teacher" className="text-right text-xs font-black">
+              <Label
+                htmlFor="edit-teacher"
+                className="text-right text-xs font-black"
+              >
                 Teacher
               </Label>
               <Input
                 id="edit-teacher"
                 value={editForm.teacher}
-                onChange={(e) => setEditForm({ ...editForm, teacher: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, teacher: e.target.value })
+                }
                 className="col-span-3 h-10 text-xs rounded-lg"
                 placeholder="e.g. MaS"
               />
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-room" className="text-right text-xs font-black">
+              <Label
+                htmlFor="edit-room"
+                className="text-right text-xs font-black"
+              >
                 Room
               </Label>
               <Input
                 id="edit-room"
                 value={editForm.room}
-                onChange={(e) => setEditForm({ ...editForm, room: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, room: e.target.value })
+                }
                 className="col-span-3 h-10 text-xs rounded-lg"
                 placeholder="e.g. Room A317"
               />
@@ -2182,14 +2678,20 @@ export default function ScheduleRoutine() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="sm:max-w-[420px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black">Create Schedule Routine</DialogTitle>
+            <DialogTitle className="text-lg font-black">
+              Create Schedule Routine
+            </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Enter the number of groups for this class. This will be used to generate the schedule routine.
+              Enter the number of groups for this class. This will be used to
+              generate the schedule routine.
             </p>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="create-groups" className="text-right text-xs font-black">
+              <Label
+                htmlFor="create-groups"
+                className="text-right text-xs font-black"
+              >
                 No. of Groups
               </Label>
               <Input
@@ -2198,7 +2700,11 @@ export default function ScheduleRoutine() {
                 min={1}
                 max={20}
                 value={createGroupCount}
-                onChange={(e) => setCreateGroupCount(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) =>
+                  setCreateGroupCount(
+                    Math.max(1, parseInt(e.target.value) || 1),
+                  )
+                }
                 className="col-span-3 h-10 text-xs rounded-lg"
                 placeholder="e.g. 2"
               />
@@ -2226,8 +2732,9 @@ export default function ScheduleRoutine() {
         isOpen={clearCellTarget !== null}
         onClose={() => setClearCellTarget(null)}
         onConfirm={confirmClearCell}
-        title="Clear Schedule Slot"
-        description="Are you sure you want to clear this schedule slot? The slot will be reset to empty."
+        title="Delete Schedule Slot"
+        description="Are you sure you want to delete this schedule slot? This will remove it from the routine."
+        isLoading={deleteScheduleMutation.isPending}
       />
       <ConfirmModal
         isOpen={removeTrackTarget !== null}

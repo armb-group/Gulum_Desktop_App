@@ -21,34 +21,10 @@ import { useAuth, Role } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface SignInProps {
-  role: "student" | "teacher";
+  role?: "student" | "teacher" | "admin";
 }
 
-const config = {
-  student: {
-    portalLabel: "Student Portal",
-    idLabel: "Email",
-    idPlaceholder: "e.g. student@example.com",
-    idIcon: Mail,
-    helper: "Use the email issued by your institution",
-    switchLabel: "Sign in as Teacher instead",
-    switchTo: "/teacher/login",
-    redirect: "/student",
-  },
-  teacher: {
-    portalLabel: "Teacher Portal",
-    idLabel: "Email",
-    idPlaceholder: "e.g. teacher@gmail.com",
-    idIcon: User,
-    helper: "Use the email issued by your institution",
-    switchLabel: "Sign in as Student instead",
-    switchTo: "/student/login",
-    redirect: "/teacher",
-  },
-} as const;
-
 const SignIn = ({ role }: SignInProps) => {
-  const cfg = config[role];
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -69,7 +45,7 @@ const SignIn = ({ role }: SignInProps) => {
     try {
       const res = await loginApi({ email: identifier, password });
       const data = res.responseData ?? res;
-      const rawRole = (data.role ?? data.userType ?? role) as string;
+      const rawRole = (data.role ?? data.userType ?? role ?? "student") as string;
       const normalizedRole = rawRole.toLowerCase() === "user" ? "student" : rawRole.toLowerCase();
       login({
         id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
@@ -84,9 +60,14 @@ const SignIn = ({ role }: SignInProps) => {
         token: data.token,
       });
 
-
-      toast.success("Welcome back!");
-      navigate(cfg.redirect);
+      toast.success("Welcome to GULUM");
+      if (normalizedRole === "admin") {
+        navigate("/admin/dashboard");
+      } else if (normalizedRole === "teacher") {
+        navigate("/teacher");
+      } else {
+        navigate("/student");
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Invalid credentials.");
     } finally {
@@ -94,28 +75,12 @@ const SignIn = ({ role }: SignInProps) => {
     }
   };
 
-  const IdIcon = cfg.idIcon;
-
   return (
     <div className="relative min-h-screen bg-background overflow-hidden flex flex-col">
       {/* Decorative Background Blurs */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-20 left-0 w-[220px] h-[220px] bg-primary/5 rounded-full blur-3xl" />
-
-      {/* Top Nav Bar */}
-      <header className="relative z-20 flex items-center px-6 md:px-10 pt-5 pb-2">
-        <button
-          onClick={() => navigate("/")}
-          aria-label="Back"
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200 group"
-        >
-          <span className="w-8 h-8 rounded-full border border-primary/20 bg-background/80 backdrop-blur-sm flex items-center justify-center group-hover:bg-primary/5 group-hover:border-primary/40 transition-all duration-200">
-            <ArrowLeft className="h-4 w-4" />
-          </span>
-          <span className="hidden sm:inline">Back</span>
-        </button>
-      </header>
 
       {/* Scrollable Main Content */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
@@ -126,7 +91,7 @@ const SignIn = ({ role }: SignInProps) => {
             {/* Portal Badge */}
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold tracking-wide mb-5 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
-              {cfg.portalLabel}
+              Unified Portal Login
             </div>
 
             {/* Logo */}
@@ -143,12 +108,6 @@ const SignIn = ({ role }: SignInProps) => {
               Welcome back to{" "}
               <span className="text-primary">GULUM</span>
             </h1>
-
-            {/* Subtitle */}
-            {/* <p className="text-muted-foreground mt-1.5 text-sm max-w-xs leading-relaxed">
-              Sign in with your {cfg.idLabel.toLowerCase()} and password to
-              continue.
-            </p> */}
           </div>
 
           {/* Form Card */}
@@ -158,14 +117,14 @@ const SignIn = ({ role }: SignInProps) => {
               {/* Identifier Field */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-foreground/80">
-                  {cfg.idLabel}
+                  Email
                 </label>
                 <div className="relative">
-                  <IdIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <Input
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder={cfg.idPlaceholder}
+                    placeholder="e.g. user@example.com"
                     className="h-11 pl-10 rounded-xl border-border/50 bg-muted/30 text-sm focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/40"
                   />
                 </div>
@@ -231,33 +190,8 @@ const SignIn = ({ role }: SignInProps) => {
               {/* Helper Info */}
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/10 bg-primary/5 px-3.5 py-3 text-xs text-primary">
                 <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <p className="leading-relaxed">{cfg.helper}</p>
+                <p className="leading-relaxed">Use the email issued by your institution</p>
               </div>
-
-              {/* Divider */}
-              <div className="flex items-center gap-3 py-0.5">
-                <div className="h-px bg-border/60 flex-1" />
-                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-medium">
-                  or
-                </span>
-                <div className="h-px bg-border/60 flex-1" />
-              </div>
-
-              {/* Switch Role Button */}
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="w-full h-11 rounded-xl border-primary/20 bg-background/50 text-sm font-medium hover:bg-primary/5 hover:border-primary/30 transition-all duration-200"
-              >
-                <Link
-                  to={cfg.switchTo}
-                  className="flex items-center justify-center gap-2"
-                >
-                  <GraduationCap className="h-4 w-4 text-primary" />
-                  {cfg.switchLabel}
-                </Link>
-              </Button>
 
             </form>
           </div>
