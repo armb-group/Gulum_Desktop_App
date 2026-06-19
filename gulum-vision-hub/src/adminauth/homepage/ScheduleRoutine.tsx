@@ -217,7 +217,7 @@ const serializeStateToBackend = (
           (teacherId && r.teacherId === teacherId) ||
           (r.teacherName &&
             r.teacherName.trim().toLowerCase() ===
-              teacherName.trim().toLowerCase()),
+            teacherName.trim().toLowerCase()),
       );
     } else if (
       originalRecords &&
@@ -228,7 +228,7 @@ const serializeStateToBackend = (
           (teacherId && s.teacherId === teacherId) ||
           (s.teacherName &&
             s.teacherName.trim().toLowerCase() ===
-              teacherName.trim().toLowerCase()),
+            teacherName.trim().toLowerCase()),
       );
       if (foundSlot) {
         originalRecord = { id: foundSlot.scheduleId || undefined };
@@ -1236,7 +1236,7 @@ export default function ScheduleRoutine() {
     const scheduleId = cell.dbRecordId || cell.scheduleIds?.[0];
 
     if (scheduleId) {
-      const toastId = toast.loading("Deleting schedule slot on server...");
+      const toastId = toast.loading("Deleting schedule slot...");
       deleteScheduleMutation.mutate(scheduleId, {
         onSuccess: () => {
           toast.success("Schedule slot deleted successfully!", {
@@ -1257,7 +1257,7 @@ export default function ScheduleRoutine() {
         },
         onError: (err) => {
           console.error("Error deleting schedule slot:", err);
-          toast.error("Failed to delete schedule slot on server.", {
+          toast.error("Failed to delete schedule slot", {
             id: toastId,
           });
           refetchRoutine();
@@ -1370,7 +1370,8 @@ export default function ScheduleRoutine() {
     }
 
     if (draggedCellInfo) {
-      const updated = [...routineState];
+      const previousState = JSON.parse(JSON.stringify(routineState));
+      const updated = JSON.parse(JSON.stringify(routineState));
       const targetCell = updated[dayIndex].tracks[trackIndex][side][cellIndex];
       const {
         dayIndex: srcDay,
@@ -1443,7 +1444,7 @@ export default function ScheduleRoutine() {
         // SWAP: two occupied class slots
         if (sourceScheduleId && targetScheduleId) {
           const toastId = toast.loading(
-            "Swapping scheduling periods on server...",
+            "Swapping scheduling periods...",
           );
           swapScheduleMutation.mutate(
             { sourceScheduleId, targetScheduleId },
@@ -1457,9 +1458,10 @@ export default function ScheduleRoutine() {
               onError: (err) => {
                 console.error("Failed to swap scheduling periods:", err);
                 toast.error(
-                  "Failed to swap scheduling periods on server. Reverting swap.",
+                  "Failed to swap scheduling periods. Reverting swap.",
                   { id: toastId },
                 );
+                updateRoutine(previousState);
                 refetchRoutine(); // Revert local state by reloading from backend
               },
             },
@@ -1471,7 +1473,7 @@ export default function ScheduleRoutine() {
         // MOVE: one class moved to an empty slot
         if (sourceScheduleId && targetTimeslotId) {
           const toastId = toast.loading(
-            "Moving scheduling period on server...",
+            "Moving scheduling period...",
           );
           moveScheduleMutation.mutate(
             { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
@@ -1485,9 +1487,10 @@ export default function ScheduleRoutine() {
               onError: (err) => {
                 console.error("Failed to move scheduling period:", err);
                 toast.error(
-                  "Failed to move scheduling period on server. Reverting move.",
+                  "Failed to move scheduling period. Reverting move.",
                   { id: toastId },
                 );
+                updateRoutine(previousState);
                 refetchRoutine();
               },
             },
@@ -1556,7 +1559,8 @@ export default function ScheduleRoutine() {
     srcCellIndex: number,
     targetSlotIdx: number,
   ) => {
-    const updated = [...routineState];
+    const previousState = JSON.parse(JSON.stringify(routineState));
+    const updated = JSON.parse(JSON.stringify(routineState));
     const sideList = updated[dayIndex].tracks[trackIndex][side];
 
     // Rebuild flat array of 4 slots
@@ -1683,7 +1687,7 @@ export default function ScheduleRoutine() {
     updateRoutine(updated);
 
     if (sourceScheduleId && targetTimeslotId) {
-      const toastId = toast.loading("Extending scheduling period on server...");
+      const toastId = toast.loading("Extending scheduling period...");
       extendScheduleMutation.mutate(
         { sourceScheduleId, targetTimeSlotId: targetTimeslotId },
         {
@@ -1696,9 +1700,10 @@ export default function ScheduleRoutine() {
           onError: (err) => {
             console.error("Failed to extend scheduling period:", err);
             toast.error(
-              "Failed to extend scheduling period on server. Reverting extend.",
+              "Failed to extend scheduling period. Reverting extend.",
               { id: toastId },
             );
+            updateRoutine(previousState);
             refetchRoutine();
           },
         },
@@ -1989,6 +1994,13 @@ export default function ScheduleRoutine() {
                 <>
                   <Button
                     variant="outline"
+                    onClick={() => setIsEditMode(false)}
+                    className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 hover:text-primary-foreground flex items-center gap-2 font-medium"
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={handleCancelEdit}
                     className="h-10 px-4 flex items-center gap-2 font-medium border-destructive hover:bg-destructive/15 text-destructive"
                   >
@@ -2180,11 +2192,10 @@ export default function ScheduleRoutine() {
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${
-                                  isHovered
-                                    ? "bg-primary/10 ring-2 ring-primary ring-inset"
-                                    : ""
-                                }`}
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered
+                                  ? "bg-primary/10 ring-2 ring-primary ring-inset"
+                                  : ""
+                                  }`}
                                 onDragOver={(e) =>
                                   handleDragOverCell(
                                     e,
@@ -2220,21 +2231,18 @@ export default function ScheduleRoutine() {
                                     )
                                   }
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${
-                                    isEditMode
-                                      ? "cursor-grab active:cursor-grabbing"
-                                      : "cursor-default"
-                                  } ${
-                                    cell.subject || isEditMode
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode
+                                    ? "cursor-grab active:cursor-grabbing"
+                                    : "cursor-default"
+                                    } ${cell.subject || isEditMode
                                       ? "shadow-sm"
                                       : "shadow-none"
-                                  } transition-all duration-200 ${
-                                    cell.subject
+                                    } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
                                         ? getSubjectColorClass("")
                                         : "bg-white dark:bg-zinc-900"
-                                  } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
+                                    } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
                                 >
                                   {cell.subject ? (
                                     <>
@@ -2313,7 +2321,7 @@ export default function ScheduleRoutine() {
                                           <span className="text-[9px] mt-1 uppercase font-bold tracking-wider">
                                             Empty
                                           </span>
-                                          <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity print-hide">
+                                          {/* <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity print-hide">
                                             <button
                                               onClick={() =>
                                                 handleOpenEditCell(
@@ -2327,7 +2335,7 @@ export default function ScheduleRoutine() {
                                             >
                                               + Add Subject
                                             </button>
-                                          </div>
+                                          </div> */}
                                         </div>
                                       ) : (
                                         <span className="text-xs font-semibold text-muted-foreground/45">
@@ -2364,11 +2372,10 @@ export default function ScheduleRoutine() {
                               <td
                                 key={cell.id}
                                 colSpan={cell.colSpan}
-                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${
-                                  isHovered
-                                    ? "bg-primary/10 ring-2 ring-primary ring-inset"
-                                    : ""
-                                }`}
+                                className={`p-1 border border-border align-top relative transition-all min-h-[90px] duration-150 ${isHovered
+                                  ? "bg-primary/10 ring-2 ring-primary ring-inset"
+                                  : ""
+                                  }`}
                                 onDragOver={(e) =>
                                   handleDragOverCell(
                                     e,
@@ -2404,21 +2411,18 @@ export default function ScheduleRoutine() {
                                     )
                                   }
                                   onDragEnd={handleDragEnd}
-                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${
-                                    isEditMode
-                                      ? "cursor-grab active:cursor-grabbing"
-                                      : "cursor-default"
-                                  } ${
-                                    cell.subject || isEditMode
+                                  className={`group relative rounded-xl p-2 h-full flex flex-col justify-between text-xs font-semibold ${isEditMode
+                                    ? "cursor-grab active:cursor-grabbing"
+                                    : "cursor-default"
+                                    } ${cell.subject || isEditMode
                                       ? "shadow-sm"
                                       : "shadow-none"
-                                  } transition-all duration-200 ${
-                                    cell.subject
+                                    } transition-all duration-200 ${cell.subject
                                       ? getSubjectColorClass(cell.subject)
                                       : isEditMode
                                         ? getSubjectColorClass("")
                                         : "bg-white dark:bg-zinc-900"
-                                  } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
+                                    } ${!cell.subject && !isEditMode ? "print-empty-slot" : "print-subject-card"}`}
                                 >
                                   {cell.subject ? (
                                     <>
