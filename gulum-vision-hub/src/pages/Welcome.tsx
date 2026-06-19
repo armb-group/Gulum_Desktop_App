@@ -76,7 +76,7 @@ const Welcome = () => {
             size="lg"
             className="w-full h-14 rounded-2xl text-lg font-semibold shadow-lg shadow-primary/10 transition-all duration-300 hover:scale-[1.02]"
           >
-            <Link to="/teacher/login">Login as Teacher</Link>
+            <Link to="/login">Login as Teacher</Link>
           </Button>
 
           <Button
@@ -84,7 +84,7 @@ const Welcome = () => {
             size="lg"
             className="w-full h-14 rounded-2xl text-lg font-semibold shadow-lg shadow-primary/10 transition-all duration-300 hover:scale-[1.02]"
           >
-            <Link to="/student/login">Login as Student</Link>
+            <Link to="/login">Login as Student</Link>
           </Button>
 
           <Button
@@ -93,7 +93,7 @@ const Welcome = () => {
             className="w-full h-12 rounded-2xl border-primary/30 text-primary font-medium backdrop-blur-sm bg-background/70 hover:scale-[1.01] transition-all duration-300"
           >
             <Link
-              to="/admin/login"
+              to="/login"
               className="flex items-center justify-center gap-2"
             >
               <ShieldCheck className="h-4 w-4" />

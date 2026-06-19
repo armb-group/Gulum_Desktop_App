@@ -32,13 +32,13 @@ export const RoleShell = ({ role, title, subtitle, showDate, wide, children }: R
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
 
-  if (!user) return <Navigate to={role === "student" ? "/student/login" : "/teacher/login"} replace />;
-  if (user.role !== role) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== role) return <Navigate to="/login" replace />;
 
   const base = role === "student" ? "/student" : "/teacher";
   const items = getMenuItems(base, role);
   const headerSubtitle = subtitle ?? user.institution ?? "MCKV Institute of Engineering";
-  const handleLogout = () => { logout(); navigate(`${base}/login`, { replace: true }); };
+  const handleLogout = () => { logout(); navigate("/login", { replace: true }); };
 
   return (
     <div className="min-h-screen flex w-full bg-background">
