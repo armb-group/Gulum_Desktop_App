@@ -89,8 +89,8 @@ export const getTeachersByClass = async (classId) => {
   return response.data.responseData ?? response.data;
 };
 
-export const getStudentsByClassBatch = async (params) => {
-  const response = await api.get(`/api/students/department_class_batch`, { params });
+export const getStudentsByClassesId = async (classesId) => {
+  const response = await api.get(`/api/students/classes/${classesId}`);
   return response.data.responseData ?? response.data;
 };
 
@@ -113,12 +113,13 @@ export const useGetTeachersByClass = (classId, options = {}) =>
     enabled: !!classId && (options.enabled ?? true),
   });
 
-export const useGetStudentsByClassBatch = (params, options = {}) =>
-  useQuery({
-    queryKey: ["students-class-batch", params],
-    queryFn: () => getStudentsByClassBatch(params),
-    enabled: !!params.departmentId && !!params.batchId && !!params.semester && !!params.classesId && (options.enabled ?? true),
+export const useStudentsByClassesId = (classesId) => {
+  return useQuery({
+    queryKey: ["students", classesId],
+    queryFn: () => getStudentsByClassesId(classesId),
+    enabled: !!classesId,
   });
+};
 
 export const useGetSubjectsByClassBatch = (params, options = {}) =>
   useQuery({

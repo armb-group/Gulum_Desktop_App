@@ -15,7 +15,7 @@ import {
   useGetAcademicBatchesByDepartment,
   useCreateDepartment,
   useGetTeachersByClass,
-  useGetStudentsByClassBatch
+  useStudentsByClassesId
 } from "@/services/departmentAPI";
 import { useCoursesByClass } from "@/services/courseclassAPI";
 import { useGetCourseOfferings } from "@/services/teacherCrudAPI";
@@ -267,16 +267,12 @@ const Departments = () => {
     }));
   }, [rawTeachers]);
 
-  // 2. Fetch Students
-  const studentsParams = useMemo(() => ({
-    departmentId: selectedDeptId,
-    batchId: selectedBatchId,
-    semester: selectedSemester,
-    classesId: selectedClassId
-  }), [selectedDeptId, selectedBatchId, selectedSemester, selectedClassId]);
 
-  const { data: rawStudents, isLoading: studentsLoading } = useGetStudentsByClassBatch(studentsParams, {
-    enabled: isTabQueryEnabled
+const classesId = localStorage.getItem("classesId");
+
+const { data: rawStudents, isLoading: studentsLoading } =
+  useStudentsByClassesId(selectedClassId, {
+    enabled: isTabQueryEnabled,
   });
 
   const activeStudents = useMemo(() => {
