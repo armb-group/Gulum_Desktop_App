@@ -237,7 +237,7 @@ const TeacherCrud = () => {
       await createTeacherMutation.mutateAsync({
         email: account.email,
         phone: account.phone,
-        password: account.password,
+        password: account.password || "Gulum@123",
         institution_id: professional.institution_id,
         employee_code: professional.employee_code,
         full_name: personal.full_name,
@@ -524,24 +524,6 @@ const TeacherCrud = () => {
                       value={account.phone} 
                       onChange={(e) => setAccount({ ...account, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} 
                     />
-                  </Field>
-                  <Field label="Password *">
-                    <div className="relative">
-                      <Input 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder="Min. 6 characters" 
-                        value={account.password} 
-                        onChange={(e) => setAccount({ ...account, password: e.target.value })} 
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
                   </Field>
                 </div>
               )}
