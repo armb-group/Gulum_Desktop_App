@@ -50,6 +50,7 @@ import ForgotPassword  from "./pages/ForgotPassword";
 import AttendancePage from "./adminauth/homepage/AttendancePage";
 import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
 import AssignSubject from "./adminauth/homepage/AssignSubject";
+import AdminProfile from "./adminauth/homepage/AdminProfile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +119,7 @@ const App = () => (
                   <Route path="assign-teacher" element={<AssignTeacher />} />
                   <Route path="routine" element={<ScheduleRoutine />} />
                   <Route path="assign-subject" element={<AssignSubject />} />
+                  <Route path="profile" element={<AdminProfile />} />
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

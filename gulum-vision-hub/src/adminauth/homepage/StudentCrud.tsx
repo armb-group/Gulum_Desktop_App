@@ -10,6 +10,7 @@ import {
   studentEditSchema
 } from "@/lib/validations";
 import { AdminShell } from "./AdminShell";
+import { useGetDepartments, useGetAcademicBatchesByDepartment } from "@/services/departmentAPI";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomTooltip } from "@/components/CustomTooltip";
@@ -237,6 +238,65 @@ const StudentCrud = () => {
   const [academic, setAcademic] = useState<AcademicForm>(emptyAcademic);
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
 
+  // TanStack Queries for departments & batches in student registration form
+  const { data: rawDepts, isLoading: deptsLoading } = useGetDepartments();
+  const departments = useMemo(() => {
+    return Array.isArray(rawDepts) ? rawDepts : [];
+  }, [rawDepts]);
+
+  const departmentsList = useMemo(() => {
+    return departments.map((d: any) => ({
+      id: String(d.id ?? d.departmentId ?? d.department_id ?? ""),
+      name: d.name ?? d.departmentName ?? d.department_name ?? "Unknown Department"
+    }));
+  }, [departments]);
+
+  const { data: rawBatches, isLoading: batchesLoading } = useGetAcademicBatchesByDepartment(
+    academic.department_id,
+    { enabled: !!academic.department_id }
+  );
+
+  const batches = useMemo(() => {
+    if (!rawBatches) return [];
+    const list = Array.isArray(rawBatches) ? rawBatches : (rawBatches.responseData ?? rawBatches.data ?? []);
+    return list.map((b: any) => ({
+      id: String(b.batchId ?? b.id ?? ""),
+      year: b.year ?? "Unknown Batch",
+      classes: b.classes ?? []
+    }));
+  }, [rawBatches]);
+
+  const selectedBatch = useMemo(() => {
+    return batches.find((b) => b.id === academic.batch_id) || null;
+  }, [batches, academic.batch_id]);
+
+  const classesInSelectedBatch = useMemo(() => {
+    return selectedBatch?.classes ?? [];
+  }, [selectedBatch]);
+
+  const { data: rawEditBatches } = useGetAcademicBatchesByDepartment(
+    viewEditData?.department_id ? String(viewEditData.department_id) : "",
+    { enabled: !!viewEditData?.department_id }
+  );
+
+  const editBatches = useMemo(() => {
+    if (!rawEditBatches) return [];
+    const list = Array.isArray(rawEditBatches) ? rawEditBatches : (rawEditBatches.responseData ?? rawEditBatches.data ?? []);
+    return list.map((b: any) => ({
+      id: String(b.batchId ?? b.id ?? ""),
+      year: b.year ?? "Unknown Batch",
+      classes: b.classes ?? []
+    }));
+  }, [rawEditBatches]);
+
+  const editSelectedBatch = useMemo(() => {
+    return editBatches.find((b) => String(b.id) === String(viewEditData?.batch_id)) || null;
+  }, [editBatches, viewEditData?.batch_id]);
+
+  const editClasses = useMemo(() => {
+    return editSelectedBatch?.classes ?? [];
+  }, [editSelectedBatch]);
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const mouseDownTarget = useRef<EventTarget | null>(null);
 
@@ -254,7 +314,10 @@ const StudentCrud = () => {
     setStep(0);
     setAccount(emptyAccount);
     setPersonal(emptyPersonal);
-    setAcademic(emptyAcademic);
+    setAcademic({
+      ...emptyAcademic,
+      institution_id: String(user?.institutionId || "1"),
+    });
   };
 
   const handleViewDetails = (student: Student) => {
@@ -330,7 +393,7 @@ const StudentCrud = () => {
         gender: personal.gender,
         email_id: account.email,
         phone_number: account.phone,
-        password: account.password,
+        password: account.password || "Gulum@123",
         batch_id: academic.batch_id,
         classess_id: academic.classess_id,
         department_id: academic.department_id,
@@ -399,7 +462,15 @@ const StudentCrud = () => {
           </div>
 
           <Button
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setAccount(emptyAccount);
+              setPersonal(emptyPersonal);
+              setAcademic({
+                ...emptyAcademic,
+                institution_id: String(user?.institutionId || "1"),
+              });
+              setModalOpen(true);
+            }}
             className="shadow-md hover:scale-105 transition-transform gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -633,14 +704,6 @@ const StudentCrud = () => {
                       onChange={(e) => setAccount({ ...account, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                     />
                   </Field>
-                  <Field label="Password *">
-                    <Input
-                      type="password"
-                      placeholder="Min. 6 characters"
-                      value={account.password}
-                      onChange={(e) => setAccount({ ...account, password: e.target.value })}
-                    />
-                  </Field>
                 </div>
               )}
 
@@ -682,11 +745,11 @@ const StudentCrud = () => {
                 <div className="space-y-4">
                   <h3 className="text-base font-semibold text-foreground mb-4">Academic Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Institution ID *">
+                    <Field label="Institution">
                       <Input
-                        placeholder="e.g. 1"
-                        value={academic.institution_id}
-                        onChange={(e) => setAcademic({ ...academic, institution_id: e.target.value.replace(/\D/g, "") })}
+                        value={user?.institution ?? ""}
+                        disabled
+                        className="cursor-not-allowed"
                       />
                     </Field>
                     <Field label="Admission No *">
@@ -703,26 +766,78 @@ const StudentCrud = () => {
                         onChange={(e) => setAcademic({ ...academic, roll_no: e.target.value })}
                       />
                     </Field>
-                    <Field label="Batch ID *">
-                      <Input
-                        placeholder="e.g. 101"
-                        value={academic.batch_id}
-                        onChange={(e) => setAcademic({ ...academic, batch_id: e.target.value.replace(/\D/g, "") })}
-                      />
-                    </Field>
-                    <Field label="Classess ID *">
-                      <Input
-                        placeholder="e.g. 1"
-                        value={academic.classess_id}
-                        onChange={(e) => setAcademic({ ...academic, classess_id: e.target.value.replace(/\D/g, "") })}
-                      />
-                    </Field>
-                    <Field label="Department ID *">
-                      <Input
-                        placeholder="e.g. 10"
+                    <Field label="Department *">
+                      <select
                         value={academic.department_id}
-                        onChange={(e) => setAcademic({ ...academic, department_id: e.target.value.replace(/\D/g, "") })}
-                      />
+                        onChange={(e) => {
+                          const deptId = e.target.value;
+                          setAcademic({
+                            ...academic,
+                            department_id: deptId,
+                            batch_id: "",
+                            classess_id: ""
+                          });
+                        }}
+                        className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="">{deptsLoading ? "Loading departments..." : "Select Department"}</option>
+                        {departmentsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Academic Batch *">
+                      <select
+                        value={academic.batch_id}
+                        onChange={(e) => {
+                          setAcademic({
+                            ...academic,
+                            batch_id: e.target.value,
+                            classess_id: ""
+                          });
+                        }}
+                        disabled={!academic.department_id}
+                        className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                      >
+                        <option value="">
+                          {!academic.department_id
+                            ? "Select department first"
+                            : batchesLoading
+                            ? "Loading batches..."
+                            : "Select Academic Batch"}
+                        </option>
+                        {batches.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.year}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Section / Class *">
+                      <select
+                        value={academic.classess_id}
+                        onChange={(e) => {
+                          setAcademic({
+                            ...academic,
+                            classess_id: e.target.value
+                          });
+                        }}
+                        disabled={!academic.batch_id}
+                        className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                      >
+                        <option value="">
+                          {!academic.batch_id
+                            ? "Select batch first"
+                            : "Select Section/Class"}
+                        </option>
+                        {classesInSelectedBatch.map((cls: any) => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name} (Semester {cls.semester})
+                          </option>
+                        ))}
+                      </select>
                     </Field>
                   </div>
                 </div>
@@ -739,12 +854,12 @@ const StudentCrud = () => {
                       ["Full Name", personal.full_name],
                       ["Date of Birth", personal.dob],
                       ["Gender", personal.gender],
-                      ["Institution ID", academic.institution_id],
+                      ["Institution", user?.institution ?? "MCKV Institute of Engineering"],
                       ["Admission No", academic.admission_no],
                       ["Roll No", academic.roll_no],
-                      ["Batch ID", academic.batch_id],
-                      ["Classess ID", academic.classess_id],
-                      ["Department ID", academic.department_id],
+                      ["Department", departmentsList.find(d => d.id === academic.department_id)?.name || "—"],
+                      ["Academic Batch", batches.find(b => b.id === academic.batch_id)?.year || "—"],
+                      ["Section / Class", classesInSelectedBatch.find((c: any) => String(c.id) === academic.classess_id)?.name || "—"],
                     ].map(([label, value]) => (
                       <div key={label} className="flex flex-col gap-0.5 bg-muted/40 rounded-lg px-3 py-2">
                         <span className="text-xs text-muted-foreground font-medium">{label}</span>
@@ -809,32 +924,115 @@ const StudentCrud = () => {
                   {TABLE_COLUMNS.map((column) => (
                     <div key={column.key} className="space-y-1 bg-zinc-50/30 dark:bg-zinc-900/10 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
-                        {column.label}
+                        {column.key === "institution_id" ? "Institution Name" : column.label}
                       </label>
                       {isEditingView && column.key !== "id" && column.key !== "user_id" && column.key !== "created_at" && column.key !== "created_by" ? (
-                        <Input
-                          value={String(viewEditData?.[column.key] ?? "")}
-                          onChange={(e) => {
-                            let val = e.target.value;
-                            if (column.key === "phone_number") {
-                              val = val.replace(/\D/g, "").slice(0, 10);
-                            } else if (column.key === "full_name") {
-                              val = val.replace(/[^A-Za-z\s]/g, "");
-                            } else if (
-                              column.key === "institution_id" ||
-                              column.key === "batch_id" ||
-                              column.key === "classess_id" ||
-                              column.key === "department_id"
-                            ) {
-                              val = val.replace(/\D/g, "");
-                            }
-                            setViewEditData((prev) => prev ? { ...prev, [column.key]: val } : prev);
-                          }}
-                          className="h-9 mt-1"
-                        />
+                        (() => {
+                          if (column.key === "institution_id") {
+                            return (
+                              <Input
+                                value={user?.institutionName ?? "MCKV Institute of Engineering"}
+                                disabled
+                                className="bg-muted text-muted-foreground cursor-not-allowed h-9 mt-1"
+                              />
+                            );
+                          }
+                          if (column.key === "department_id") {
+                            return (
+                              <select
+                                value={viewEditData?.department_id ?? ""}
+                                onChange={(e) => {
+                                  setViewEditData((prev) => prev ? {
+                                    ...prev,
+                                    department_id: e.target.value,
+                                    batch_id: "",
+                                    classess_id: ""
+                                  } : prev);
+                                }}
+                                className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                              >
+                                <option value="">Select Department</option>
+                                {departmentsList.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.name}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }
+                          if (column.key === "batch_id") {
+                            return (
+                              <select
+                                value={viewEditData?.batch_id ?? ""}
+                                onChange={(e) => {
+                                  setViewEditData((prev) => prev ? {
+                                    ...prev,
+                                    batch_id: e.target.value,
+                                    classess_id: ""
+                                  } : prev);
+                                }}
+                                disabled={!viewEditData?.department_id}
+                                className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 mt-1"
+                              >
+                                <option value="">Select Academic Batch</option>
+                                {editBatches.map((b) => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.year}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }
+                          if (column.key === "classess_id") {
+                            return (
+                              <select
+                                value={viewEditData?.classess_id ?? ""}
+                                onChange={(e) => {
+                                  setViewEditData((prev) => prev ? {
+                                    ...prev,
+                                    classess_id: e.target.value
+                                  } : prev);
+                                }}
+                                disabled={!viewEditData?.batch_id}
+                                className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 mt-1"
+                              >
+                                <option value="">Select Section/Class</option>
+                                {editClasses.map((cls: any) => (
+                                  <option key={cls.id} value={cls.id}>
+                                    {cls.name} (Semester {cls.semester})
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }
+                          return (
+                            <Input
+                              value={String(viewEditData?.[column.key] ?? "")}
+                              onChange={(e) => {
+                                let val = e.target.value;
+                                if (column.key === "phone_number") {
+                                  val = val.replace(/\D/g, "").slice(0, 10);
+                                } else if (column.key === "full_name") {
+                                  val = val.replace(/[^A-Za-z\s]/g, "");
+                                }
+                                setViewEditData((prev) => prev ? { ...prev, [column.key]: val } : prev);
+                              }}
+                              className="h-9 mt-1"
+                            />
+                          );
+                        })()
                       ) : (
                         (() => {
-                          const val = selectedViewStudent[column.key];
+                          let val = selectedViewStudent[column.key];
+                          if (column.key === "institution_id") {
+                            val = user?.institutionName ?? "MCKV Institute of Engineering";
+                          } else if (column.key === "department_id") {
+                            val = selectedViewStudent.departmentName || departmentsList.find(d => String(d.id) === String(selectedViewStudent.department_id))?.name || selectedViewStudent.department_id;
+                          } else if (column.key === "batch_id") {
+                            val = selectedViewStudent.batchYear || selectedViewStudent.batch_id;
+                          } else if (column.key === "classess_id") {
+                            val = selectedViewStudent.sectionName || selectedViewStudent.classess_id;
+                          }
                           const hasTooltip = val !== undefined && val !== null && String(val).trim() !== "" && String(val) !== "—";
                           const divEl = (
                             <div className="text-sm font-semibold text-foreground pt-0.5 truncate">

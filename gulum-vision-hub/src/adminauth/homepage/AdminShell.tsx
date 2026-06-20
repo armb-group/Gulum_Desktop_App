@@ -111,7 +111,7 @@ const AdminSidebarContent = () => {
   const expanded = state === "expanded";
 
   return (
-    <SidebarContent className=" py-3 scrollbar-beautiful overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
+    <SidebarContent className="pl-1 py-3 scrollbar-beautiful overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
       {NAV_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-0.5 mb-4">
           {expanded && (
@@ -161,6 +161,7 @@ const AdminSidebarContent = () => {
 const AdminSidebarFooter = ({ handleLogout, user }: { handleLogout: () => void; user: any }) => {
   const { state } = useSidebar();
   const expanded = state === "expanded";
+  const navigate = useNavigate();
 
   return (
     <SidebarFooter className="border-t border-sidebar-border p-2 flex flex-col gap-1 shrink-0">
@@ -181,23 +182,26 @@ const AdminSidebarFooter = ({ handleLogout, user }: { handleLogout: () => void; 
         {expanded && <span className="text-xs font-medium">Sign out</span>}
       </button>
 
-      <div className={`group/avatar relative flex items-center gap-2 rounded-lg px-2 py-2 mt-1 bg-sidebar-accent ${!expanded ? "justify-center" : ""}`}>
+      <div
+        onClick={() => navigate("/admin/profile")}
+        className={`group/avatar relative flex items-center gap-2 rounded-lg px-2 py-2 mt-1 bg-sidebar-accent cursor-pointer hover:bg-sidebar-accent/80 transition-colors ${!expanded ? "justify-center" : ""}`}
+      >
         {!expanded ? (
-          <CustomTooltip content={`Admin (${user?.institution ?? "Gulum"})`} side="right">
-            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0 cursor-pointer">
+          <CustomTooltip content={`Admin Profile (${user?.email || "Admin"})`} side="right">
+            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
               A
             </div>
           </CustomTooltip>
         ) : (
-          <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
-            A
-          </div>
-        )}
-        {expanded && (
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-sidebar-primary truncate">Admin</p>
-            <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.institution ?? "Gulum"}</p>
-          </div>
+          <>
+            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+              A
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-sidebar-primary truncate">Admin</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email}</p>
+            </div>
+          </>
         )}
       </div>
     </SidebarFooter>
@@ -229,8 +233,8 @@ export const AdminShell = ({ title, children }: AdminShellProps) => {
           <header className="h-14 flex items-center gap-3 px-4 sticky top-0 z-10 admin-header-glass">
             <div className="flex-1 min-w-0">
               <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
-              {user.institution && (
-                <p className="text-xs text-muted-foreground truncate">{user.institution}</p>
+              {user.institutionName && (
+                <p className="text-xs text-muted-foreground truncate">{user.institutionName}</p>
               )}
             </div>
             <ThemeToggle />

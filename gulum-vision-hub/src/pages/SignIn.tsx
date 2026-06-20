@@ -47,18 +47,18 @@ const SignIn = ({ role }: SignInProps) => {
       const data = res.responseData ?? res;
       const rawRole = (data.role ?? data.userType ?? role ?? "student") as string;
       const normalizedRole = rawRole.toLowerCase() === "user" ? "student" : rawRole.toLowerCase();
-      login({
-        id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
-        name: data.name ?? data.fullName ?? identifier,
-        email: data.email ?? data.emailId ?? identifier,
-        role: normalizedRole as Role,
-        institution: data.institution ?? data.collegeName,
-        institutionId: data.institutionId ?? data.institution_id,
-        batchId: data.batchId ?? data.batch_id,
-        classId: data.classesId ?? data.classId,
-        departmentId: data.departmentId ?? data.department_id,
-        token: data.token,
-      });
+        login({
+          id: data.id ?? data._id ?? data.userId ?? crypto.randomUUID(),
+          name: data.name ?? data.fullName ?? identifier,
+          email: data.email ?? data.emailId ?? identifier,
+          role: normalizedRole as Role,
+          institutionName: data.institutionName ?? data.institution ?? data.collegeName,
+          institutionId: data.institutionId ?? data.institution_id,
+          batchId: data.batchId ?? data.batch_id,
+          classId: data.classesId ?? data.classId,
+          departmentId: data.departmentId ?? data.department_id,
+          token: data.token,
+        });
 
       toast.success("Welcome to GULUM");
       if (normalizedRole === "admin") {
