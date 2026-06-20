@@ -747,7 +747,7 @@ const StudentCrud = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Institution">
                       <Input
-                        value={user?.institution ?? ""}
+                        value={user?.institutionName ?? ""}
                         disabled
                         className="cursor-not-allowed"
                       />
@@ -854,7 +854,7 @@ const StudentCrud = () => {
                       ["Full Name", personal.full_name],
                       ["Date of Birth", personal.dob],
                       ["Gender", personal.gender],
-                      ["Institution", user?.institution ?? "MCKV Institute of Engineering"],
+                      ["Institution", user?.institutionName ?? ""],
                       ["Admission No", academic.admission_no],
                       ["Roll No", academic.roll_no],
                       ["Department", departmentsList.find(d => d.id === academic.department_id)?.name || "—"],
@@ -931,7 +931,7 @@ const StudentCrud = () => {
                           if (column.key === "institution_id") {
                             return (
                               <Input
-                                value={user?.institutionName ?? "MCKV Institute of Engineering"}
+                                value={user?.institutionName ?? ""}
                                 disabled
                                 className="bg-muted text-muted-foreground cursor-not-allowed h-9 mt-1"
                               />
@@ -1025,7 +1025,7 @@ const StudentCrud = () => {
                         (() => {
                           let val = selectedViewStudent[column.key];
                           if (column.key === "institution_id") {
-                            val = user?.institutionName ?? "MCKV Institute of Engineering";
+                            val = user?.institutionName ?? "";
                           } else if (column.key === "department_id") {
                             val = selectedViewStudent.departmentName || departmentsList.find(d => String(d.id) === String(selectedViewStudent.department_id))?.name || selectedViewStudent.department_id;
                           } else if (column.key === "batch_id") {

@@ -555,7 +555,7 @@ const TeacherCrud = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Institution Name *">
                       <Input 
-                        value={user?.institution ?? ""} 
+                        value={user?.institutionName ?? ""} 
                         readOnly 
                         className="bg-muted cursor-not-allowed"
                       />
@@ -612,7 +612,7 @@ const TeacherCrud = () => {
                       ["Full Name", personal.full_name],
                       ["Qualification", personal.qualification],
                       ["Specialization", personal.specialization],
-                      ["Institution Name", user?.institution || "—"],
+                      ["Institution Name", user?.institutionName || "—"],
                       ["Employee Code", professional.employee_code],
                       ["Department", professional.department],
                       ["Experience (Years)", professional.experience_year],
