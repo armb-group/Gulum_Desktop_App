@@ -27,6 +27,22 @@ const SUBJECT_COLORS = [
   "#14b8a6","#8b5cf6",
 ];
 
+const THEME = {
+  pageBg:
+    "linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%)",
+  cardBg: "hsl(var(--card))",
+  cardText: "hsl(var(--card-foreground))",
+  mutedBg: "hsl(var(--muted))",
+  softBg: "hsl(var(--background) / 0.55)",
+  border: "hsl(var(--border))",
+  mutedText: "hsl(var(--muted-foreground))",
+  buttonBg: "hsl(var(--secondary))",
+  buttonText: "hsl(var(--secondary-foreground))",
+  primary: "hsl(var(--primary))",
+  warningBg: "hsl(var(--warning-soft))",
+  warning: "hsl(var(--warning))",
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseStartMinutes(time: string): number {
   const start = time.split(/[–\-]/)[0].trim();
@@ -146,33 +162,34 @@ const StudentTimetable = () => {
     <RoleShell role="student" title="My Timetable" wide>
       <div
         className="flex flex-col h-full p-4 md:p-6 overflow-auto"
-        style={{ backgroundColor: "hsl(var(--background))" }}
+        style={{ background: THEME.pageBg }}
       >
         {/* ── Outer Card ── */}
         <div
           ref={printRef}
           className="flex-1 rounded-2xl overflow-hidden flex flex-col"
           style={{
-            backgroundColor: "#111111",
-            border: "1px solid #222222",
+            backgroundColor: THEME.cardBg,
+            border: `1px solid ${THEME.border}`,
+            color: THEME.cardText,
             minHeight: 0,
           }}
         >
           {/* ── Card Header ── */}
           <div
             className="flex items-start justify-between px-6 py-5"
-            style={{ borderBottom: "1px solid #1e1e1e" }}
+            style={{ borderBottom: `1px solid ${THEME.border}` }}
           >
             <div>
               <h2
                 className="font-black tracking-tight"
-                style={{ color: "#ffffff", fontSize: 20, lineHeight: 1.2 }}
+                style={{ color: THEME.cardText, fontSize: 20, lineHeight: 1.2 }}
               >
                 {studentName}'s Schedule
               </h2>
               <p
                 className="mt-1 font-bold uppercase tracking-widest"
-                style={{ color: "#555555", fontSize: 11 }}
+                style={{ color: THEME.mutedText, fontSize: 11 }}
               >
                 Academic Timetable · All Assigned Classes
               </p>
@@ -183,19 +200,19 @@ const StudentTimetable = () => {
               onClick={handlePrint}
               className="flex items-center gap-2 rounded-xl px-4 py-2 font-bold transition-all"
               style={{
-                backgroundColor: "#1e1e1e",
-                border: "1px solid #333333",
-                color: "#e0e0e0",
+                backgroundColor: THEME.buttonBg,
+                border: `1px solid ${THEME.border}`,
+                color: THEME.buttonText,
                 fontSize: 13,
                 cursor: "pointer",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "#e8a020";
-                (e.currentTarget as HTMLButtonElement).style.color = "#e8a020";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = THEME.primary;
+                (e.currentTarget as HTMLButtonElement).style.color = THEME.primary;
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "#333333";
-                (e.currentTarget as HTMLButtonElement).style.color = "#e0e0e0";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = THEME.border;
+                (e.currentTarget as HTMLButtonElement).style.color = THEME.buttonText;
               }}
             >
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -229,10 +246,10 @@ const StudentTimetable = () => {
                   {/* "Day" corner */}
                   <th
                     style={{
-                      backgroundColor: "#1a1a1a",
-                      borderRight: "1px solid #222",
-                      borderBottom: "1px solid #222",
-                      color: "#808080",
+                      backgroundColor: THEME.mutedBg,
+                      borderRight: `1px solid ${THEME.border}`,
+                      borderBottom: `1px solid ${THEME.border}`,
+                      color: THEME.mutedText,
                       fontSize: 11,
                       fontWeight: 900,
                       textTransform: "uppercase",
@@ -251,9 +268,9 @@ const StudentTimetable = () => {
                       <th
                         key={slot}
                         style={{
-                          backgroundColor: isBreak ? "#1a0e00" : "#161616",
-                          borderRight: "1px solid #222",
-                          borderBottom: "1px solid #222",
+                          backgroundColor: isBreak ? THEME.warningBg : THEME.mutedBg,
+                          borderRight: `1px solid ${THEME.border}`,
+                          borderBottom: `1px solid ${THEME.border}`,
                           textAlign: "center",
                           padding: "10px 4px",
                           verticalAlign: "middle",
@@ -262,7 +279,7 @@ const StudentTimetable = () => {
                         {isBreak ? (
                           <span
                             style={{
-                              color: "#e8a020",
+                              color: THEME.warning,
                               fontSize: 9,
                               fontWeight: 900,
                               textTransform: "uppercase",
@@ -278,7 +295,7 @@ const StudentTimetable = () => {
                           <>
                             <p
                               style={{
-                                color: "#e0e0e0",
+                                color: THEME.cardText,
                                 fontSize: 12,
                                 fontWeight: 800,
                                 lineHeight: 1.2,
@@ -292,7 +309,7 @@ const StudentTimetable = () => {
                             </p>
                             <p
                               style={{
-                                color: "#555",
+                                color: THEME.mutedText,
                                 fontSize: 10,
                                 fontWeight: 700,
                                 marginTop: 3,
@@ -325,8 +342,8 @@ const StudentTimetable = () => {
                       <td
                         style={{
                           backgroundColor: dayCfg.bg,
-                          borderRight: "1px solid #222",
-                          borderBottom: isLast ? "none" : "1px solid #1e1e1e",
+                          borderRight: `1px solid ${THEME.border}`,
+                          borderBottom: isLast ? "none" : `1px solid ${THEME.border}`,
                           textAlign: "center",
                           verticalAlign: "middle",
                           color: dayCfg.text,
@@ -350,10 +367,10 @@ const StudentTimetable = () => {
                             <td
                               key={slot}
                               style={{
-                                backgroundColor: "#110a00",
-                                borderRight: "2px solid #e8a02044",
-                                borderLeft: "2px solid #e8a02044",
-                                borderBottom: isLast ? "none" : "1px solid #1e1e1e",
+                                backgroundColor: THEME.warningBg,
+                                borderRight: `2px solid ${THEME.warning}`,
+                                borderLeft: `2px solid ${THEME.warning}`,
+                                borderBottom: isLast ? "none" : `1px solid ${THEME.border}`,
                                 textAlign: "center",
                                 verticalAlign: "middle",
                                 padding: "4px 0",
@@ -361,7 +378,7 @@ const StudentTimetable = () => {
                             >
                               <span
                                 style={{
-                                  color: "#e8a020",
+                                  color: THEME.warning,
                                   fontSize: 8,
                                   fontWeight: 900,
                                   textTransform: "uppercase",
@@ -386,8 +403,8 @@ const StudentTimetable = () => {
                               key={slot}
                               style={{
                                 backgroundColor: color + "16",
-                                borderRight: "1px solid #222",
-                                borderBottom: isLast ? "none" : "1px solid #1e1e1e",
+                                borderRight: `1px solid ${THEME.border}`,
+                                borderBottom: isLast ? "none" : `1px solid ${THEME.border}`,
                                 borderTop: `2px solid ${color}55`,
                                 padding: "10px 8px",
                                 verticalAlign: "top",
@@ -426,7 +443,7 @@ const StudentTimetable = () => {
                               {period.classroom && (
                                 <p
                                   style={{
-                                    color: "#555",
+                                    color: THEME.mutedText,
                                     fontSize: 10,
                                     fontWeight: 600,
                                     marginTop: 2,
@@ -447,12 +464,12 @@ const StudentTimetable = () => {
                           <td
                             key={slot}
                             style={{
-                              backgroundColor: "#131313",
-                              borderRight: "1px solid #222",
-                              borderBottom: isLast ? "none" : "1px solid #1e1e1e",
+                              backgroundColor: THEME.softBg,
+                              borderRight: `1px solid ${THEME.border}`,
+                              borderBottom: isLast ? "none" : `1px solid ${THEME.border}`,
                               textAlign: "center",
                               verticalAlign: "middle",
-                              color: "#2e2e2e",
+                              color: THEME.mutedText,
                               fontSize: 14,
                               fontWeight: 700,
                             }}
@@ -472,11 +489,11 @@ const StudentTimetable = () => {
           {Object.keys(subjectColor).length > 0 && (
             <div
               className="px-6 py-3 flex flex-wrap gap-x-6 gap-y-2"
-              style={{ borderTop: "1px solid #1e1e1e" }}
+              style={{ borderTop: `1px solid ${THEME.border}` }}
             >
               <p
                 style={{
-                  color: "#444",
+                  color: THEME.mutedText,
                   fontSize: 9,
                   fontWeight: 900,
                   textTransform: "uppercase",
@@ -493,7 +510,7 @@ const StudentTimetable = () => {
                     className="rounded-full shrink-0"
                     style={{ backgroundColor: color, width: 8, height: 8 }}
                   />
-                  <span style={{ color: "#888", fontSize: 11, fontWeight: 600 }}>
+                  <span style={{ color: THEME.mutedText, fontSize: 11, fontWeight: 600 }}>
                     {name}
                   </span>
                 </div>
