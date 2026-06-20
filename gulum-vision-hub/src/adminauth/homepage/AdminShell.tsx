@@ -233,8 +233,8 @@ export const AdminShell = ({ title, children }: AdminShellProps) => {
           <header className="h-14 flex items-center gap-3 px-4 sticky top-0 z-10 admin-header-glass">
             <div className="flex-1 min-w-0">
               <h1 className="text-base font-semibold text-foreground truncate">{title}</h1>
-              {user.institution && (
-                <p className="text-xs text-muted-foreground truncate">{user.institution}</p>
+              {user.institutionName && (
+                <p className="text-xs text-muted-foreground truncate">{user.institutionName}</p>
               )}
             </div>
             <ThemeToggle />

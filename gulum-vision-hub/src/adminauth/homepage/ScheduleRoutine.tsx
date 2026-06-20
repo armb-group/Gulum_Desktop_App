@@ -1078,15 +1078,15 @@ export default function ScheduleRoutine() {
   }, [routineData, routineLoading, selectedClassId]);
 
   // Log routine state rendering and time slots
-  useEffect(() => {
-    console.log("Routine Rendering State:", routineState);
-  }, [routineState]);
+  // useEffect(() => {
+  //   console.log("Routine Rendering State:", routineState);
+  // }, [routineState]);
 
-  useEffect(() => {
-    console.log("Time Slots Left (SLOT-1 to 4):", dynamicTimeSlotsLeft);
-    console.log("Time Slots Right (SLOT-5 to 8):", dynamicTimeSlotsRight);
-    console.log("Break Interval Text:", breakIntervalText);
-  }, [dynamicTimeSlotsLeft, dynamicTimeSlotsRight, breakIntervalText]);
+  // useEffect(() => {
+  //   console.log("Time Slots Left (SLOT-1 to 4):", dynamicTimeSlotsLeft);
+  //   console.log("Time Slots Right (SLOT-5 to 8):", dynamicTimeSlotsRight);
+  //   console.log("Break Interval Text:", breakIntervalText);
+  // }, [dynamicTimeSlotsLeft, dynamicTimeSlotsRight, breakIntervalText]);
 
   // Save changes locally
   const saveAllToStorage = (newRoutine: DayRoutine[]) => {
@@ -2215,9 +2215,6 @@ export default function ScheduleRoutine() {
                                     cellIndex,
                                   )
                                 }
-                                onClick={() =>
-                                  console.log("Clicked cell details:", cell)
-                                }
                               >
                                 <div
                                   draggable={isEditMode && !!cell.subject}
@@ -2394,9 +2391,6 @@ export default function ScheduleRoutine() {
                                     "right",
                                     cellIndex,
                                   )
-                                }
-                                onClick={() =>
-                                  console.log("Clicked cell details:", cell)
                                 }
                               >
                                 <div
