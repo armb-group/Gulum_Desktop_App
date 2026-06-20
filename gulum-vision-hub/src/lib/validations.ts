@@ -53,8 +53,7 @@ export const noticeSchema = z.object({
 // Teacher CRUD Stepper steps
 export const teacherAccountSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
-  phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits")
 });
 
 export const teacherPersonalSchema = z.object({
@@ -95,8 +94,7 @@ export const teacherEditSchema = z.object({
 // Student CRUD Stepper steps
 export const studentAccountSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
-  phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits")
 });
 
 export const studentPersonalSchema = z.object({
