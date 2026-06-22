@@ -53,9 +53,14 @@ export const useStudentMasters = () => {
     enabled: !!classId,
     queryFn: async () => {
       const { data } = await api.get(
-        `/api/master/class/${classId}`
+        `/course-class/class/${classId}`
       );
-      return data;
+      // Normalize: map classesId → classId so existing consumers keep working
+      const rows = data?.responseData ?? data ?? [];
+      return rows.map((item) => ({
+        ...item,
+        classId: item.classesId ?? item.classId,
+      }));
     },
   });
 };

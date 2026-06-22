@@ -1,4 +1,4 @@
-﻿import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,7 @@ type Subject = {
   name?: string;
   syllabusName?: string;
   courseName?: string;
+  courseCode?: string;
 };
 
 type TrackingRecord = {
@@ -197,7 +198,10 @@ const StudentDashboard = () => {
           <div className="space-y-3">
             {subjects.map((s: Subject) => {
               const trackingRecord = trackingAll?.find(
-                (item: TrackingRecord) => item.syllabusMasterId === s.id,
+                (item: TrackingRecord) =>
+                  (item as any)?.courseCode === s.courseCode ||
+                  (item as any)?.syllabusMaster?.courseCode === s.courseCode ||
+                  item.syllabusMasterId === s.id,
               );
 
               const pct = trackingRecord?.progressPercentage ?? 0;

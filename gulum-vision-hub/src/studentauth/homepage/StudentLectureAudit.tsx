@@ -126,9 +126,11 @@ export default function StudentLectureAudit() {
       <div className="flex gap-3 mb-6">
         {(subjects ?? []).map((t: StudentSubject, i: number) => {
           const trackingRecord = trackingAll?.find(
-            (item: TrackingRecord) => item.syllabusMasterId === t.id
+            (item: TrackingRecord) =>
+              (item as any)?.courseCode === t.courseCode ||
+              (item as any)?.syllabusMaster?.courseCode === t.courseCode ||
+              item.syllabusMasterId === t.id
           );
-
 
           const pct = trackingRecord?.progressPercentage ?? 0;
 
@@ -146,7 +148,10 @@ export default function StudentLectureAudit() {
           const isOpen = expandedIdx === si;
 
           const trackingRecord = trackingAll?.find(
-            (item: TrackingRecord) => item.syllabusMasterId === subject.id
+            (item: TrackingRecord) =>
+              (item as any)?.courseCode === subject.courseCode ||
+              (item as any)?.syllabusMaster?.courseCode === subject.courseCode ||
+              item.syllabusMasterId === subject.id
           );
 
           const pct = trackingRecord?.progressPercentage ?? 0;
@@ -169,11 +174,14 @@ export default function StudentLectureAudit() {
 
                   if (opening) {
                     const trackingRecord = trackingAll?.find(
-                      (item: TrackingRecord) => item.syllabusMasterId === subject.id
+                      (item: TrackingRecord) =>
+                        (item as any)?.courseCode === subject.courseCode ||
+                        (item as any)?.syllabusMaster?.courseCode === subject.courseCode ||
+                        item.syllabusMasterId === subject.id
                     );
                     setSelectedCourseCode(subject.courseCode ?? "");
                     setSelectedTrackingId(trackingRecord?.id ?? "");
-                    setSelectedClassId(subject.classId ?? "");
+                    setSelectedClassId(subject.classId ?? subject.classesId ?? "");
                   }
                 }}
               >
