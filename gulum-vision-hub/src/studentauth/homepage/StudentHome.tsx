@@ -9,10 +9,10 @@ import {
   Calendar,
   BookOpen,
   User,
-  Users,
   Bell,
   ArrowRight,
   ClipboardList,
+  CalendarDays,
 } from "lucide-react";
 import {
   defaultStudentNotifications,
@@ -28,7 +28,8 @@ import {
   useStudentTrackingAll,
 } from "@/services/lectureAuditAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
-import { useStudentRoutine } from "@/services/studentRoutineAPI";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCalendarEvents } from "@/services/calendarAPI";
 const tiles = [
   {
     label: "AI Assistant",
@@ -96,11 +97,20 @@ const StudentHome = () => {
 
   
 
-  const { data: routine = [] } = useStudentRoutine(
-    user?.institutionId,
-    user?.departmentId,
-    user?.classId,
-  );
+  // Calendar: top 4 upcoming events
+  const { data: allEvents = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ["calendar-events"],
+    queryFn: () => fetchCalendarEvents("student"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const now = new Date();
+  const upcomingEvents = useMemo(() => {
+    return allEvents
+      .filter((e: any) => new Date(e.date) >= now)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 4);
+  }, [allEvents]);
 
   const { data: trackingAll = [] } = useStudentTrackingAll(user?.classId);
   const syllabusCoverage =
@@ -117,14 +127,6 @@ const StudentHome = () => {
     (a) => (a.attendancePercentage ?? 0) < 75,
   ).length;
 
-  
-const today = new Date().toLocaleDateString("en-US", {
-  weekday: "long",
-});
-
-const todayRoutine = routine
-  .filter((r: { day?: string }) => r.day === today)
-  .slice(0, 4);
   return (
     <RoleShell role="student" title="Student Dashboard" showDate>
       <div className="space-y-6">
@@ -288,43 +290,65 @@ const todayRoutine = routine
               </Link>
             </Card>
 
+            {/* Upcoming Events card */}
             <Card className="p-4 rounded-3xl bg-surface">
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Daily Routine
-              </p>
-              <div className="space-y-2">
-                {todayRoutine.length > 0 ? (
-  todayRoutine.map((r: any) => (
-                    <div
-                      key={`${r.subject}-${r.time}`}
-                      className="flex items-center justify-between p-2 rounded-lg bg-background/50"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {r.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {r.teacher} · {r.code}
-                        </p>
-                      </div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" /> Upcoming Events
+                </p>
+                <Link to="/student/calendar" className="text-xs text-primary font-semibold hover:underline">
+                  View all →
+                </Link>
+              </div>
 
-                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-                        {r.time}
-                      </span>
-                    </div>
-                  ))
+              <div className="space-y-2">
+                {eventsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : upcomingEvents.length === 0 ? (
+                  <div className="flex flex-col items-center gap-1 py-3 text-center">
+                    <CalendarDays className="h-6 w-6 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground">No upcoming events</p>
+                  </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No classes scheduled today
-                  </p>
+                  upcomingEvents.map((ev: any) => {
+                    const evDate = new Date(ev.date);
+                    const dayNum = evDate.toLocaleDateString("en-US", { day: "2-digit" });
+                    const mon   = evDate.toLocaleDateString("en-US", { month: "short" });
+                    const isToday = evDate.toDateString() === now.toDateString();
+                    const catStyle: Record<string, { dot: string; text: string }> = {
+                      class:    { dot: "bg-emerald-500", text: "text-emerald-500" },
+                      holiday:  { dot: "bg-rose-500",    text: "text-rose-500" },
+                      activity: { dot: "bg-blue-500",    text: "text-blue-500" },
+                    };
+                    const cs = catStyle[ev.category] ?? catStyle.activity;
+                    return (
+                      <div key={ev.id} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-background/60 transition-colors">
+                        {/* date pill */}
+                        <div className={`flex flex-col items-center justify-center rounded-xl w-10 h-10 shrink-0 ${
+                          isToday ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                        }`}>
+                          <span className="text-[9px] font-bold uppercase leading-none opacity-70">{mon}</span>
+                          <span className="text-sm font-black leading-tight">{dayNum}</span>
+                        </div>
+                        {/* info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${cs.dot}`} />
+                            <p className={`text-sm font-semibold truncate ${cs.text}`}>{ev.title}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {ev.time}{ev.location ? ` · ${ev.location}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
-              <Link
-              to="/student/timetable"
-              className="block text-sm text-primary font-semibold mt-3"
-            >
-              View Full Timetable →
-            </Link>
+
+              <Link to="/student/calendar" className="block text-sm text-primary font-semibold mt-3">
+                View Full Calendar →
+              </Link>
             </Card>
           </div>
         </section>

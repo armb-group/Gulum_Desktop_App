@@ -10,7 +10,8 @@ import {
   User,
   AlertTriangle,
   ChevronRight,
-  Users,
+  CalendarDays,
+  MapPin,
 } from "lucide-react";
 import {
   useStudentTrackingAll,
@@ -21,7 +22,8 @@ import {
   useGetNoticesByLevel,
 } from "@/services/noticeAPI";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
-import { useStudentRoutine } from "@/services/studentRoutineAPI";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCalendarEvents } from "@/services/calendarAPI";
 
 import {
   defaultStudentNotifications,
@@ -88,22 +90,27 @@ const StudentDashboard = () => {
   }, []);
   const { data: apiSubjects } = useStudentMasters();
 
-  
+
   const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
 
   const classId = user?.classId;
-  const institutionId = user?.institutionId;
-  const departmentId = user?.departmentId;
 
-  
+  // Calendar events
+  const { data: allEvents = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ["calendar-events"],
+    queryFn: () => fetchCalendarEvents("student"),
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const { data: routine = [], error } = useStudentRoutine(
-    institutionId,
-    departmentId,
-    classId,
-  );
+  const now = new Date();
+  const upcomingEvents = useMemo(() => {
+    return allEvents
+      .filter((e: any) => new Date(e.date) >= now)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 2);
+  }, [allEvents]);
 
-  
+
 
   const { data: attendance = [], isLoading } = useStudentAttendance();
 
@@ -145,11 +152,7 @@ const StudentDashboard = () => {
     value: item.attendancePercentage,
     low: item.attendancePercentage < 75,
   }));
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-  });
 
-  const todayRoutine = routine.filter((r) => r.day === today).slice(0, 4);
   return (
     <RoleShell
       role="student"
@@ -245,18 +248,16 @@ const StudentDashboard = () => {
                 </span>
 
                 <span
-                  className={`text-sm font-bold w-10 shrink-0 ${
-                    a.low ? "text-destructive" : "text-success"
-                  }`}
+                  className={`text-sm font-bold w-10 shrink-0 ${a.low ? "text-destructive" : "text-success"
+                    }`}
                 >
                   {a.value}%
                 </span>
 
                 <Progress
                   value={a.value}
-                  className={`h-2 flex-1 ${
-                    a.low ? "[&>div]:bg-destructive" : "[&>div]:bg-success"
-                  }`}
+                  className={`h-2 flex-1 ${a.low ? "[&>div]:bg-destructive" : "[&>div]:bg-success"
+                    }`}
                 />
 
                 {a.low && (
@@ -277,38 +278,65 @@ const StudentDashboard = () => {
           </Button>
         </Card>
 
-        {/* Daily Routine */}
+        {/* ── Upcoming Events / Calendar Shortcut ── */}
         <Card className="p-4 bg-surface border-border">
           <SectionHeader
-            title="Daily Routine"
-            to="/student/timetable"
-            linkLabel="View timetable"
+            title="Upcoming Events"
+            to="/student/calendar"
+            linkLabel="View calendar"
           />
 
-          <div className="space-y-3">
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Loading routine...
-              </p>
-            ) : todayRoutine.length > 0 ? (
-              todayRoutine.map((r) => (
-                <div
-                  key={`${r.subject}-${r.time}-${r.day}`}
-                  className="flex ..."
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{r.subject}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.teacher} · {r.code} · {r.day}
-                    </p>
-                  </div>
-                  <span className="text-xs font-semibold">{r.time}</span>
-                </div>
-              ))
+          <div className="space-y-2">
+            {eventsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading events…</p>
+            ) : upcomingEvents.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No upcoming events</p>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No classes scheduled today
-              </p>
+              upcomingEvents.map((ev: any) => {
+                const evDate = new Date(ev.date);
+                const dayNum = evDate.toLocaleDateString("en-US", { day: "2-digit" });
+                const mon = evDate.toLocaleDateString("en-US", { month: "short" });
+                const isToday = evDate.toDateString() === now.toDateString();
+
+                const categoryStyle: Record<string, { dot: string; badge: string }> = {
+                  class: { dot: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-500" },
+                  holiday: { dot: "bg-rose-500", badge: "bg-rose-500/10 text-rose-500" },
+                  activity: { dot: "bg-blue-500", badge: "bg-blue-500/10 text-blue-500" },
+                };
+                const style = categoryStyle[ev.category] ?? categoryStyle.activity;
+
+                return (
+                  <div
+                    key={ev.id}
+                    className="flex items-center gap-3 p-2.5 rounded-xl bg-background/60 hover:bg-muted/40 transition-colors"
+                  >
+                    {/* Date badge */}
+                    <div className={`flex flex-col items-center justify-center rounded-xl w-11 h-11 shrink-0 ${isToday ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <span className="text-[10px] font-bold uppercase leading-none opacity-70">{mon}</span>
+                      <span className="text-base font-black leading-tight">{dayNum}</span>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${style.dot}`} />
+                        <p className="text-sm font-semibold text-foreground truncate">{ev.title}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {ev.time}{ev.location ? ` · ${ev.location}` : ""}
+                      </p>
+                    </div>
+
+                    {/* Category badge */}
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${style.badge}`}>
+                      {ev.category}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -317,7 +345,7 @@ const StudentDashboard = () => {
             size="sm"
             className="w-full h-10 rounded-xl mt-4 font-semibold"
           >
-            <Link to="/student/timetable">View Full Timetable →</Link>
+            <Link to="/student/calendar">View Full Calendar →</Link>
           </Button>
         </Card>
 
