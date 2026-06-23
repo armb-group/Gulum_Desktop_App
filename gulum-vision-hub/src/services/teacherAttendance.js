@@ -4,7 +4,7 @@ import api from "./api";
 // ── GET students enrolled in a course ─────────────────────────────────────────
 // Endpoint: GET /api/students/course/{course}
 export const getStudentsByCourse = async (courseCode) => {
-  const res = await api.get(`/api/students/course/${encodeURIComponent(courseCode)}`);
+  const res = await api.get(`api/students/course/${encodeURIComponent(courseCode)}`);
   const raw = res.data?.responseData ?? res.data;
   // API may return { students: [] } or [] directly
   if (Array.isArray(raw)) return raw;
@@ -25,7 +25,7 @@ export const useGetStudentsByCourse = (courseCode, options = {}) =>
 // Endpoint: POST /attendance/session/start
 // payload: { courseCode, courseId?, classId, teacherId, date, startTime, endTime, slotNumber }
 export const startAttendanceSession = async (payload) => {
-  const res = await api.post("/attendance/session/start", payload);
+  const res = await api.post("attendance/session/start", payload);
   return res.data?.responseData ?? res.data;
 };
 
@@ -42,7 +42,7 @@ export const useStartAttendanceSession = () => {
 // payload: { presentCount, lateCount, absentCount }
 export const completeAttendanceSession = async (sessionId, payload = {}) => {
   const res = await api.put(
-    `/attendance/session/complete/${encodeURIComponent(sessionId)}`,
+    `attendance/session/complete/${encodeURIComponent(sessionId)}`,
     payload
   );
   return res.data?.responseData ?? res.data;
@@ -60,7 +60,7 @@ export const useCompleteAttendanceSession = () => {
 // Endpoint: POST /attendance
 // payload: { studentId, courseCode, courseId?, classesId, sessionId?, date, status }
 export const markAttendance = async (payload) => {
-  const res = await api.post("/attendance", payload);
+  const res = await api.post("attendance", payload);
   return res.data?.responseData ?? res.data;
 };
 
@@ -70,7 +70,7 @@ export const useMarkAttendance = () =>
 // ── GET attendance percentage for one student + course ────────────────────────
 // Endpoint: GET /attendance/percentage?studentId=&courseId=
 export const getAttendancePercentage = async (studentId, courseId) => {
-  const res = await api.get("/attendance/percentage", {
+  const res = await api.get("attendance/percentage", {
     params: { studentId, courseId },
   });
   const raw = res.data?.responseData ?? res.data;
@@ -99,7 +99,7 @@ export const useGetAttendancePercentage = (studentId, courseId, options = {}) =>
 
 // ── GET all sessions logged by a teacher ─────────────────────────────────────
 export const getTeacherSessions = async (teacherId) => {
-  const res = await api.get("/attendance/session/teacher", {
+  const res = await api.get("attendance/session/teacher", {
     params: { teacherId },
   });
   const raw = res.data?.responseData ?? res.data;
