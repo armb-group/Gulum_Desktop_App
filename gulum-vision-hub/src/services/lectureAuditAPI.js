@@ -116,14 +116,16 @@ export const createTrackingApi = async (data) => {
   return res.data;
 };
 
-export const getProgress = (trackingId) => {
-  return useQuery({
-    queryKey: ["progress", trackingId],
+/** @deprecated Use useGetProgress hook instead */
+export const getProgress = (trackingId) => progressApi(trackingId);
+
+export const useGetProgress = (trackingId, options = {}) =>
+  useQuery({
+    queryKey: [...LECTURE_AUDIT_QUERY_KEY, "progress", trackingId ?? ""],
     queryFn: () => progressApi(trackingId),
-    enabled: !!trackingId,
+    enabled: !!trackingId && (options.enabled ?? true),
     staleTime: 0,
   });
-};
 
 export const getCourseModules = async (courseCode) => {
   const { data } = await api.get(`/api/module/${encodeURIComponent(courseCode)}`);
@@ -166,5 +168,13 @@ export const useGetModuleStatus = (trackingId, options = {}) =>
   useQuery({
     queryKey: [...LECTURE_AUDIT_QUERY_KEY, "module-status", trackingId ?? ""],
     queryFn: () => getModuleStatus(trackingId),
+    enabled: !!trackingId && (options.enabled ?? true),
+  });
+
+// Teacher-specific module status — uses /module/status/ (no /api/ prefix)
+export const useGetTeacherModuleStatus = (trackingId, options = {}) =>
+  useQuery({
+    queryKey: [...LECTURE_AUDIT_QUERY_KEY, "teacher-module-status", trackingId ?? ""],
+    queryFn: () => getTeacherModuleStatus(trackingId),
     enabled: !!trackingId && (options.enabled ?? true),
   });

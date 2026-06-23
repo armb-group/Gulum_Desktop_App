@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
@@ -9,124 +9,47 @@ import {
   ArrowLeft, AlertTriangle, Loader2, BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import api from "@/services/api";
-
-// ── API calls (exact endpoints per spec) ──────────────────────────────────────
-
-// Step 1: GET /schedule/teacher/{teacherId}
-const fetchTeacherSchedule = async (teacherId: string) => {
-  const { data } = await api.get(`/schedule/teacher/${encodeURIComponent(teacherId)}`);
-  return data?.responseData ?? data;
-};
-
-// Step 2: GET /api/module/{courseCode}
-const fetchCourseModules = async (courseCode: string) => {
-  const { data } = await api.get(`/api/module/${encodeURIComponent(courseCode)}`);
-  return data?.responseData ?? data;
-};
-
-// Step 3: GET /api/tracking/all/{classId}
-const fetchTrackingAll = async (classId: string) => {
-  const { data } = await api.get(`/api/tracking/all/${encodeURIComponent(classId)}`);
-  return data?.responseData ?? data;
-};
-
-// Step 4: GET /api/progress/{trackingId}
-const fetchProgress = async (trackingId: string) => {
-  const { data } = await api.get(`/api/progress/${encodeURIComponent(trackingId)}`);
-  return data?.responseData ?? data;
-};
-
-// Step 5: GET /module/status/{trackingId}
-const fetchModuleStatus = async (trackingId: string) => {
-  const { data } = await api.get(`/module/status/${encodeURIComponent(trackingId)}`);
-  return data?.responseData ?? data;
-};
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getCourseModules,
+  getTrackingAll,
+  getModuleStatus,
+  progressApi,
+} from "@/services/lectureAuditAPI";
+import { getCourseOfferings } from "@/services/teacherCrudAPI";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type ClassCourse = {
-  classId: string;
-  courseCode: string;
+interface CourseAudit {
   courseName: string;
+  courseCode: string;
   className: string;
   semester: string | number;
-};
+  classId: string;
+  trackingId?: string;
+  progressPct: number;
+  completedModules: number;
+  totalModules: number;
+  trackingStatus: string;
+  modules: any[];
+}
 
-// ── Sub-component: renders one expanded subject card ─────────────────────────
-const SubjectDetail = ({ cc }: { cc: ClassCourse }) => {
-  // Step 2: modules
-  const { data: modulesRaw } = useQuery({
-    queryKey: ["teacher-modules", cc.courseCode],
-    queryFn:  () => fetchCourseModules(cc.courseCode),
-    enabled:  !!cc.courseCode,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Step 3: tracking
-  const { data: trackingRaw } = useQuery({
-    queryKey: ["teacher-tracking", cc.classId],
-    queryFn:  () => fetchTrackingAll(cc.classId),
-    enabled:  !!cc.classId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const trackingList = Array.isArray(trackingRaw) ? trackingRaw
-    : Array.isArray(trackingRaw?.responseData) ? trackingRaw.responseData
-    : Array.isArray(trackingRaw?.data) ? trackingRaw.data
-    : [];
-
-  const trackingRecord = trackingList.find((t: any) =>
-    t.courseCode === cc.courseCode ||
-    t.course?.courseCode === cc.courseCode ||
-    t.syllabusMasterId === cc.courseCode
-  ) ?? null;
-
-  const trackingId = String(trackingRecord?.id ?? trackingRecord?.trackingId ?? "");
-
-  // Step 4: progress
-  const { data: progressRaw } = useQuery({
-    queryKey: ["teacher-progress", trackingId],
-    queryFn:  () => fetchProgress(trackingId),
-    enabled:  !!trackingId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Step 5: module status
-  const { data: statusRaw } = useQuery({
-    queryKey: ["teacher-module-status", trackingId],
-    queryFn:  () => fetchModuleStatus(trackingId),
-    enabled:  !!trackingId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const modules: any[] = Array.isArray(modulesRaw) ? modulesRaw
-    : Array.isArray(modulesRaw?.modules) ? modulesRaw.modules
-    : Array.isArray(modulesRaw?.responseData) ? modulesRaw.responseData
-    : [];
-
-  const progressList: any[] = Array.isArray(progressRaw) ? progressRaw
-    : Array.isArray(progressRaw?.progress) ? progressRaw.progress
-    : Array.isArray(progressRaw?.responseData) ? progressRaw.responseData
-    : [];
-
-  const statusList: any[] = Array.isArray(statusRaw) ? statusRaw
-    : Array.isArray(statusRaw?.statuses) ? statusRaw.statuses
-    : Array.isArray(statusRaw?.responseData) ? statusRaw.responseData
-    : [];
-
-  if (modules.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-6">No module data available for this course.</p>;
+// ── Sub-component: expanded module list ───────────────────────────────────────
+const SubjectDetail = ({ course }: { course: CourseAudit }) => {
+  if (course.modules.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-6">
+        No module data available for this course.
+      </p>
+    );
   }
 
   return (
     <div className="space-y-3 mt-4">
-      {modules.map((mod: any, mi: number) => {
-        const progressRecord = progressList.find((p: any) => p.moduleId === mod.id || p.moduleId === mod.moduleId);
-        const modCompleted = progressRecord?.hoursCompleted ?? progressRecord?.completedHours ?? 0;
-        const modTotal     = mod.expectedHours ?? mod.totalHours ?? 0;
-        const done         = statusList.find((s: any) => s.moduleId === mod.id || s.moduleId === mod.moduleId)?.status === "COMPLETED";
-        const modPct       = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0;
+      {course.modules.map((mod: any, mi: number) => {
+        const done = mod.status === "COMPLETED" || mod.completed === true;
+        const modCompleted = mod.hoursCompleted ?? mod.completedHours ?? 0;
+        const modTotal = mod.expectedHours ?? mod.totalHours ?? 0;
+        const modPct = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0;
         const topics: any[] = Array.isArray(mod.topics) ? mod.topics : [];
 
         return (
@@ -139,21 +62,27 @@ const SubjectDetail = ({ cc }: { cc: ClassCourse }) => {
               <span className="font-semibold text-foreground flex-1">
                 {mod.moduleTitle ?? mod.title ?? `Module ${mi + 1}`}
               </span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${done ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                done ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+              }`}>
                 {done ? "Completed" : "In Progress"}
               </span>
             </div>
-            <p className="text-primary font-semibold text-sm mb-2">
-              {modCompleted}/{modTotal} hrs delivered · {modPct}% covered
-            </p>
-            <Progress value={modPct} className="h-1.5 [&>div]:bg-primary" />
+            {modTotal > 0 && (
+              <>
+                <p className="text-primary font-semibold text-sm mb-2">
+                  {modCompleted}/{modTotal} hrs delivered · {modPct}% covered
+                </p>
+                <Progress value={modPct} className="h-1.5 [&>div]:bg-primary" />
+              </>
+            )}
             {topics.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {topics.map((t: any, ti: number) => {
                   const label = typeof t === "object" ? (t.name ?? t.title ?? "") : String(t);
                   if (!label) return null;
                   return (
-                    <span key={ti} className="bg-brand-soft text-primary border border-primary/20 text-xs px-2.5 py-1 rounded-lg">
+                    <span key={ti} className="bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-1 rounded-lg">
                       {label}
                     </span>
                   );
@@ -167,38 +96,15 @@ const SubjectDetail = ({ cc }: { cc: ClassCourse }) => {
   );
 };
 
-// ── Sub-component: one subject card with progress summary ─────────────────────
-const SubjectCard = ({ cc, index, expandedIdx, setExpandedIdx }: {
-  cc: ClassCourse;
+// ── Sub-component: one course card ────────────────────────────────────────────
+const SubjectCard = ({ course, index, expandedIdx, setExpandedIdx }: {
+  course: CourseAudit;
   index: number;
   expandedIdx: number | null;
   setExpandedIdx: (i: number | null) => void;
 }) => {
   const isOpen = expandedIdx === index;
-
-  const { data: trackingRaw } = useQuery({
-    queryKey: ["teacher-tracking", cc.classId],
-    queryFn:  () => fetchTrackingAll(cc.classId),
-    enabled:  !!cc.classId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const trackingList = Array.isArray(trackingRaw) ? trackingRaw
-    : Array.isArray(trackingRaw?.responseData) ? trackingRaw.responseData
-    : Array.isArray(trackingRaw?.data) ? trackingRaw.data
-    : [];
-
-  const trackingRecord = trackingList.find((t: any) =>
-    t.courseCode === cc.courseCode ||
-    t.course?.courseCode === cc.courseCode ||
-    t.syllabusMasterId === cc.courseCode
-  ) ?? null;
-
-  const pct       = trackingRecord?.progressPercentage  ?? 0;
-  const completed = trackingRecord?.completedModules     ?? 0;
-  const total     = trackingRecord?.totalModules         ?? 0;
-  const status    = trackingRecord?.trackingStatus       ?? "";
-  const low       = pct > 0 && pct < 60;
+  const low = course.progressPct > 0 && course.progressPct < 60;
 
   return (
     <Card className="p-5 bg-surface border-border rounded-3xl">
@@ -207,22 +113,31 @@ const SubjectCard = ({ cc, index, expandedIdx, setExpandedIdx }: {
         onClick={() => setExpandedIdx(isOpen ? null : index)}
       >
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-foreground text-lg truncate">{cc.courseName}</p>
+          <p className="font-bold text-foreground text-lg truncate">{course.courseName}</p>
           <p className="text-sm text-muted-foreground">
-            {cc.courseCode} · {cc.className}{cc.semester ? ` · Sem ${cc.semester}` : ""}
+            {course.courseCode} · {course.className}
+            {course.semester ? ` · Sem ${course.semester}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {low && <AlertTriangle className="h-4 w-4 text-warning" />}
-          <span className="text-primary font-bold text-sm">{pct}%</span>
-          <span className="text-muted-foreground font-semibold text-sm">{completed}/{total} modules</span>
-          {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          <span className="text-primary font-bold text-sm">{course.progressPct}%</span>
+          <span className="text-muted-foreground font-semibold text-sm">
+            {course.completedModules}/{course.totalModules} modules
+          </span>
+          {isOpen
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          }
         </div>
       </button>
 
-      <Progress value={pct} className="h-2 mt-3 [&>div]:bg-primary" />
+      <Progress value={course.progressPct} className="h-2 mt-3 [&>div]:bg-primary" />
 
-      {status ? <p className="text-xs text-muted-foreground mt-1">{status}</p> : null}
+      {course.trackingStatus
+        ? <p className="text-xs text-muted-foreground mt-1">{course.trackingStatus}</p>
+        : null
+      }
 
       {low && (
         <div className="flex items-center gap-2 rounded-xl bg-destructive/10 text-destructive px-3 py-2 text-xs font-semibold mt-3">
@@ -231,52 +146,8 @@ const SubjectCard = ({ cc, index, expandedIdx, setExpandedIdx }: {
         </div>
       )}
 
-      {isOpen && <SubjectDetail cc={cc} />}
+      {isOpen && <SubjectDetail course={course} />}
     </Card>
-  );
-};
-
-// ── Mini summary card ─────────────────────────────────────────────────────────
-const SummaryCard = ({ cc, isSelected, onClick }: { cc: ClassCourse; isSelected: boolean; onClick: () => void }) => {
-  const { data: trackingRaw } = useQuery({
-    queryKey: ["teacher-tracking", cc.classId],
-    queryFn:  () => fetchTrackingAll(cc.classId),
-    enabled:  !!cc.classId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const trackingList = Array.isArray(trackingRaw) ? trackingRaw
-    : Array.isArray(trackingRaw?.responseData) ? trackingRaw.responseData
-    : Array.isArray(trackingRaw?.data) ? trackingRaw.data
-    : [];
-
-  const trackingRecord = trackingList.find((t: any) =>
-    t.courseCode === cc.courseCode ||
-    t.course?.courseCode === cc.courseCode ||
-    t.syllabusMasterId === cc.courseCode
-  ) ?? null;
-
-  const pct = trackingRecord?.progressPercentage ?? 0;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-shrink-0 min-w-[110px] rounded-2xl border p-3 flex flex-col items-center transition-all ${
-        isSelected
-          ? "bg-primary text-primary-foreground border-primary shadow-md"
-          : "bg-surface border-border hover:border-primary/40"
-      }`}
-    >
-      <span className={`font-extrabold text-xl ${isSelected ? "text-primary-foreground" : "text-primary"}`}>
-        {pct}%
-      </span>
-      <span className={`text-xs mt-1 text-center leading-tight ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-        {cc.courseName}
-      </span>
-      <span className={`text-[10px] mt-0.5 ${isSelected ? "text-primary-foreground/60" : "text-muted-foreground/60"}`}>
-        {cc.className}
-      </span>
-    </button>
   );
 };
 
@@ -285,42 +156,179 @@ export default function TeacherLectureAudit() {
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const teacherId = user?.id ?? "";
+  const queryClient = useQueryClient();
 
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [courses, setCourses] = useState<CourseAudit[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const abortRef = useRef(false);
 
-  // Step 1: GET /schedule/teacher/{teacherId}
-  const { data: scheduleData, isLoading, isError } = useQuery({
-    queryKey: ["teacher-schedule", teacherId],
-    queryFn:  () => fetchTeacherSchedule(teacherId),
-    enabled:  !!teacherId,
-    staleTime: 5 * 60 * 1000,
-  });
+  useEffect(() => {
+    if (!teacherId) return;
 
-  // Extract unique classId+courseCode pairs
-  const classCourses: ClassCourse[] = (() => {
-    const classes = scheduleData?.classes ?? scheduleData?.responseData?.classes ?? [];
-    const pairs: ClassCourse[] = [];
-    const seen = new Set<string>();
-    classes.forEach((cls: any) => {
-      const classId   = String(cls.classesId ?? cls.classId ?? "");
-      const className = cls.className ?? "Class";
-      const semester  = cls.semester ?? "";
-      (cls.timeslot ?? cls.timeslots ?? []).forEach((slot: any) => {
-        if (!slot.courseCode) return;
-        const key = `${classId}::${slot.courseCode}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          pairs.push({ classId, courseCode: slot.courseCode, courseName: slot.courseName ?? slot.courseCode, className, semester });
+    abortRef.current = false;
+    setIsLoading(true);
+    setCourses([]);
+
+    const load = async () => {
+      try {
+        // Step 1: GET /course-offerings/teacher/{teacherId}
+        // Returns the courses this teacher is assigned to teach
+        const offeringsRaw = await queryClient.fetchQuery({
+          queryKey: ["course-offerings", teacherId],
+          queryFn: () => getCourseOfferings(teacherId),
+          staleTime: 5 * 60 * 1000,
+        });
+        if (abortRef.current) return;
+
+        const offerings: any[] = Array.isArray(offeringsRaw)
+          ? offeringsRaw
+          : Array.isArray(offeringsRaw?.responseData) ? offeringsRaw.responseData
+          : Array.isArray(offeringsRaw?.data) ? offeringsRaw.data
+          : [];
+
+        if (offerings.length === 0) {
+          setCourses([]);
+          return;
         }
-      });
-    });
-    return pairs;
-  })();
+
+        // Collect unique class IDs for batch tracking fetch
+        const classIds = [...new Set(
+          offerings.map((o: any) => String(o.classesId ?? o.classId ?? "")).filter(Boolean)
+        )];
+
+        // Step 2: GET /api/tracking/all/{classId} — fetch for all classes in parallel
+        const trackingByClass = new Map<string, any[]>();
+        await Promise.all(classIds.map(async (cid) => {
+          try {
+            const res = await queryClient.fetchQuery({
+              queryKey: ["lecture-audit", "tracking-all", cid],
+              queryFn: () => getTrackingAll(cid),
+              staleTime: 5 * 60 * 1000,
+            });
+            const list: any[] = Array.isArray(res) ? res
+              : Array.isArray(res?.responseData) ? res.responseData
+              : Array.isArray(res?.data) ? res.data
+              : res ? [res] : [];
+            trackingByClass.set(cid, list);
+          } catch {
+            trackingByClass.set(cid, []);
+          }
+        }));
+
+        if (abortRef.current) return;
+
+        // Step 3–5: For each offering, fetch modules + status + progress
+        const courseAudits = await Promise.all(offerings.map(async (offering: any) => {
+          const classId     = String(offering.classesId ?? offering.classId ?? "");
+          const courseCode  = offering.courseCode ?? "";
+          const courseName  = offering.courseName ?? offering.subjectName ?? courseCode;
+          const className   = offering.className ?? "";
+          const semester    = offering.semester ?? "";
+
+          const trackingList = trackingByClass.get(classId) ?? [];
+          const trackingRecord = trackingList.find((t: any) =>
+            t.courseCode === courseCode ||
+            t.course?.courseCode === courseCode ||
+            t.syllabusMasterId === courseCode
+          ) ?? null;
+
+          const trackingId    = String(trackingRecord?.id ?? trackingRecord?.trackingId ?? "");
+          const progressPct   = trackingRecord?.progressPercentage  ?? 0;
+          const completedMods = trackingRecord?.completedModules     ?? 0;
+          const totalMods     = trackingRecord?.totalModules         ?? 0;
+          const trackingStatus = trackingRecord?.trackingStatus      ?? "";
+
+          let modules: any[] = [];
+          let moduleStatuses: any[] = [];
+          let progressItems: any[] = [];
+
+          try {
+            // Step 3: GET /api/module/{courseCode}
+            const modulesRes = await queryClient.fetchQuery({
+              queryKey: ["lecture-audit", "modules", courseCode],
+              queryFn: () => getCourseModules(courseCode),
+              staleTime: 5 * 60 * 1000,
+            }).catch(() => null);
+
+            const rawMods = modulesRes?.modules ?? modulesRes?.responseData ?? modulesRes ?? [];
+            modules = Array.isArray(rawMods) ? rawMods : [];
+
+            if (trackingId) {
+              // Step 4: GET /module/status/{trackingId}
+              const statusRes = await queryClient.fetchQuery({
+                queryKey: ["lecture-audit", "module-status", trackingId],
+                queryFn: () => getModuleStatus(trackingId),
+                staleTime: 5 * 60 * 1000,
+              }).catch(() => null);
+
+              const rawStatus = statusRes?.statuses ?? statusRes?.responseData ?? statusRes ?? [];
+              moduleStatuses = Array.isArray(rawStatus) ? rawStatus : [];
+
+              // Step 5: GET /api/progress/{trackingId}
+              const progressRes = await queryClient.fetchQuery({
+                queryKey: ["lecture-audit", "progress", trackingId],
+                queryFn: () => progressApi(trackingId),
+                staleTime: 5 * 60 * 1000,
+              }).catch(() => null);
+
+              const rawProgress = progressRes?.progress ?? progressRes?.responseData ?? progressRes ?? [];
+              progressItems = Array.isArray(rawProgress) ? rawProgress : [];
+            }
+          } catch {
+            // ignore — show course with whatever data we have
+          }
+
+          // Enrich modules with their completion status and progress
+          const enrichedModules = modules.map((mod: any) => {
+            const statusItem   = moduleStatuses.find((s: any) => s.moduleId === mod.id || s.moduleId === mod.moduleId);
+            const progressItem = progressItems.find((p: any) => p.moduleId === mod.id || p.moduleId === mod.moduleId);
+            return {
+              ...mod,
+              status:         statusItem?.status ?? "PENDING",
+              completed:      statusItem?.status === "COMPLETED",
+              hoursCompleted: progressItem?.hoursCompleted ?? progressItem?.completedHours ?? 0,
+            };
+          });
+
+          return {
+            courseName,
+            courseCode,
+            className,
+            semester,
+            classId,
+            trackingId: trackingId || undefined,
+            progressPct,
+            completedModules: completedMods,
+            totalModules: totalMods,
+            trackingStatus,
+            modules: enrichedModules,
+          } as CourseAudit;
+        }));
+
+        if (!abortRef.current) {
+          setCourses(courseAudits);
+        }
+      } catch (err) {
+        console.error("TeacherLectureAudit load error:", err);
+        if (!abortRef.current) setCourses([]);
+      } finally {
+        if (!abortRef.current) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => { abortRef.current = true; };
+  }, [teacherId, queryClient]);
 
   return (
     <RoleShell role="teacher" title="Lecture Audit" subtitle="Your teaching progress & syllabus coverage">
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4 -ml-2 gap-1.5 text-muted-foreground">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="mb-4 -ml-2 gap-1.5 text-muted-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
       </Button>
 
@@ -331,34 +339,49 @@ export default function TeacherLectureAudit() {
         </div>
       )}
 
-      {!isLoading && (isError || classCourses.length === 0) && (
+      {!isLoading && courses.length === 0 && (
         <Card className="p-10 rounded-3xl border-dashed border-border flex flex-col items-center justify-center text-center gap-3">
           <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-semibold text-muted-foreground">No assigned classes found.</p>
-          <p className="text-xs text-muted-foreground">Your schedule may not be configured yet. Contact the admin.</p>
+          <p className="text-sm font-semibold text-muted-foreground">No assigned courses found.</p>
+          <p className="text-xs text-muted-foreground">
+            Your courses will appear here once assigned by the admin.
+          </p>
         </Card>
       )}
 
-      {!isLoading && classCourses.length > 0 && (
+      {!isLoading && courses.length > 0 && (
         <>
-          {/* Mini summary cards */}
+          {/* Mini summary strip */}
           <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
-            {classCourses.map((cc, i) => (
-              <SummaryCard
-                key={`${cc.classId}::${cc.courseCode}`}
-                cc={cc}
-                isSelected={selectedIdx === i}
-                onClick={() => { setSelectedIdx(i); setExpandedIdx(null); }}
-              />
+            {courses.map((course, i) => (
+              <button
+                key={`${course.classId}::${course.courseCode}`}
+                onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
+                className={`flex-shrink-0 min-w-[110px] rounded-2xl border p-3 flex flex-col items-center transition-all ${
+                  expandedIdx === i
+                    ? "bg-primary text-primary-foreground border-primary shadow-md"
+                    : "bg-surface border-border hover:border-primary/40"
+                }`}
+              >
+                <span className={`font-extrabold text-xl ${expandedIdx === i ? "text-primary-foreground" : "text-primary"}`}>
+                  {course.progressPct}%
+                </span>
+                <span className={`text-xs mt-1 text-center leading-tight ${expandedIdx === i ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  {course.courseName}
+                </span>
+                <span className={`text-[10px] mt-0.5 ${expandedIdx === i ? "text-primary-foreground/60" : "text-muted-foreground/60"}`}>
+                  {course.className}
+                </span>
+              </button>
             ))}
           </div>
 
-          {/* Subject cards */}
+          {/* Course cards */}
           <div className="space-y-4">
-            {classCourses.map((cc, i) => (
+            {courses.map((course, i) => (
               <SubjectCard
-                key={`${cc.classId}::${cc.courseCode}`}
-                cc={cc}
+                key={`${course.classId}::${course.courseCode}`}
+                course={course}
                 index={i}
                 expandedIdx={expandedIdx}
                 setExpandedIdx={setExpandedIdx}

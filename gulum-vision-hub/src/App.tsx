@@ -9,7 +9,6 @@ import { PhoneFrame } from "@/components/PhoneFrame";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 
-import Welcome from "./pages/Welcome";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
 

@@ -87,8 +87,10 @@ export const generateScheduleRoutine = async (instituteId, departmentId, classId
 
 // Fetch schedule routine for a specific teacher
 export const getTeacherSchedule = async (teacherId) => {
-  const response = await api.get(`/schedule/teacher/${encodeURIComponent(teacherId)}`);
-  return response.data.responseData ?? response.data;
+  const response = await api.get(`/schedule/teacher/${encodeURIComponent(teacherId)}`, {
+    timeout: 30000,
+  });
+  return response.data?.responseData ?? response.data;
 };
 
 export const SCHEDULE_QUERY_KEY = ["schedule"];
@@ -151,6 +153,8 @@ export const useGetTeacherSchedule = (teacherId, options = {}) =>
     queryKey: [...SCHEDULE_QUERY_KEY, "teacher", teacherId ?? ""],
     queryFn: () => getTeacherSchedule(teacherId),
     enabled: !!teacherId && (options.enabled ?? true),
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
   });
 
 export const useGenerateScheduleRoutine = () => {

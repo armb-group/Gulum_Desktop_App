@@ -3,7 +3,7 @@ import { Navigate, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
-import { Home, FolderClosed, Bell, User, LogOut, Menu, X, BarChart3, Calendar } from "lucide-react";
+import { Home, Bell, User, LogOut, Menu, X, BarChart3, Calendar, BookOpen, Clock, ClipboardList } from "lucide-react";
 
 interface RoleShellProps {
   role: "student" | "teacher";
@@ -14,13 +14,23 @@ interface RoleShellProps {
   children: ReactNode;
 }
 
-const getMenuItems = (base: string, role: string) => [
-  { title: "Home",     url: base,                    icon: Home,     end: true },
-  { title: "Insights", url: `${base}/dashboard`,     icon: BarChart3 },
-  { title: "Alerts",   url: `${base}/notifications`, icon: Bell },
-  { title: "Calendar", url: `${base}/calendar`,      icon: Calendar },
-  { title: "Profile",  url: `${base}/profile`,       icon: User },
-];
+const getMenuItems = (base: string, role: string) => {
+  const common = [
+    { title: "Home",     url: base,                    icon: Home,     end: true },
+    { title: "Insights", url: `${base}/dashboard`,     icon: BarChart3 },
+  ];
+  const teacherOnly = [
+    { title: "Lecture Audit", url: `${base}/lecture-audit`, icon: BookOpen },
+    { title: "Timetable",     url: `${base}/timetable`,     icon: Clock },
+    { title: "Attendance",    url: `${base}/attendance`,    icon: ClipboardList },
+  ];
+  const rest = [
+    { title: "Alerts",   url: `${base}/notifications`, icon: Bell },
+    { title: "Calendar", url: `${base}/calendar`,      icon: Calendar },
+    { title: "Profile",  url: `${base}/profile`,       icon: User },
+  ];
+  return role === "teacher" ? [...common, ...teacherOnly, ...rest] : [...common, ...rest];
+};
 
 const formatDate = () =>
   new Date().toLocaleDateString(undefined, {
