@@ -24,12 +24,15 @@ const getMenuItems = (base: string, role: string) => {
     { title: "Timetable",     url: `${base}/timetable`,     icon: Clock },
     { title: "Attendance",    url: `${base}/attendance`,    icon: ClipboardList },
   ];
+  const studentOnly = [
+    { title: "Timetable",     url: `${base}/timetable`,     icon: Clock },
+  ];
   const rest = [
     { title: "Alerts",   url: `${base}/notifications`, icon: Bell },
     { title: "Calendar", url: `${base}/calendar`,      icon: Calendar },
     { title: "Profile",  url: `${base}/profile`,       icon: User },
   ];
-  return role === "teacher" ? [...common, ...teacherOnly, ...rest] : [...common, ...rest];
+  return role === "teacher" ? [...common, ...teacherOnly, ...rest] : [...common, ...studentOnly, ...rest];
 };
 
 const formatDate = () =>
