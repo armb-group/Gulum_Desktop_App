@@ -46,10 +46,35 @@ const SubjectDetail = ({ course }: { course: CourseAudit }) => {
   return (
     <div className="space-y-3 mt-4">
       {course.modules.map((mod: any, mi: number) => {
-        const done = mod.status === "COMPLETED" || mod.completed === true;
-        const modCompleted = mod.hoursCompleted ?? mod.completedHours ?? 0;
-        const modTotal = mod.expectedHours ?? mod.totalHours ?? 0;
-        const modPct = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0;
+        // ── Completion flag (case-insensitive) ────────────────────────────
+        const statusStr: string = String(mod.status ?? "").toUpperCase();
+        const done = statusStr === "COMPLETED" || mod.completed === true;
+
+        // ── Hours: try every field variant the backend might use ──────────
+        const modCompleted: number =
+          mod.hoursCompleted ??
+          mod.completedHours ??
+          mod.hoursDelivered ??
+          mod.deliveredHours ??
+          mod.lecturesDelivered ??
+          mod.hours_completed ??
+          // If status is COMPLETED but no hours recorded, synthesise full coverage
+          (done ? (mod.expectedHours ?? mod.totalHours ?? mod.hours ?? mod.duration ?? mod.plannedHours ?? mod.lectureHours ?? 0) : 0);
+
+        const modTotal: number =
+          mod.expectedHours ??
+          mod.totalHours ??
+          mod.hours ??
+          mod.duration ??
+          mod.plannedHours ??
+          mod.lectureHours ??
+          mod.total_hours ??
+          0;
+
+        const modPct = modTotal > 0
+          ? Math.min(100, Math.round((modCompleted / modTotal) * 100))
+          : done ? 100 : 0;
+
         const topics: any[] = Array.isArray(mod.topics) ? mod.topics : [];
 
         return (
@@ -68,14 +93,20 @@ const SubjectDetail = ({ course }: { course: CourseAudit }) => {
                 {done ? "Completed" : "In Progress"}
               </span>
             </div>
-            {modTotal > 0 && (
-              <>
-                <p className="text-primary font-semibold text-sm mb-2">
-                  {modCompleted}/{modTotal} hrs delivered · {modPct}% covered
-                </p>
-                <Progress value={modPct} className="h-1.5 [&>div]:bg-primary" />
-              </>
-            )}
+
+            {/* Hours row — always show when status is known */}
+            <p className="text-primary font-semibold text-sm mb-2">
+              {modTotal > 0
+                ? `${modCompleted}/${modTotal} hrs delivered · ${modPct}% covered`
+                : done
+                ? "All hours delivered · 100% covered"
+                : "Hours data not available"}
+            </p>
+            <Progress
+              value={modPct}
+              className="h-1.5 [&>div]:bg-primary"
+            />
+
             {topics.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {topics.map((t: any, ti: number) => {
@@ -281,13 +312,34 @@ export default function TeacherLectureAudit() {
 
           // Enrich modules with their completion status and progress
           const enrichedModules = modules.map((mod: any) => {
-            const statusItem   = moduleStatuses.find((s: any) => s.moduleId === mod.id || s.moduleId === mod.moduleId);
-            const progressItem = progressItems.find((p: any) => p.moduleId === mod.id || p.moduleId === mod.moduleId);
+            const modId = mod.id ?? mod.moduleId;
+            const statusItem   = moduleStatuses.find((s: any) =>
+              s.moduleId === modId || s.moduleId === mod.id || s.moduleId === mod.moduleId
+            );
+            const progressItem = progressItems.find((p: any) =>
+              p.moduleId === modId || p.moduleId === mod.id || p.moduleId === mod.moduleId
+            );
+
+            const statusStr = String(statusItem?.status ?? mod.status ?? "").toUpperCase();
+            const isCompleted = statusStr === "COMPLETED" || statusItem?.completed === true;
+
+            // Completed hours: prefer progress record, then status record, then module itself
+            const hoursCompleted: number =
+              progressItem?.hoursCompleted ??
+              progressItem?.completedHours ??
+              progressItem?.hoursDelivered ??
+              statusItem?.hoursCompleted ??
+              statusItem?.completedHours ??
+              mod.hoursCompleted ??
+              mod.completedHours ??
+              mod.hoursDelivered ??
+              0;
+
             return {
               ...mod,
-              status:         statusItem?.status ?? "PENDING",
-              completed:      statusItem?.status === "COMPLETED",
-              hoursCompleted: progressItem?.hoursCompleted ?? progressItem?.completedHours ?? 0,
+              status:         isCompleted ? "COMPLETED" : (statusItem?.status ?? mod.status ?? "PENDING"),
+              completed:      isCompleted,
+              hoursCompleted,
             };
           });
 

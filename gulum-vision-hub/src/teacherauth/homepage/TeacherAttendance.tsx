@@ -34,11 +34,11 @@ interface Student { id: string; name: string; roll: string; }
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const DAY_ACCENT: Record<string, string> = {
-  Monday:    "border-l-rose-500    bg-rose-50    dark:bg-rose-950/20",
-  Tuesday:   "border-l-indigo-500  bg-indigo-50  dark:bg-indigo-950/20",
+  Monday: "border-l-rose-500    bg-rose-50    dark:bg-rose-950/20",
+  Tuesday: "border-l-indigo-500  bg-indigo-50  dark:bg-indigo-950/20",
   Wednesday: "border-l-amber-500   bg-amber-50   dark:bg-amber-950/20",
-  Thursday:  "border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/20",
-  Friday:    "border-l-purple-500  bg-purple-50  dark:bg-purple-950/20",
+  Thursday: "border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/20",
+  Friday: "border-l-purple-500  bg-purple-50  dark:bg-purple-950/20",
 };
 const DAY_DOT: Record<string, string> = {
   Monday: "bg-rose-500", Tuesday: "bg-indigo-500", Wednesday: "bg-amber-500",
@@ -136,18 +136,38 @@ function StudentRow({ student, idx, status, isMarking, courseId, onMark }: {
   courseId: string; onMark: (s: Student, st: Status) => void;
 }) {
   const { data: stat } = useGetAttendancePercentage(student.id, courseId, { enabled: !!student.id && !!courseId });
-  const pct     = (stat as any)?.attendancePercentage ?? null;
+  const pct = (stat as any)?.attendancePercentage ?? null;
   const present = (stat as any)?.presentCount ?? 0;
-  const absent  = (stat as any)?.absentCount  ?? 0;
-  const total   = (stat as any)?.totalClasses ?? 0;
+  const absent = (stat as any)?.absentCount ?? 0;
+  const total = (stat as any)?.totalClasses ?? 0;
+
+  // Status-button colour sets — work in both light and dark modes
+  const btnStyle = (s: "PRESENT" | "LATE" | "ABSENT") => {
+    const isActive = status === s;
+    if (s === "PRESENT") return isActive
+      ? "bg-emerald-500 text-white shadow-md scale-110 ring-2 ring-emerald-300 dark:ring-emerald-600"
+      : "bg-emerald-100 text-emerald-700 hover:bg-emerald-500 hover:text-white dark:bg-emerald-900/50 dark:text-emerald-300 dark:hover:bg-emerald-600 dark:hover:text-white";
+    if (s === "LATE") return isActive
+      ? "bg-amber-500 text-white shadow-md scale-110 ring-2 ring-amber-300 dark:ring-amber-600"
+      : "bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-600 dark:hover:text-white";
+    // ABSENT
+    return isActive
+      ? "bg-red-500 text-white shadow-md scale-110 ring-2 ring-red-300 dark:ring-red-600"
+      : "bg-red-100 text-red-700 hover:bg-red-500 hover:text-white dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-600 dark:hover:text-white";
+  };
+
+  const headerBg =
+    status === "PRESENT" ? "bg-emerald-600 dark:bg-emerald-800" :
+      status === "LATE" ? "bg-amber-500  dark:bg-amber-700" :
+        status === "ABSENT" ? "bg-red-600    dark:bg-red-800" :
+          "bg-primary";
+
+
+  const headerText = status ? "text-white" : "text-primary-foreground";
 
   return (
     <Card className={cn("overflow-hidden border-transparent")}>
-      <div className={cn("p-4",
-        status === "PRESENT" ? "bg-emerald-600 text-white" :
-        status === "LATE"    ? "bg-amber-500  text-white" :
-        status === "ABSENT"  ? "bg-destructive text-destructive-foreground" :
-        "bg-primary text-primary-foreground")}>
+      <div className={cn("p-4", headerBg, headerText)}>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl flex items-center justify-center text-xs font-black bg-white/20 shrink-0">
@@ -162,17 +182,16 @@ function StudentRow({ student, idx, status, isMarking, courseId, onMark }: {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {(["PRESENT", "LATE", "ABSENT"] as const).map(s => (
               <button
                 key={s}
                 disabled={isMarking}
                 onClick={() => onMark(student, s)}
+                title={s.charAt(0) + s.slice(1).toLowerCase()}
                 className={cn(
                   "h-9 w-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-50",
-                  status === s
-                    ? "bg-white shadow-md scale-110 " + (s === "PRESENT" ? "text-emerald-600" : s === "LATE" ? "text-amber-600" : "text-red-600")
-                    : "bg-white/20 text-white hover:bg-white " + (s === "PRESENT" ? "hover:text-emerald-600" : s === "LATE" ? "hover:text-amber-600" : "hover:text-red-600")
+                  btnStyle(s)
                 )}
               >
                 {s === "PRESENT" ? <Check className="h-4 w-4" /> : s === "LATE" ? <Clock className="h-4 w-4" /> : <X className="h-4 w-4" />}
@@ -196,9 +215,10 @@ function StudentRow({ student, idx, status, isMarking, courseId, onMark }: {
   );
 }
 
+
 // ── Marking View ──────────────────────────────────────────────────────────────
 function MarkingView({ slot, onBack }: { slot: Slot; onBack: () => void }) {
-  const user   = JSON.parse(localStorage.getItem("gulum-user") || "null");
+  const user = JSON.parse(localStorage.getItem("gulum-user") || "null");
   const userId = user?.id ?? "";
 
   // GET /api/students/course/{courseCode}
@@ -208,72 +228,97 @@ function MarkingView({ slot, onBack }: { slot: Slot; onBack: () => void }) {
 
   const students: Student[] = useMemo(() =>
     (Array.isArray(rawStudents) ? rawStudents : []).map((s: any) => ({
-      id:   String(s.studentId ?? s.id ?? s.userId ?? ""),
+      id: String(s.studentId ?? s.id ?? s.userId ?? ""),
       name: s.fullName ?? s.full_name ?? s.name ?? s.studentName ?? "Student",
       roll: s.rollNo ?? s.roll_no ?? s.rollNumber ?? s.admissionNo ?? "–",
     })),
     [rawStudents]
   );
 
-  const courseId   = slot.courseId || slot.courseCode;
+  const courseId = slot.courseId || slot.courseCode;
   const sessionRef = useRef<string | null>(null);
+  const startingRef = useRef(false);          // prevents concurrent session starts
   const [sessionReady, setSessionReady] = useState(false);
-  const [marks,   setMarks]   = useState<Record<string, Status>>({});
+  const [marks, setMarks] = useState<Record<string, Status>>({});
   const [marking, setMarking] = useState<Record<string, boolean>>({});
 
   // POST /attendance/session/start
-  const { mutateAsync: startSession,    isPending: starting   } = useStartAttendanceSession();
+  const { mutateAsync: startSession, isPending: starting } = useStartAttendanceSession();
   // PUT /attendance/session/complete/{id}
   const { mutateAsync: completeSession, isPending: completing } = useCompleteAttendanceSession();
   // POST /attendance
-  const { mutateAsync: markRecord }                             = useMarkAttendance();
+  const { mutateAsync: markRecord } = useMarkAttendance();
 
+  // Start session once on mount — guard with startingRef so concurrent calls are impossible.
   useEffect(() => {
-    if (loadingStudents || students.length === 0 || sessionReady || sessionRef.current) return;
+    if (sessionReady || sessionRef.current || startingRef.current) return;
+    startingRef.current = true;
     startSession({
       courseCode: slot.courseCode,
-      courseId:   slot.courseId || undefined,
-      classId:    slot.classId,
-      teacherId:  userId,
-      date:       new Date().toISOString().split("T")[0],
-      startTime:  slot.startTime,
-      endTime:    slot.endTime,
+      courseId: slot.courseId || undefined,
+      classId: slot.classId || undefined,
+      classesId: slot.classId || undefined,
+      teacherId: userId,
+      date: new Date().toISOString().split("T")[0],
+      startTime: slot.startTime,
+      endTime: slot.endTime,
       slotNumber: slot.slotNumber,
     }).then((res: any) => {
-      sessionRef.current = String(res?.sessionId ?? res?.id ?? res?.attendanceSessionId ?? "") || null;
+      const sid = res?.sessionId ?? res?.id ?? res?.attendanceSessionId ?? res?.data?.sessionId ?? "";
+      sessionRef.current = sid ? String(sid) : null;
       setSessionReady(true);
-    }).catch(() => setSessionReady(true));
-  }, [loadingStudents, students.length, sessionReady, slot, userId, startSession]);
+    }).catch((err: any) => {
+      // Session API failed — allow marking without sessionId (it's optional on backend)
+      console.warn("Session start failed:", err?.response?.data ?? err?.message);
+      setSessionReady(true);
+    }).finally(() => {
+      startingRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
 
   const handleMark = async (student: Student, status: Status) => {
     const prev = marks[student.id] ?? null;
-    if (prev === status) { setMarks(m => ({ ...m, [student.id]: null })); return; }
+    // Toggle off — deselect locally
+    if (prev === status) {
+      setMarks(m => ({ ...m, [student.id]: null }));
+      return;
+    }
+    // Optimistic update
     setMarks(m => ({ ...m, [student.id]: status }));
     setMarking(m => ({ ...m, [student.id]: true }));
     try {
-      // POST /attendance
-      await markRecord({
-        studentId:  student.id,
+      // Send both classId + classesId so backend accepts either field name
+      const payload: Record<string, any> = {
+        studentId: student.id,
         courseCode: slot.courseCode,
-        courseId:   slot.courseId || undefined,
-        classesId:  slot.classId,
-        sessionId:  sessionRef.current ?? undefined,
-        date:       new Date().toISOString().split("T")[0],
+        date: new Date().toISOString().split("T")[0],
         status,
-      });
-    } catch {
+      };
+      if (slot.courseId) payload.courseId = slot.courseId;
+      if (slot.classId) { payload.classId = slot.classId; payload.classesId = slot.classId; }
+      if (sessionRef.current) payload.sessionId = sessionRef.current;
+
+      await markRecord(payload);
+    } catch (err: any) {
+      // Roll back on failure and show actual server error
       setMarks(m => ({ ...m, [student.id]: prev }));
-      toast.error(`Failed to mark ${student.name}`);
+      const serverMsg =
+        err?.response?.data?.message ??
+        err?.response?.data?.error ??
+        err?.response?.data ??
+        err?.message ??
+        "Unknown error";
+      console.error("markAttendance failed:", err?.response?.status, serverMsg);
+      toast.error(`Failed to mark ${student.name}: ${serverMsg}`);
     } finally {
       setMarking(m => ({ ...m, [student.id]: false }));
     }
   };
-
-  const markAll = (st: Status) => students.forEach(s => handleMark(s, st));
   const counts = useMemo(() => ({
-    present:  Object.values(marks).filter(v => v === "PRESENT").length,
-    late:     Object.values(marks).filter(v => v === "LATE").length,
-    absent:   Object.values(marks).filter(v => v === "ABSENT").length,
+    present: Object.values(marks).filter(v => v === "PRESENT").length,
+    late: Object.values(marks).filter(v => v === "LATE").length,
+    absent: Object.values(marks).filter(v => v === "ABSENT").length,
     unmarked: students.length - Object.values(marks).filter(Boolean).length,
   }), [marks, students]);
 
@@ -309,7 +354,9 @@ function MarkingView({ slot, onBack }: { slot: Slot; onBack: () => void }) {
         </div>
         <div className={cn(
           "shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold",
-          sessionReady ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+          sessionReady
+            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+            : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
         )}>
           {starting
             ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -330,9 +377,9 @@ function MarkingView({ slot, onBack }: { slot: Slot; onBack: () => void }) {
         <Progress value={overallPct} className={`h-2 mt-2 ${overallPct < 75 ? "[&>div]:bg-destructive" : "[&>div]:bg-success"}`} />
         <div className="grid grid-cols-4 gap-3 mt-4 text-center">
           {[
-            { label: "Present", count: counts.present, cls: "text-emerald-600" },
-            { label: "Late",    count: counts.late,    cls: "text-amber-600"   },
-            { label: "Absent",  count: counts.absent,  cls: "text-destructive" },
+            { label: "Present", count: counts.present, cls: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Late", count: counts.late, cls: "text-amber-600   dark:text-amber-400" },
+            { label: "Absent", count: counts.absent, cls: "text-red-600     dark:text-red-400" },
             { label: "Pending", count: counts.unmarked, cls: "text-muted-foreground" },
           ].map(b => (
             <div key={b.label}>
@@ -343,11 +390,17 @@ function MarkingView({ slot, onBack }: { slot: Slot; onBack: () => void }) {
         </div>
       </Card>
 
-      {/* Quick actions */}
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => markAll("PRESENT")} className="flex-1 h-8 text-xs rounded-xl border-emerald-300 text-emerald-700 hover:bg-emerald-50">All Present</Button>
-        <Button variant="outline" size="sm" onClick={() => markAll("ABSENT")}  className="flex-1 h-8 text-xs rounded-xl border-red-300 text-red-700 hover:bg-red-50">All Absent</Button>
-        <Button variant="outline" size="sm" onClick={() => setMarks({})}       className="flex-1 h-8 text-xs rounded-xl">Clear All</Button>
+      {/* Attendance legend */}
+      <div className="flex items-center gap-3 px-1">
+        <span className="flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+          <Check className="h-3 w-3" /> Present
+        </span>
+        <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+          <Clock className="h-3 w-3" /> Late
+        </span>
+        <span className="flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400">
+          <X className="h-3 w-3" /> Absent
+        </span>
       </div>
 
       {/* Students list */}
