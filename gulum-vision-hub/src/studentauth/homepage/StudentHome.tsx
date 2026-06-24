@@ -39,7 +39,7 @@ const tiles = [
   {
     label: "Timetable",
     icon: Calendar,
-    to: "/student/dashboard",
+    to: "/student/timetable",
   },
   {
     label: "Profile",

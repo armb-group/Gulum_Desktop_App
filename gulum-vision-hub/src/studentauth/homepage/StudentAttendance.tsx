@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { RoleShell } from "@/components/RoleShell";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, AlertTriangle, ChevronDown } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ChevronDown, Calendar } from "lucide-react";
 import { useStudentAttendance } from "@/services/studentAttendanceAPI";
+import AttendanceCalendarModal from "./AttendanceCalendarModal";
 
 const subjects = [
   { code: "CS301 · Prof. A. Sharma", name: "DBMS", value: 82, attended: 28, total: 34, color: "bg-primary text-primary-foreground" },
@@ -14,6 +16,8 @@ const subjects = [
 const StudentAttendance = () => {
   const navigate = useNavigate();
   const { data } = useStudentAttendance();
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null);
+
  const overallAttendance =
   data?.length
     ? Math.round(
@@ -87,14 +91,22 @@ const lowSubjects =
                   <p className="text-base font-semibold">{s.courseName}</p>
                   <p className="text-sm opacity-80">{s.courseCode}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">{s.attendancePercentage}%</p>
-                  {s.attendancePercentage < 75 && (
-                    <span className="inline-block text-[10px] font-bold bg-black/40 px-2 py-0.5 rounded">
-                      LOW
-                    </span>
-                  )}
-                  {/* <ChevronDown className="h-5 w-5 inline-block ml-1" /> */}
+                <div className="text-right flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-2">
+                    {s.attendancePercentage < 75 && (
+                      <span className="inline-block text-[10px] font-bold bg-black/40 px-2 py-0.5 rounded">
+                        LOW
+                      </span>
+                    )}
+                    <p className="text-lg font-bold">{s.attendancePercentage}%</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedCourse({ id: s.courseId || s.courseCode, name: s.courseName })}
+                    className="flex items-center justify-center p-2 rounded-full hover:bg-black/20 transition-colors bg-black/10"
+                    title="View Calendar"
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -110,6 +122,13 @@ const lowSubjects =
           </Card>
         ))}
       </div>
+
+      <AttendanceCalendarModal 
+        isOpen={!!selectedCourse} 
+        onClose={() => setSelectedCourse(null)} 
+        courseId={selectedCourse?.id || ""} 
+        courseName={selectedCourse?.name || ""} 
+      />
     </RoleShell>
   );
 };
