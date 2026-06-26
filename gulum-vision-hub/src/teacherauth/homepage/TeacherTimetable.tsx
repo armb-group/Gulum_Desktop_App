@@ -11,22 +11,38 @@ import { cn } from "@/lib/utils";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-// Soft warm pastel per day — white base with colored accents
-const DAY_CFG: Record<string, { dot: string; badge: string; header: string; border: string; tdBg: string; tdFg: string; tdAccent: string }> = {
-  Monday:    { dot: "bg-rose-500",    badge: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",    header: "bg-rose-50 dark:bg-rose-950/20",    border: "border-l-rose-500",    tdBg: "#fff1f2", tdFg: "#be123c", tdAccent: "#f43f5e" },
-  Tuesday:   { dot: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",  header: "bg-indigo-50 dark:bg-indigo-950/20",  border: "border-l-indigo-500",  tdBg: "#eef2ff", tdFg: "#3730a3", tdAccent: "#6366f1" },
-  Wednesday: { dot: "bg-amber-500",   badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",   header: "bg-amber-50 dark:bg-amber-950/20",   border: "border-l-amber-500",   tdBg: "#fffbeb", tdFg: "#b45309", tdAccent: "#f59e0b" },
-  Thursday:  { dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", header: "bg-emerald-50 dark:bg-emerald-950/20", border: "border-l-emerald-500", tdBg: "#ecfdf5", tdFg: "#065f46", tdAccent: "#10b981" },
-  Friday:    { dot: "bg-purple-500",  badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",  header: "bg-purple-50 dark:bg-purple-950/20",  border: "border-l-purple-500",  tdBg: "#faf5ff", tdFg: "#6b21a8", tdAccent: "#a855f7" },
+// Day label config — dark backgrounds matching student portal
+const DAY_CFG: Record<string, { dot: string; badge: string; header: string; border: string; labelBg: string; labelText: string }> = {
+  Monday:    { dot: "bg-rose-500",    badge: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",    header: "bg-rose-50 dark:bg-rose-950/20",    border: "border-l-rose-500",    labelBg: "#5c1a1a", labelText: "#e88080" },
+  Tuesday:   { dot: "bg-indigo-500",  badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",  header: "bg-indigo-50 dark:bg-indigo-950/20",  border: "border-l-indigo-500",  labelBg: "#1a2a4c", labelText: "#80a8e8" },
+  Wednesday: { dot: "bg-amber-500",   badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",   header: "bg-amber-50 dark:bg-amber-950/20",   border: "border-l-amber-500",   labelBg: "#1a3a1a", labelText: "#80c880" },
+  Thursday:  { dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", header: "bg-emerald-50 dark:bg-emerald-950/20", border: "border-l-emerald-500", labelBg: "#3a2800", labelText: "#e8c060" },
+  Friday:    { dot: "bg-purple-500",  badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",  header: "bg-purple-50 dark:bg-purple-950/20",  border: "border-l-purple-500",  labelBg: "#26163a", labelText: "#b080e8" },
 };
 
+// Vivid subject colors — same as student timetable, but yellow moved away from position 0
+// to avoid confusion with the amber BREAK column
 const PALETTE = [
-  "#f59e0b","#3b82f6","#22c55e","#a855f7","#ef4444",
-  "#06b6d4","#f97316","#ec4899","#14b8a6","#8b5cf6",
+  "#3b82f6","#22c55e","#a855f7","#ef4444","#06b6d4",
+  "#f97316","#ec4899","#14b8a6","#8b5cf6","#f59e0b",
 ];
 
+// CSS-variable-based theme — matches student portal
+const THEME = {
+  cardBg:     "hsl(var(--card))",
+  cardText:   "hsl(var(--card-foreground))",
+  mutedBg:    "hsl(var(--muted))",
+  softBg:     "hsl(var(--background) / 0.55)",
+  border:     "hsl(var(--border))",
+  mutedText:  "hsl(var(--muted-foreground))",
+  buttonBg:   "hsl(var(--secondary))",
+  buttonText: "hsl(var(--secondary-foreground))",
+  primary:    "hsl(var(--primary))",
+  warningBg:  "hsl(var(--warning-soft))",
+  warning:    "hsl(var(--warning))",
+};
+
 const fmt = (t: string) => (t || "").slice(0, 5);
-const brd = "1px solid #e8edf3";  // soft cool-grey border
 
 export default function TeacherTimetable() {
   const navigate = useNavigate();
@@ -50,12 +66,22 @@ export default function TeacherTimetable() {
     return map;
   }, [slots]);
 
-  // Colour palette per course name
+  // Colour map keyed by courseCode::className — gives each unique teaching assignment
+  // its own vivid distinct color (DBMS-CSE3A and DBMS-CSE3B get different colors)
+  // This produces the same attractive multi-color appearance as the student timetable
   const colOf: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     let ci = 0;
-    (slots as any[]).forEach(s => {
-      if (s.courseName && !map[s.courseName]) map[s.courseName] = PALETTE[ci++ % PALETTE.length];
+    const key = (s: any) => `${s.courseCode || s.courseName}::${s.className || ""}`;
+    // Build from slots (teacher's own classes) first
+    (slots as any[]).forEach((s: any) => {
+      const k = key(s);
+      if (k && !map[k]) map[k] = PALETTE[ci++ % PALETTE.length];
+    });
+    // Also map by courseName alone so lookup always works
+    (slots as any[]).forEach((s: any) => {
+      const nameKey = s.courseName || s.courseCode;
+      if (nameKey && !map[nameKey]) map[nameKey] = map[key(s)] ?? PALETTE[ci++ % PALETTE.length];
     });
     return map;
   }, [slots]);
@@ -67,10 +93,18 @@ export default function TeacherTimetable() {
       timeOf[s.slotNumber] = { s: fmt(s.startTime), e: fmt(s.endTime) };
   });
 
-  const allNums = Array.from(new Set((timetable as any[]).map(s => s.slotNumber))).filter(Boolean).sort((a, b) => a - b);
-  const left  = allNums.filter(n => n <= 4);
-  const right = allNums.filter(n => n >= 5);
+  // All 8 slots shown in order (1→8), BREAK appears on the far right
+  const allNums: number[] = Array.from(new Set([
+    ...(timetable as any[]).map((s: any) => s.slotNumber).filter(Boolean),
+    1, 2, 3, 4, 5, 6, 7, 8,
+  ])).sort((a: number, b: number) => a - b).filter((n: number) => n >= 1 && n <= 8);
   const days  = DAY_ORDER.filter(d => (timetable as any[]).some(s => s.day === d));
+
+  // Day abbreviations matching student portal
+  const DAY_ABBR: Record<string, string> = {
+    Monday: "MON", Tuesday: "TUES", Wednesday: "WED",
+    Thursday: "THURS", Friday: "FRI", Saturday: "SAT", Sunday: "SUN",
+  };
 
   const myCell  = (d: string, n: number) => (slots as any[]).find(s => s.day === d && s.slotNumber === n) ?? null;
   const anyCell = (d: string, n: number) => (timetable as any[]).find(s => s.day === d && s.slotNumber === n && (s.courseCode || s.courseName)) ?? null;
@@ -146,118 +180,153 @@ export default function TeacherTimetable() {
               <p className="text-sm font-bold text-foreground">Full Weekly Schedule</p>
             </div>
 
-            <div className="rounded-2xl overflow-hidden border border-border bg-card hidden md:block"
-              style={{ background: "#ffffff", border: "1px solid #e8edf3", boxShadow: "0 2px 16px rgba(99,102,241,0.06)" }}>
-              {/* Table header — warm cream gradient */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: "1px solid #eef0f5", background: "linear-gradient(135deg, #fefce8 0%, #faf5ff 100%)" }}>
+            {/* Outer card — same colors as student timetable */}
+            <div className="rounded-2xl overflow-hidden hidden md:block"
+              style={{ background: THEME.cardBg, border: `1px solid ${THEME.border}`, color: THEME.cardText, boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
+
+              {/* Card Header — same as student portal */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 24px", borderBottom: `1px solid ${THEME.border}`, background: THEME.cardBg }}>
                 <div>
-                  <p style={{ color: "#374151", fontSize: 13, fontWeight: 900, margin: 0 }}>
-                    {user?.name ?? "Teacher"}'s Weekly Schedule
-                  </p>
-                  <p style={{ color: "#9ca3af", fontSize: 10, fontWeight: 600, margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                    {(slots as any[]).length} assigned slots
+                  <h2 style={{ color: THEME.cardText, fontSize: 20, fontWeight: 900, margin: 0, lineHeight: 1.2, letterSpacing: "-0.01em" }}>
+                    {user?.name ?? "Teacher"}'s Schedule
+                  </h2>
+                  <p style={{ color: THEME.mutedText, fontSize: 11, fontWeight: 700, margin: "4px 0 0", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                    Academic Timetable · All Assigned Classes
                   </p>
                 </div>
                 <button
                   onClick={() => window.print()}
-                  style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 11, fontWeight: 600, background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "6px 14px", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, color: THEME.buttonText, fontSize: 13, fontWeight: 700, background: THEME.buttonBg, border: `1px solid ${THEME.border}`, borderRadius: 10, padding: "8px 16px", cursor: "pointer" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = THEME.primary; (e.currentTarget as HTMLButtonElement).style.color = THEME.primary; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = THEME.border; (e.currentTarget as HTMLButtonElement).style.color = THEME.buttonText; }}
                 >
-                  <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
                   </svg>
                   Print
                 </button>
               </div>
 
-              <div style={{ overflowX: "auto", background: "#ffffff" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 600 }}>
+              {/* Timetable Grid — same colors as student timetable */}
+              <div style={{ overflowX: "auto", background: THEME.cardBg }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 680 }}>
                   <colgroup>
-                    <col style={{ width: 72 }} />
-                    {left.map(n => <col key={n} />)}
-                    {right.length > 0 && <col style={{ width: 28 }} />}
-                    {right.map(n => <col key={n} />)}
+                    <col style={{ width: 70 }} />
+                    {allNums.map((n: number) => <col key={n} />)}
+                    {/* BREAK column — far right, narrow */}
+                    <col style={{ width: 36 }} />
                   </colgroup>
+
+                  {/* Header row — same muted bg as student timetable */}
                   <thead>
                     <tr>
-                      {/* Corner cell — soft warm grey */}
-                      <th style={{ background: "#f8f7f4", borderRight: brd, borderBottom: brd, color: "#9ca3af", fontSize: 10, fontWeight: 900, textAlign: "center", padding: "10px 4px", textTransform: "uppercase", letterSpacing: "0.12em" }}>Day</th>
-                      {left.map(n => (
-                        <th key={n} style={{ background: "#f8f9ff", borderRight: brd, borderBottom: brd, textAlign: "center", padding: "8px 4px" }}>
-                          <p style={{ color: "#374151", fontSize: 11, fontWeight: 800, margin: 0 }}>{timeOf[n]?.s}–{timeOf[n]?.e}</p>
-                          <p style={{ color: "#9ca3af", fontSize: 9, fontWeight: 700, marginTop: 2 }}>Slot {n}</p>
+                      {/* DAY corner */}
+                      <th style={{ background: THEME.mutedBg, borderRight: `1px solid ${THEME.border}`, borderBottom: `1px solid ${THEME.border}`, color: THEME.mutedText, fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center", padding: "12px 4px" }}>
+                        DAY
+                      </th>
+                      {/* Slot headers */}
+                      {allNums.map((n: number) => (
+                        <th key={n} style={{ background: THEME.mutedBg, borderRight: `1px solid ${THEME.border}`, borderBottom: `1px solid ${THEME.border}`, textAlign: "center", padding: "10px 4px", verticalAlign: "middle" }}>
+                          <p style={{ color: THEME.cardText, fontSize: 12, fontWeight: 800, lineHeight: 1.2, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {timeOf[n]?.s ?? ""}–{timeOf[n]?.e ?? ""}
+                          </p>
+                          <p style={{ color: THEME.mutedText, fontSize: 10, fontWeight: 700, marginTop: 3 }}>Slot {n}</p>
                         </th>
                       ))}
-                      {right.length > 0 && (
-                        <th style={{ background: "#fffbeb", borderRight: brd, borderLeft: brd, borderBottom: brd, textAlign: "center", padding: "8px 2px", verticalAlign: "middle" }}>
-                          <span style={{ color: "#d97706", fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", writingMode: "vertical-rl", display: "inline-block" }}>BREAK</span>
-                        </th>
-                      )}
-                      {right.map(n => (
-                        <th key={n} style={{ background: "#f8f9ff", borderRight: brd, borderBottom: brd, textAlign: "center", padding: "8px 4px" }}>
-                          <p style={{ color: "#374151", fontSize: 11, fontWeight: 800, margin: 0 }}>{timeOf[n]?.s}–{timeOf[n]?.e}</p>
-                          <p style={{ color: "#9ca3af", fontSize: 9, fontWeight: 700, marginTop: 2 }}>Slot {n}</p>
-                        </th>
-                      ))}
+                      {/* BREAK header — same warning colors as student timetable */}
+                      <th style={{ background: THEME.warningBg, borderLeft: `2px solid ${THEME.warning}`, borderRight: `2px solid ${THEME.warning}`, borderBottom: `1px solid ${THEME.border}`, textAlign: "center", padding: "10px 2px", verticalAlign: "middle" }}>
+                        <span style={{ color: THEME.warning, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", writingMode: "vertical-rl", display: "inline-block" }}>BREAK</span>
+                      </th>
                     </tr>
                   </thead>
+
+                  {/* Body */}
                   <tbody>
-                    {days.map((day, ri) => {
+                    {days.map((day, rowIdx) => {
                       const isToday = day === today;
-                      const last = ri === days.length - 1;
-                      const dc = DAY_CFG[day] ?? { dot: "bg-muted", badge: "", header: "", border: "", tdBg: "#f8fafc", tdFg: "#64748b", tdAccent: "#94a3b8" };
-                      const cols = ([...left, ...(right.length > 0 ? [-1, ...right] : [])] as number[]);
+                      const isLast  = rowIdx === days.length - 1;
+                      const dc = DAY_CFG[day] ?? { dot: "bg-muted", badge: "", header: "", border: "", labelBg: "#1e1e1e", labelText: "#a0a0a0" };
+                      const bdr = isLast ? "none" : `1px solid ${THEME.border}`;
                       return (
                         <tr key={day}>
-                          {/* Day column — soft pastel per day, green for today */}
+                          {/* Day label — same dark bg colors as student timetable */}
                           <td style={{
-                            background: isToday ? "#d1fae5" : dc.tdBg,
-                            borderRight: brd,
-                            borderBottom: last ? "none" : brd,
+                            background: isToday ? "#065f46" : dc.labelBg,
+                            borderRight: `1px solid ${THEME.border}`,
+                            borderBottom: bdr,
                             textAlign: "center", verticalAlign: "middle",
-                            fontSize: 10, fontWeight: 900, letterSpacing: "0.08em",
-                            textTransform: "uppercase", height: 74,
-                            color: isToday ? "#065f46" : dc.tdFg,
-                            borderLeft: isToday ? "3px solid #10b981" : "3px solid transparent",
+                            color: isToday ? "#6ee7b7" : dc.labelText,
+                            fontSize: 12, fontWeight: 900,
+                            letterSpacing: "0.08em", textTransform: "uppercase",
+                            padding: "0 4px",
                           }}>
-                            {day.slice(0, 3).toUpperCase()}
-                            {isToday && <div style={{ fontSize: 7, fontWeight: 900, color: "#059669", letterSpacing: "0.1em", marginTop: 3 }}>TODAY</div>}
+                            {DAY_ABBR[day] ?? day.slice(0, 3).toUpperCase()}
+                            {isToday && (
+                              <div style={{ fontSize: 7, fontWeight: 900, color: "#6ee7b7", letterSpacing: "0.1em", marginTop: 3 }}>TODAY</div>
+                            )}
                           </td>
-                          {cols.map(n => {
-                            if (n === -1) return (
-                              <td key="break" style={{ background: "#fffbeb", borderRight: "2px solid #fde68a", borderLeft: "2px solid #fde68a", borderBottom: last ? "none" : brd, textAlign: "center", verticalAlign: "middle", padding: "4px 0" }}>
-                                <span style={{ color: "#d97706", fontSize: 7, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", writingMode: "vertical-rl", display: "inline-block" }}>BREAK</span>
-                              </td>
-                            );
+
+                          {/* Slot cells 1–8 — vivid colorful like student timetable screenshot */}
+                          {allNums.map((n: number) => {
                             const mine  = myCell(day, n);
                             const other = !mine ? anyCell(day, n) : null;
-                            const col   = mine ? (colOf[mine.courseName] ?? PALETTE[0]) : null;
+                            // Key by courseCode::className for max color variety
+                            const slotKey = mine ? `${mine.courseCode || mine.courseName}::${mine.className || ""}` : "";
+                            const col = mine ? (colOf[slotKey] ?? colOf[mine.courseName || mine.courseCode] ?? PALETTE[n % PALETTE.length]) : null;
 
+                            /* My class — vivid colored background like student timetable */
                             if (mine) return (
                               <td key={n}
-                                style={{ background: col! + "18", borderRight: brd, borderBottom: last ? "none" : brd, borderTop: `2.5px solid ${col}`, padding: "8px 10px", verticalAlign: "top", cursor: "pointer", transition: "background 0.15s" }}
+                                style={{
+                                  background: col! + "28",
+                                  borderRight: `1px solid ${THEME.border}`,
+                                  borderBottom: bdr,
+                                  borderTop: `3px solid ${col}`,
+                                  padding: "10px 8px",
+                                  verticalAlign: "top",
+                                  cursor: "pointer",
+                                  transition: "background 0.15s",
+                                }}
                                 onClick={() => navigate("/teacher/attendance", { state: { slot: { ...mine } } })}
-                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = col! + "28"; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = col! + "18"; }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = col! + "40"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = col! + "28"; }}
                               >
-                                <p style={{ color: col!, fontSize: 11, fontWeight: 800, lineHeight: 1.3, margin: 0 }}>{mine.courseName}</p>
-                                <p style={{ color: col! + "cc", fontSize: 9, fontWeight: 600, marginTop: 2 }}>{mine.courseCode}</p>
-                                <p style={{ color: col!, fontSize: 8, fontWeight: 700, marginTop: 5, display: "flex", alignItems: "center", gap: 3, opacity: 0.85 }}>▶ Mark Attendance</p>
+                                <p style={{ color: col!, fontSize: 12, fontWeight: 800, lineHeight: 1.3, margin: 0, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                                  {mine.courseName}
+                                </p>
+                                {mine.courseCode && (
+                                  <p style={{ color: col!, fontSize: 10, fontWeight: 600, marginTop: 3, opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {mine.courseCode}
+                                  </p>
+                                )}
+                                {mine.className && (
+                                  <p style={{ color: col!, fontSize: 10, fontWeight: 600, marginTop: 2, opacity: 0.65, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {mine.className}
+                                  </p>
+                                )}
                               </td>
                             );
 
+                            /* Another teacher's class (dimmed) */
                             if (other) return (
-                              <td key={n} style={{ background: "#f8fafc", borderRight: brd, borderBottom: last ? "none" : brd, padding: "8px 10px", verticalAlign: "top", opacity: 0.5 }}>
-                                <p style={{ color: "#6b7280", fontSize: 10, fontWeight: 700, lineHeight: 1.3, margin: 0 }}>{other.courseName}</p>
-                                <p style={{ color: "#9ca3af", fontSize: 9, marginTop: 2 }}>{other.teacherName}</p>
+                              <td key={n} style={{ background: THEME.softBg, borderRight: `1px solid ${THEME.border}`, borderBottom: bdr, padding: "10px 8px", verticalAlign: "top", opacity: 0.5 }}>
+                                <p style={{ color: THEME.cardText, fontSize: 10, fontWeight: 700, lineHeight: 1.3, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{other.courseName}</p>
+                                <p style={{ color: THEME.mutedText, fontSize: 9, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{other.teacherName}</p>
                               </td>
                             );
 
+                            /* Empty cell — same soft bg as student timetable */
                             return (
-                              <td key={n} style={{ background: "#fafafa", borderRight: brd, borderBottom: last ? "none" : brd, verticalAlign: "middle" }}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 60, opacity: 0.15, fontSize: 18, color: "#94a3b8" }}>–</div>
+                              <td key={n} style={{ background: THEME.softBg, borderRight: `1px solid ${THEME.border}`, borderBottom: bdr, textAlign: "center", verticalAlign: "middle", color: THEME.mutedText, fontSize: 16, fontWeight: 700 }}>
+                                —
                               </td>
                             );
                           })}
+
+                          {/* BREAK cell — far right, same warning colors as student timetable */}
+                          <td style={{ background: THEME.warningBg, borderLeft: `2px solid ${THEME.warning}`, borderRight: `2px solid ${THEME.warning}`, borderBottom: bdr, textAlign: "center", verticalAlign: "middle", padding: "4px 0" }}>
+                            <span style={{ color: THEME.warning, fontSize: 8, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", writingMode: "vertical-rl", display: "inline-block" }}>BREAK</span>
+                          </td>
                         </tr>
                       );
                     })}
@@ -265,17 +334,16 @@ export default function TeacherTimetable() {
                 </table>
               </div>
 
-              {/* Legend — warm cream footer */}
+              {/* Subject Legend — same as student timetable */}
               {Object.keys(colOf).length > 0 && (
-                <div style={{ padding: "10px 22px", borderTop: "1px solid #eef0f5", background: "#fefce8", display: "flex", flexWrap: "wrap", gap: "6px 20px", alignItems: "center" }}>
-                  <p style={{ color: "#9ca3af", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.12em", width: "100%", marginBottom: 2 }}>Your Subjects</p>
+                <div style={{ padding: "12px 24px", borderTop: `1px solid ${THEME.border}`, background: THEME.cardBg, display: "flex", flexWrap: "wrap", gap: "8px 24px", alignItems: "center" }}>
+                  <p style={{ color: THEME.mutedText, fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.12em", width: "100%", marginBottom: 2 }}>Subject Legend</p>
                   {Object.entries(colOf).map(([name, colour]) => (
-                    <div key={name} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ background: colour, width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0, boxShadow: `0 0 0 2px ${colour}33` }} />
-                      <span style={{ color: "#374151", fontSize: 11, fontWeight: 600 }}>{name}</span>
+                    <div key={name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ background: colour, width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0 }} />
+                      <span style={{ color: THEME.mutedText, fontSize: 11, fontWeight: 600 }}>{name}</span>
                     </div>
                   ))}
-                  <span style={{ marginLeft: "auto", fontSize: 9, color: "#9ca3af" }}>Dimmed = other teachers · Click to mark attendance</span>
                 </div>
               )}
             </div>
