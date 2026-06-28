@@ -16,10 +16,17 @@ export default defineConfig(({ mode }) => ({
         secure: false,
         rewrite: (path) => path.replace(/^\/gulum/, ''),
       },
+      '/ws': {
+        target: 'http://localhost:3000',
+        ws: true,
+      },
     },
     hmr: {
       overlay: false,
     },
+  },
+  define: {
+    global: 'window',
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   build: {

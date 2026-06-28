@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -45,7 +46,7 @@ import ModuleCrud from "./adminauth/homepage/ModuleCrud";
 // import AssignWork from "./adminauth/homepage/AssignWork";
 import AssignTeacher from "./adminauth/homepage/AssignTeacher";
 import ScheduleRoutine from "./adminauth/homepage/ScheduleRoutine";
-import ForgotPassword  from "./pages/ForgotPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 import AttendancePage from "./adminauth/homepage/AttendancePage";
 import LectureAuditPage from "./adminauth/homepage/LectureAuditPage";
 import AssignSubject from "./adminauth/homepage/AssignSubject";
@@ -63,69 +64,71 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <PhoneFrame>
-              <Routes>
-                <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/login" element={<SignIn />} />
-                
-                {/* Student */}
-                <Route path="/student/login" element={<SignIn />} />
-                <Route path="/student" element={<ProtectedRoute role="student" />}>
-                  <Route index element={<StudentHome />} />
-                  <Route path="dashboard" element={<StudentDashboard />} />
-                  <Route path="calendar" element={<StudentCalendar />} />
-                  <Route path="notifications" element={<StudentNotifications />} />
-                  <Route path="profile" element={<StudentProfile />} />
-                  <Route path="attendance" element={<StudentAttendance />} />
-                  <Route path="lecture-audit" element={<StudentLectureAudit />} />
-                  <Route path="timetable" element={<StudentTimetable />} />
-                </Route>
+        <WebSocketProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <PhoneFrame>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/login" element={<SignIn />} />
 
-                {/* Teacher */}
-                <Route path="/teacher/login" element={<SignIn />} />
-                <Route path="/teacher" element={<ProtectedRoute role="teacher" />}>
-                  <Route index element={<TeacherHome />} />
-                  <Route path="dashboard" element={<TeacherDashboard />} />
-                  <Route path="calendar" element={<TeacherCalendar />} />
-                  <Route path="assignments" element={<TeacherAssignments />} />
-                  <Route path="notifications" element={<TeacherNotifications />} />
-                  <Route path="profile" element={<TeacherProfile />} />
-                  <Route path="attendance" element={<TeacherAttendance />} />
-                  <Route path="lecture-audit" element={<TeacherLectureAudit />} />
-                  <Route path="timetable" element={<TeacherTimetable />} />
-                </Route>
+                  {/* Student */}
+                  <Route path="/student/login" element={<SignIn />} />
+                  <Route path="/student" element={<ProtectedRoute role="student" />}>
+                    <Route index element={<StudentHome />} />
+                    <Route path="dashboard" element={<StudentDashboard />} />
+                    <Route path="calendar" element={<StudentCalendar />} />
+                    <Route path="notifications" element={<StudentNotifications />} />
+                    <Route path="profile" element={<StudentProfile />} />
+                    <Route path="attendance" element={<StudentAttendance />} />
+                    <Route path="lecture-audit" element={<StudentLectureAudit />} />
+                    <Route path="timetable" element={<StudentTimetable />} />
+                  </Route>
 
-                {/* Admin */}
-                <Route path="/admin/login" element={<SignIn />} />
-                <Route path="/admin" element={<ProtectedRoute role="admin" />}>
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="bulk-upload" element={<BulkUpload />} />
-                  <Route path="calendar" element={<AdminCalendar />} />
-                  <Route path="department" element={<Departments />} />
-                  <Route path="ClassCrud" element={<ClassCrud />} />
-                  <Route path="SubjectCrud" element={<SubjectCrud />} />
-                  <Route path="ModuleCrud" element={<ModuleCrud />} />
-                  <Route path="TeacherCrud" element={<TeacherCrud />} />
-                  <Route path="StudentCrud" element={<StudentCrud />} />
-                  <Route path="attendance" element={<AttendancePage />} />
-                  <Route path="lecture-audit" element={<LectureAuditPage />} />
-                  <Route path="NoticePage" element={<NoticePage />} />
-                  <Route path="assign-teacher" element={<AssignTeacher />} />
-                  <Route path="routine" element={<ScheduleRoutine />} />
-                  <Route path="assign-subject" element={<AssignSubject />} />
-                  <Route path="profile" element={<AdminProfile />} />
-                </Route>
+                  {/* Teacher */}
+                  <Route path="/teacher/login" element={<SignIn />} />
+                  <Route path="/teacher" element={<ProtectedRoute role="teacher" />}>
+                    <Route index element={<TeacherHome />} />
+                    <Route path="dashboard" element={<TeacherDashboard />} />
+                    <Route path="calendar" element={<TeacherCalendar />} />
+                    <Route path="assignments" element={<TeacherAssignments />} />
+                    <Route path="notifications" element={<TeacherNotifications />} />
+                    <Route path="profile" element={<TeacherProfile />} />
+                    <Route path="attendance" element={<TeacherAttendance />} />
+                    <Route path="lecture-audit" element={<TeacherLectureAudit />} />
+                    <Route path="timetable" element={<TeacherTimetable />} />
+                  </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </PhoneFrame>
-          </BrowserRouter>
-        </TooltipProvider>
+                  {/* Admin */}
+                  <Route path="/admin/login" element={<SignIn />} />
+                  <Route path="/admin" element={<ProtectedRoute role="admin" />}>
+                    <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="bulk-upload" element={<BulkUpload />} />
+                    <Route path="calendar" element={<AdminCalendar />} />
+                    <Route path="department" element={<Departments />} />
+                    <Route path="ClassCrud" element={<ClassCrud />} />
+                    <Route path="SubjectCrud" element={<SubjectCrud />} />
+                    <Route path="ModuleCrud" element={<ModuleCrud />} />
+                    <Route path="TeacherCrud" element={<TeacherCrud />} />
+                    <Route path="StudentCrud" element={<StudentCrud />} />
+                    <Route path="attendance" element={<AttendancePage />} />
+                    <Route path="lecture-audit" element={<LectureAuditPage />} />
+                    <Route path="NoticePage" element={<NoticePage />} />
+                    <Route path="assign-teacher" element={<AssignTeacher />} />
+                    <Route path="routine" element={<ScheduleRoutine />} />
+                    <Route path="assign-subject" element={<AssignSubject />} />
+                    <Route path="profile" element={<AdminProfile />} />
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </PhoneFrame>
+            </BrowserRouter>
+          </TooltipProvider>
+        </WebSocketProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
