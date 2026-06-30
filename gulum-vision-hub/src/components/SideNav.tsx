@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, LayoutGrid, FolderClosed, Bell, User, LogOut, Calendar } from "lucide-react";
+import { Home, LayoutGrid, Bell, User, LogOut, Calendar, BookOpen, Clock, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,9 +11,20 @@ interface SideNavProps {
   base: "/student" | "/teacher";
 }
 
-const items = [
+const studentItems = [
   { to: "", icon: Home, label: "Home", end: true },
   { to: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
+  { to: "/notifications", icon: Bell, label: "Alerts" },
+  { to: "/calendar", icon: Calendar, label: "Calendar" },
+  { to: "/profile", icon: User, label: "Profile" },
+];
+
+const teacherItems = [
+  { to: "", icon: Home, label: "Home", end: true },
+  { to: "/dashboard", icon: LayoutGrid, label: "Insights" },
+  { to: "/lecture-audit", icon: BookOpen, label: "Lecture Audit" },
+  { to: "/timetable", icon: Clock, label: "Timetable" },
+  { to: "/attendance", icon: ClipboardList, label: "Attendance" },
   { to: "/notifications", icon: Bell, label: "Alerts" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/profile", icon: User, label: "Profile" },
@@ -45,7 +56,7 @@ export const SideNav = ({ base }: SideNavProps) => {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Primary">
-        {items.map((item) => {
+        {(base === "/teacher" ? teacherItems : studentItems).map((item) => {
           const isAlerts = item.to === "/notifications";
           return (
             <NavLink

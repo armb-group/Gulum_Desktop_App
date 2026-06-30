@@ -12,6 +12,7 @@ import {
   type NotificationItem,
 } from "@/lib/notifications";
 import { BookOpen, ChevronDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // ── Notification Card ─────────────────────────────────────────────────────────
 
@@ -113,21 +114,21 @@ const StudentNotifications = () => {
 
         {/* Subject filter — student tab only, built from API subjects */}
         {activeTab === "student" && (
-          <div className="relative w-fit">
-            <div className="flex items-center gap-2 h-10 rounded-xl border border-input bg-background px-3">
-              <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className="appearance-none bg-transparent text-sm font-semibold text-foreground pr-6 focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Subjects</option>
+          <div className="relative w-[280px] max-w-full">
+            <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+              <SelectTrigger className="h-10 rounded-xl border border-input bg-background font-semibold hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2 text-foreground text-left line-clamp-1">
+                  <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Select Subject" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border shadow-lg max-h-[300px]">
+                <SelectItem value="All" className="cursor-pointer font-medium">All Subjects</SelectItem>
                 {subjectList.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <SelectItem key={s} value={s} className="cursor-pointer font-medium">{s}</SelectItem>
                 ))}
-              </select>
-              <ChevronDown className="h-4 w-4 text-muted-foreground absolute right-3 pointer-events-none" />
-            </div>
+              </SelectContent>
+            </Select>
           </div>
         )}
       </Card>

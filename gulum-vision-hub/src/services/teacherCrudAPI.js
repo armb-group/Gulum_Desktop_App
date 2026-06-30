@@ -178,6 +178,20 @@ export const useAssignTeachersBulk = () => {
   });
 };
 
+export const getTeacherById = async (teacherId) => {
+  const response = await api.get(`/teachers/${encodeURIComponent(teacherId)}`);
+  return response.data.responseData ?? response.data;
+};
+
+export const useGetTeacherById = (teacherId, options = {}) =>
+  useQuery({
+    queryKey: [...TEACHERS_QUERY_KEY, "by-id", teacherId ?? ""],
+    queryFn: () => getTeacherById(teacherId),
+    enabled: !!teacherId && (options.enabled ?? true),
+    staleTime: 10 * 60 * 1000,
+  });
+
+
 export const getCourseOfferings = async (teacherId) => {
   const response = await api.get(`/course-offerings/teacher/${encodeURIComponent(teacherId)}`);
   return response.data.responseData ?? response.data;

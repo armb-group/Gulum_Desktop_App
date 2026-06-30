@@ -11,6 +11,7 @@ export interface AuthUser {
   institutionId?: string;
   batchId?: string;
   classId?: string;
+  classesId?: string;
   departmentId?: string;
   token?: string;
 }
