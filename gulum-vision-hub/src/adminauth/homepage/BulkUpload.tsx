@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,25 +34,6 @@ interface RoleData {
   title?: string;
 }
 
-const SAMPLES: Record<UploadRole, string> = {
-  student: `name,email,role,department
-Aisha Khan,aisha@example.edu,student,Computer Science
-Ravi Patel,ravi@example.edu,student,Mathematics`,
-  teacher: `name,email,role,department
-Dr. Mei Lin,mei@example.edu,teacher,Physics
-Prof. John Doe,john@example.edu,teacher,Chemistry`,
-};
-
-const getSampleCSV = (roleName: string) => {
-  const normalized = roleName.toLowerCase();
-  if (normalized === "student") {
-    return SAMPLES.student;
-  }
-  if (normalized === "teacher") {
-    return SAMPLES.teacher;
-  }
-  return `name,email,role,department\nJohn Doe,john@example.edu,${normalized},Computer Science`;
-};
 
 const getRoleIcon = (name: string) => {
   const norm = name.toLowerCase();
@@ -96,7 +76,10 @@ const BulkUpload = () => {
         }
         return { id: `role-${index}`, name: "" };
       })
-      .filter((r) => r.name.toLowerCase() !== "admin");
+      .filter((r) => {
+        const norm = r.name.toLowerCase();
+        return norm === "student" || norm === "teacher" || norm === "user";
+      });
   }, [rawRoles, loading]);
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId);
@@ -219,7 +202,7 @@ const BulkUpload = () => {
         onError: (err: any) => {
           console.error("Bulk upload error:", err);
           const errorMsg = err.response?.data?.message ?? err.message ?? "Upload failed";
-          toast.error(`Upload failed: ${errorMsg}`);
+          toast.error(`Upload failed`);
         }
       }
     );
@@ -241,57 +224,23 @@ const BulkUpload = () => {
   };
 
   const downloadSampleForRole = (role: string) => {
-    let headers: string[] = [];
-    let sampleData: Record<string, any>[] = [];
-
     const norm = role.toLowerCase();
+    let fileName = "";
     if (norm === "student") {
-      headers = ["admissionNo", "dob", "emailId", "fullName", "gender", "metadata", "phoneNumber", "rollNo", "parentEmail"];
-      sampleData = [
-        {
-          admissionNo: "ADM0025",
-          dob: "23-05-2004",
-          emailId: "asde12@gmail.com",
-          fullName: "Sudhir Das",
-          gender: "Male",
-          metadata: "student",
-          phoneNumber: "9856314752",
-          rollNo: "112",
-          parentEmail: "parentD1@gmail.com"
-        }
-      ];
+      fileName = "student_template.xlsx";
     } else if (norm === "teacher") {
-      headers = ["employeeCode", "fullName", "email", "phone", "qualification", "specialization", "experienceYears", "joiningDate", "metadata", "isActive"];
-      sampleData = [
-        {
-          employeeCode: "EMP0011",
-          fullName: "Ananya Sen",
-          email: "ananya.sen@gmail.com",
-          phone: "9876543210",
-          qualification: "M.Sc",
-          specialization: "Mathematics",
-          experienceYears: 5,
-          joiningDate: "2022-07-01",
-          metadata: "Assistante Teacher",
-          isActive: true
-        }
-      ];
+      fileName = "teachers_template.xlsx";
     } else {
-      headers = ["fullName", "email", "role", "department"];
-      sampleData = [
-        {
-          fullName: "John Doe",
-          email: "john@example.edu",
-          role: norm,
-          department: "Computer Science"
-        }
-      ];
+      toast.error(`No template available for role: ${role}`);
+      return;
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-    XLSX.writeFile(workbook, `gulum-${norm}-template.xlsx`);
+    const link = document.createElement("a");
+    link.href = `/templates/${fileName}`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
 
